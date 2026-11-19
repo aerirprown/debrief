@@ -1,0 +1,166 @@
+{
+  "moveBanner": {
+    "bodySignIn": "Inicia la sessió allà amb la teva frase de recuperació o amb «{{scanQr}}».",
+    "cta": "Trasllada ara",
+    "syncing": "S'estan sincronitzant les teves notes…",
+    "error": "Ara mateix no s'ha pogut sincronitzar tot. Comprova la connexió i torna-ho a provar.",
+    "conflict": "Una de les teves notes té un conflicte de sincronització que necessita la teva decisió. Resol-lo al diàleg i torna-ho a provar."
+  },
+  "movedHint": {
+    "body": "Aquesta és la nova casa de l'aplicació. Actualitza el marcador a use.privacynotes.app i torna a afegir les dreceres de la pantalla d'inici.",
+    "gotIt": "Entesos"
+  },
+  "moveScreen": {
+    "title": "L'aplicació s'ha traslladat a use.privacynotes.app",
+    "bodySignIn": "Inicia la sessió allà amb la teva frase de recuperació o amb «{{scanQr}}». Aquest dispositiu sincronitza primer, així que totes les teves notes t'hi esperen, i aquí no s'esborra res.",
+    "openNotes": "Obre les teves notes aquí un cop per resoldre-ho",
+    "showPhrase": "Mostra la meva frase de recuperació",
+    "website": "Explora el web en canvi"
+  },
+  "quota": {
+    "frozen": {
+      "configured": "Sincronització en pausa. Fa més de 90 dies que superes el límit d'emmagatzematge. Les teves notes són segures localment. Torna a subscriure't o exporta les teves dades.",
+      "unconfigured": "Sincronització en pausa. Fa més de 90 dies que superes el límit d'emmagatzematge. Les teves notes són segures localment. Exporta i retalla notes per reprendre la sincronització."
+    },
+    "grace": {
+      "configured_one": "L'emmagatzematge addicional ha caducat. Queda {{count}} dia per reduir l'ús o tornar a subscriure't abans que la sincronització es pausi.",
+      "configured_many": "L'emmagatzematge addicional ha caducat. Queden {{count}} dies per reduir l'ús o tornar a subscriure't abans que la sincronització es pausi.",
+      "configured_other": "L'emmagatzematge addicional ha caducat. Queden {{count}} dies per reduir l'ús o tornar a subscriure't abans que la sincronització es pausi.",
+      "unconfigured_one": "Has superat el límit d'emmagatzematge. Queda {{count}} dia per retallar notes abans que la sincronització es pausi.",
+      "unconfigured_many": "Has superat el límit d'emmagatzematge. Queden {{count}} dies per retallar notes abans que la sincronització es pausi.",
+      "unconfigured_other": "Has superat el límit d'emmagatzematge. Queden {{count}} dies per retallar notes abans que la sincronització es pausi."
+    },
+    "full": {
+      "configured": "Emmagatzematge ple. Algunes notes no s'han pogut sincronitzar. Allibera espai o afegeix més emmagatzematge.",
+      "unconfigured": "Emmagatzematge ple. Algunes notes no s'han pogut sincronitzar. Allibera espai retallant notes."
+    },
+    "manageStorage": "Gestiona l'emmagatzematge",
+    "viewUsage": "Mostra l'ús"
+  },
+  "syncError": {
+    "failed_one": "1 nota no s'ha pogut sincronitzar. Es tornarà a provar automàticament.",
+    "failed_many": "{{count}} notes no s'han pogut sincronitzar. Es tornaran a provar automàticament.",
+    "failed_other": "{{count}} notes no s'han pogut sincronitzar. Es tornaran a provar automàticament.",
+    "lastError": "Últim error: {{message}}"
+  },
+  "sessionExpired": {
+    "title": "La sessió ha caducat",
+    "body": "La teva sessió ha caducat. Les teves notes són segures en aquest dispositiu. Torna a iniciar la sessió per reprendre la sincronització.",
+    "signInAgain": "Torna a iniciar la sessió"
+  },
+  "signOutConfirm": {
+    "title": "Has desat la teva frase de recuperació?",
+    "body": "La teva frase és l'<only>única</only> manera de tornar a entrar. No hi ha restabliment per correu ni línia de suport. Si encara no l'has apuntada, toca <action>No, mostra la frase</action> i te l'obrirem ara mateix.",
+    "unsyncedWarn_one": "1 nota d'aquest dispositiu encara no s'ha sincronitzat. Es perdrà per sempre si no es pot pujar en tancar la sessió.",
+    "unsyncedWarn_many": "{{count}} notes d'aquest dispositiu encara no s'han sincronitzat. Es perdran per sempre si no es poden pujar en tancar la sessió.",
+    "unsyncedWarn_other": "{{count}} notes d'aquest dispositiu encara no s'han sincronitzat. Es perdran per sempre si no es poden pujar en tancar la sessió.",
+    "unsyncedKept_one": "1 nota d'aquest dispositiu encara no s'ha sincronitzat. Es queda en aquest dispositiu i se sincronitzarà quan tornis a iniciar la sessió.",
+    "unsyncedKept_many": "{{count}} notes d'aquest dispositiu encara no s'han sincronitzat. Es queden en aquest dispositiu i se sincronitzaran quan tornis a iniciar la sessió.",
+    "unsyncedKept_other": "{{count}} notes d'aquest dispositiu encara no s'han sincronitzat. Es queden en aquest dispositiu i se sincronitzaran quan tornis a iniciar la sessió.",
+    "unsyncedFilesWarn_one": "{{count}} fitxer d'aquest dispositiu no s'ha sincronitzat. Tancar la sessió l'elimina per sempre.",
+    "unsyncedFilesWarn_other": "{{count}} fitxers d'aquest dispositiu no s'han sincronitzat. Tancar la sessió els elimina per sempre.",
+    "dontRemind": "No m'ho tornis a recordar",
+    "showPhrase": "No, mostra la frase",
+    "confirm": "Sí, tanca la sessió",
+    "stay": "Mantén la sessió iniciada",
+    "signOutLose_one": "Tanca la sessió i perd {{count}} nota",
+    "signOutLose_other": "Tanca la sessió i perd {{count}} notes",
+    "signOutLoseFiles_one": "Tanca la sessió i perd {{count}} fitxer",
+    "signOutLoseFiles_other": "Tanca la sessió i perd {{count}} fitxers",
+    "signOutLoseBoth_one": "Tanca la sessió i perd {{count}} nota i {{files}}",
+    "signOutLoseBoth_other": "Tanca la sessió i perd {{count}} notes i {{files}}",
+    "fileCount_one": "{{count}} fitxer",
+    "fileCount_other": "{{count}} fitxers",
+    "neverBackedUp_one": "Només en aquest dispositiu:",
+    "neverBackedUp_other": "Només en aquest dispositiu:",
+    "moreNotes": "i {{count}} més",
+    "appLockHint": "Dispositiu compartit? Activa el bloqueig de l'app a Configuració > Seguretat."
+  },
+  "signOutUpload": {
+    "uploading": "S'estan pujant els teus últims canvis…",
+    "title": "Alguns canvis encara no s'han pujat",
+    "body": "Si tanques la sessió ara, es perdran els canvis fets en aquest dispositiu des de l'última sincronització. Connecta't a internet per conservar-los.",
+    "signOutAnyway": "Tanca la sessió igualment"
+  },
+  "burnShareModal": {
+    "title": "Comparteix amb Burn After Reading",
+    "body": "<lead>La teva nota original no se suprimirà.</lead> Es queda segura al teu compte. L'enllaç burn és una còpia xifrada a part que s'autodestrueix després de llegir-se.",
+    "readTime": "Temps de lectura",
+    "readTimeHint": "Després desapareix de la pantalla",
+    "lifetime": "L'enllaç caduca",
+    "lifetimeHint": "Si ningú l'obre",
+    "minutes_one": "{{count}} minut",
+    "minutes_other": "{{count}} minuts",
+    "hours_one": "{{count}} hora",
+    "hours_other": "{{count}} hores",
+    "afterHours_one": "Al cap de {{count}} hora",
+    "afterHours_other": "Al cap de {{count}} hores",
+    "afterDays_one": "Al cap de {{count}} dia",
+    "afterDays_other": "Al cap de {{count}} dies",
+    "create": "Crea i copia l'enllaç",
+    "share": "Comparteix l'enllaç",
+    "imagesStripped": "Només es mostra el text; els fitxers queden ocults en aquesta nota."
+  },
+  "burnView": {
+    "title": "Burn After Reading",
+    "tagline": "Xifrat. Efímer. Només per als teus ulls.",
+    "toggleTheme": "Canvia el tema",
+    "revealing": "S'està recuperant i desxifrant...",
+    "goToApp": "Vés a <brand/>",
+    "footerTagline": "- Notes xifrades, allotjades a Suïssa.",
+    "sealed": {
+      "heading": "Has rebut una nota xifrada.",
+      "subheading": "Aquest missatge s'autodestruirà després de llegir-lo. Els enllaços no llegits caduquen sols.",
+      "reveal": "Mostra el missatge",
+      "warning": "El servidor suprimeix la nota en el moment que la mostres. No hi ha segona oportunitat."
+    },
+    "revealed": {
+      "countdown": "El text en clar s'esborra d'aquí a {{time}}",
+      "clearNow": "Esborra'l ara",
+      "emptyNote": "(nota buida)",
+      "deletedNotice": "Aquesta còpia compartida s'ha suprimit del servidor. No es pot tornar a veure."
+    },
+    "destroyed": {
+      "heading": "Missatge destruït.",
+      "body": "Suprimit del servidor i esborrat de la memòria. Aquest missatge no es pot tornar a llegir."
+    },
+    "gone": {
+      "heading": "Aquesta nota ja no existeix.",
+      "body": "Ja s'ha llegit o ha caducat. Els enllaços burn només es poden obrir una vegada i caduquen sols."
+    },
+    "error": {
+      "heading": "Alguna cosa ha anat malament.",
+      "fallback": "Pot ser que l'enllaç estigui malmès o incomplet.",
+      "server": "Error del servidor. Pot ser que la nota ja s'hagi llegit o hagi caducat.",
+      "decryption": "El desxifratge ha fallat. Pot ser que l'enllaç estigui malmès.",
+      "network": "No s'ha pogut contactar amb el servidor. Comprova la connexió i torna-ho a provar."
+    },
+    "noPayload": {
+      "heading": "No s'ha trobat cap missatge.",
+      "body": "Aquest URL no conté cap referència a una nota burn. Assegura't de tenir l'enllaç complet."
+    }
+  },
+  "burnShare": {
+    "offline": "Ets fora de línia. Els enllaços burn requereixen una connexió amb el servidor. Torna-ho a provar quan tornis a estar en línia.",
+    "demo": "Els enllaços burn es desen en un servidor, i la demo no en contacta cap. Registra't per crear enllaços burn reals.",
+    "tooLarge": "La nota és massa gran per compartir-la amb un enllaç burn ({{size}}KB). El màxim és {{max}}KB.",
+    "storeFailed": "No s'ha pogut desar la nota burn al servidor.",
+    "rateLimited": "S'han creat massa enllaços burn des d'aquesta connexió. Torna-ho a provar més tard."
+  },
+  "dms": {
+    "returnTitle": "La còpia del servidor s'ha suprimit",
+    "returnBody_other": "El teu interruptor d'home mort va suprimir les teves notes del servidor el {{date}}. Aquest dispositiu encara té {{count}} notes. Baixa una còpia de seguretat si les vols conservar i després suprimeix-les d'aquest dispositiu.",
+    "returnBackup": "Baixa una còpia de seguretat",
+    "returnDelete": "Suprimeix d'aquest dispositiu",
+    "returnBody_one": "El teu interruptor d'home mort va suprimir les teves notes del servidor el {{date}}. Aquest dispositiu encara té {{count}} nota. Baixa una còpia de seguretat si la vols conservar i després suprimeix-la d'aquest dispositiu."
+  },
+  "massDelete": {
+    "title": "Notes suprimides en un altre dispositiu",
+    "body_other": "{{count}} notes que aquest dispositiu encara té han estat suprimides per tu o per un altre dels teus dispositius. Si has estat tu, suprimeix-les també aquí. Si no has estat tu, potser algú té accés al teu compte: conserva-les per tornar-les a posar a tots els teus dispositius.",
+    "refusedTitle": "Les teves notes han tornat",
+    "refusedBody_one": "{{count}} nota s'ha suprimit del servidor, però no l'ha suprimit cap dels teus dispositius. Aquest dispositiu no ha acceptat la supressió i ha tornat a posar la nota a tots els teus dispositius. Revisa els teus dispositius i elimina'n qualsevol que no coneguis.",
+    "refusedBody_other": "{{count}} notes s'han suprimit del servidor, però no les ha suprimit cap dels teus dispositius. Aquest dispositiu no ha acceptat la supressió i les ha tornat a posar a tots els teus dispositius. Revisa els teus dispositius i elimina'n qualsevol que no coneguis.",
+    "showDevices": "Mostra els dispositius",
+    "body_one": "{{count}} nota que aquest dispositiu encara té ha estat suprimida per tu o per un altre dels teus dispositius. Si has estat tu, suprimeix-la també aquí. Si no has estat tu, potser algú té accés al teu compte: conserva-la per tornar-la a posar a tots els teus dispositius."
+  }
+}

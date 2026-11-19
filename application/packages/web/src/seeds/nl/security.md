@@ -1,0 +1,52 @@
+---
+id: 5ec1
+title: Hoe je notities beschermd zijn
+---
+
+> [!info]- Elke notitie wordt op je apparaat versleuteld, voordat hij ergens wordt opgeslagen.
+> &nbsp;
+
+![De notitietabel in onze echte database. Elke notitie is één lang blok onleesbare tekst.](/onboarding/database.webp)
+
+Dat is onze echte database in Zürich, geen tekening ervan. Je notitie komt in de kolom `ciphertext`, welke optie je hieronder ook kiest. Daarnaast bewaren we alleen wat nodig is om de dienst te laten werken: je publieke sleutel, groottes, tijdstempels en het e-mailadres achter een login van Google, Apple of GitHub.
+
+## Wat er gebeurt als je een notitie schrijft
+
+1. Je herstelzin wordt een sleutel. Dat gebeurt op je apparaat.
+2. De notitie wordt met die sleutel versleuteld, op je apparaat. Zo wordt hij op je eigen schijf bewaard, en zo reist hij naar ons.
+3. Wij krijgen de versleutelde notitie en bewaren hem. De afbeelding hierboven laat zien hoe dat eruitziet.
+4. Elk apparaat met dezelfde herstelzin maakt dezelfde sleutel en opent de notitie.
+
+## Wie je sleutel heeft
+
+Elke optie houdt je notities versleuteld op je apparaat. Ze verschillen in waar je herstelzin ligt.
+
+| Optie | Waar je herstelzin ligt | Wat je ermee wint |
+| --- | --- | --- |
+| **Login, sleutel bij ons** | Op onze server, versleuteld | Een nieuw apparaat komt binnen met alleen dat account |
+| **Login, sleutel op je apparaat** | Bij jou, nergens anders | Aanmelden met Google, Apple of GitHub en toch de sleutel houden |
+| **Alleen herstelzin, geen login** | Bij jou, nergens anders | Geen e-mail, geen naam, helemaal geen account |
+
+De onderste twee zijn zero-knowledge: op onze server bestaat geen sleutel tot je notities, dus een gerechtelijk bevel kan ze niet openen. De eerste ruilt dat in voor gemak: je herstelzin staat op onze server onder een sleutel van ons, dus een nieuw apparaat heeft niets meer nodig dan je account. Als onze server ooit gekraakt wordt, kan die sleutel bloot komen te liggen.
+
+Aangemeld met Google, Apple of GitHub? Dan kun je later wisselen tussen de eerste twee, bij **Instellingen > Account > Sleutelbeheer**. Met een account met alleen een herstelzin blijft de herstelzin altijd bij jou.
+
+> [!warning] Houd zelf een kopie van je herstelzin
+> Je herstelzin opent je notities. Bij eigen beheer kan niemand een kwijtgeraakte herstelzin terughalen. <span style="color: #e03131">Schrijf hem vandaag op papier.</span>
+
+## Controleer het zelf
+
+[Uitgebreide controle-instructies op GitHub](https://github.com/LifetimeLabsHQ/PrivacyNotes.app/blob/main/VERIFY.md)
+
+- [ ] Open het netwerktabblad van je browser en pas dan een notitie aan. Kijk wat wij binnenkrijgen: één blok onleesbare tekst.
+- [ ] Lees de versleutelingscode. Hij is openbaar, en kort genoeg om in één keer uit te lezen.
+
+| Wat | Waar |
+| --- | --- |
+| De versleuteling zelf | [crypto.ts](https://github.com/LifetimeLabsHQ/PrivacyNotes.app/blob/main/crypto/crypto.ts) |
+| Wat onze server ontvangt | [VERIFY.md](https://github.com/LifetimeLabsHQ/PrivacyNotes.app/blob/main/VERIFY.md#tier-1-one-minute-no-tools) |
+| Wat een aanvaller wel en niet kan | [THREAT_MODEL.md](https://github.com/LifetimeLabsHQ/PrivacyNotes.app/blob/main/THREAT_MODEL.md) |
+| Hoe je een lek meldt | [SECURITY.md](https://github.com/LifetimeLabsHQ/PrivacyNotes.app/blob/main/SECURITY.md) |
+
+> [!info] Eén slot dekt alles
+> Notities, dagboeknotities, bladwijzers, kluisitems en bijlagen worden op dezelfde manier versleuteld. [[De verhuizing]] laat zien hoe je ze stuk voor stuk hierheen haalt.

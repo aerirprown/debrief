@@ -1,0 +1,14 @@
+{
+  "note_id": "note-phone-1",
+  "game_id": "game-phone-1",
+  "revision_id": "rev-note-1",
+  "parent_revision_id": null,
+  "device_id": "device-phone-fixture",
+  "containers": [
+    { "kind": "text", "id": "t1", "x": 20, "y": 20, "w": 240, "h": 80, "html": "boss timing" },
+    { "kind": "audio", "id": "a1", "x": 20, "y": 120, "w": 200, "h": 48, "src": "audio/memo-1.ogg" }
+  ],
+  "reminders": [
+    { "id": "rem-phone-1", "at": "2026-11-20T15:00:00Z", "label": "event ends", "container_id": "t1", "cleared": false }
+  ]
+}

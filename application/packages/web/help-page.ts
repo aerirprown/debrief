@@ -1,0 +1,2688 @@
+import { transformWithOxc, type Plugin } from 'vite';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { THEME_SCRIPT_TAG, THEME_TOGGLE_CSS, themeVarsCss, WASHI_DARK, WASHI_LIGHT } from './static-page-theme.ts';
+import { BRAND_CSS, brandMark, CHROME_CSS, TYPE_SCALE_CSS, languageMenu, OG_IMAGE_TAGS, ogLocaleTag, siteFooterFor, siteNav } from './static-page-chrome.ts';
+import { LOCALE_TO_SLUG, RTL_LOCALES, helpPath } from './src/localeRoutes.ts';
+import { FAQ_SOURCES, SOURCE_FILES, sourceUrl } from './src/faqSources.ts';
+import { relatedFaq } from './src/faqRelated.ts';
+import { PUBLISHED_DOCS, REPO_URL, docFiles, docMd, docSize, docSourceUrl, docUrl, docsIndexMd } from './publishedDocs.ts';
+import { VERSION } from './src/version.ts';
+import { hiddenFaqIds } from './src/cryptoRelease.ts';
+import { foldText } from './src/textFold.ts';
+import { SEARCH_CORE_SCRIPT_TAG } from './search-core-script.ts';
+import { LANDING_PAGES_PUBLIC } from './landing-pages.ts';
+import { LANGUAGE_META } from './src/languageData.tsx';
+import { MENU_PATH_CSS, loadPathVocab, markPaths, restorePaths, type pathVocab } from './help-path-vocab.mjs';
+
+// Pre-renders the static Help center (formerly /faq; worker.ts 301s the
+// old URLs), once per locale, as a three-layer hybrid:
+//
+//  1. The HUB (/help, /de/help, ...): every FAQ entry on one page with
+//     live search, the topic rail, native <details>, and a strip linking
+//     the import guides. The page users browse.
+//  2. One FAQ LEAF per entry (/help/<id>, /de/help/<id>, ...): a
+//     focused landing page whose <title>, H1, and meta description are
+//     the question itself. The pages search engines rank for long-tail
+//     queries; "copy link" on the hub hands out leaf URLs.
+//  3. IMPORT GUIDES (/help/import/<app>): step-by-step export+import
+//     tutorials per source app. English-only for now: a guide page is
+//     only emitted when the guides catalog contains it, so a missing
+//     translation can never publish a wrong-language page.
+//
+// Duplicate-content stance: hub, leaves, and guides are all
+// SELF-canonical. A leaf->hub canonical would tell Google to drop the
+// leaves (pointless); the hub is a structurally different document (a
+// collection with its own title/description) rather than a copy of any
+// one leaf. Distinct titles + H1s + descriptions per URL, crawl paths
+// via the hub's per-entry permalink anchors, the guide strip, and each
+// leaf's related-questions list, plus sitemap-help.xml. Every page
+// carries the full hreflang cluster for its own URL shape; English is
+// always the x-default.
+//
+// FAQ strings live in src/locales/<lng>/faq.json (namespace `faq`, also
+// read by the in-app FAQ tab), guide strings in
+// src/locales/<lng>/guides.json (namespace `guides`); structure comes
+// from src/faq.ts and src/guides.ts. FAQ entries missing from a target
+// locale fall back to English per entry. The language switcher reuses
+// the homepage's pieces: names + flags from src/languageData.tsx
+// (rendered via react-dom/server) and the langSuggest.* strings from
+// src/locales/<lng>/settings.json for the "View in <language>" banner.
+//
+// CSP: no inline scripts (script-src 'self'). Interactivity ships in
+// /static-pages.js; every page renders complete without it. The JSON-LD
+// blocks are inert data and unaffected by the CSP.
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const FAQ_SRC = path.resolve(__dirname, 'src/faq.ts');
+const GUIDES_SRC = path.resolve(__dirname, 'src/guides.ts');
+const HOTKEYS_SRC = path.resolve(__dirname, 'src/hotkeysData.ts');
+const COMMAND_KEYS_SRC = path.resolve(__dirname, 'src/commandKeys.ts');
+const LOCALES_DIR = path.resolve(__dirname, 'src/locales');
+const ORIGIN = 'https://privacynotes.app';
+
+/** Locales with static Help pages. English first: it is the fallback. */
+const HELP_LOCALES = ['en', 'de', 'fr', 'it', 'es', 'nl', 'pl', 'pt-PT', 'pt-BR', 'ja', 'ko', 'zh-TW', 'ca', 'cs', 'sk', 'tr', 'sv', 'ar', 'uk', 'ru', 'th'] as const;
+type HelpLocale = (typeof HELP_LOCALES)[number];
+
+/** `dir="rtl"` for RTL locales, empty string otherwise - splice straight into `<html lang="${locale}"${htmlDir(locale)}>`. */
+const htmlDir = (locale: string): string =>
+  (RTL_LOCALES as readonly string[]).includes(locale) ? ' dir="rtl"' : '';
+
+/** URL prefix per locale: '' for English (apex /help), '/de' etc. otherwise. */
+function localePrefix(locale: HelpLocale): string {
+  return locale === 'en' ? '' : LOCALE_TO_SLUG[locale];
+}
+
+/** FAQ leaf path, e.g. /de/help/lost-phrase (no trailing slash: canonical form). */
+function leafPath(locale: HelpLocale, id: string): string {
+  return `${helpPath(locale)}/${id}`;
+}
+
+/** Import-guide path, e.g. /de/help/import/google-keep (no trailing slash). */
+function guidePath(locale: HelpLocale, id: string): string {
+  return `${helpPath(locale)}/import/${id}`;
+}
+
+/**
+ * The printable hotkey cheat sheet, nested under the keyboard-shortcuts
+ * FAQ leaf. ENGLISH-ONLY by design (i18n tier policy, like /roadmap and
+ * /brand): one URL, one fixed A4 layout that translated label lengths can
+ * never break - decided 2026-08-21. Canonicalizes AT the English leaf:
+ * the sheet is a print-formatted view of the same list, so it stays out
+ * of the sitemaps and the leaf keeps the search ranking (check-sitemap.mjs
+ * accepts an emitted page whose canonical points elsewhere). Measured
+ * 2026-08-26 and the stance held: the sheet carries 86 key caps and 272
+ * words, the leaf carries 87 and 798, so indexing the sheet would field a
+ * thinner near-duplicate against the richer page.
+ *
+ * It gets no hreflang FOR THE SAME REASON. hreflang is only read on a
+ * self-canonical page, so a cluster here would be inert and would come back
+ * from Search Console as "alternate page with proper canonical tag". Its
+ * Open Graph tags are a separate question and it does have those: the sheet
+ * is linked from the footer and the About modal, so it gets shared.
+ */
+function cheatSheetPath(): string {
+  return `${leafPath('en', 'keyboard-shortcuts')}/cheat-sheet`;
+}
+
+type FaqGroupKey = string;
+type FaqStructureRow = { id: string; group: FaqGroupKey };
+type FaqCatalog = {
+  page: Record<string, string>;
+  groups: Record<FaqGroupKey, string>;
+  entries: Record<string, { q: string; a: string[] }>;
+};
+type GuideImg = { src: string; alt: string; width: number; height: number };
+type GuideSection = { h?: string; p?: string[]; steps?: string[]; img?: GuideImg };
+type Guide = { app: string; title: string; metaTitle: string; lead: string; sections: GuideSection[] };
+type GuidesCatalog = {
+  page: { importTitle: string; importSteps: string[]; otherGuides: string };
+  guides: Record<string, Guide>;
+};
+/** Mirrors HotkeyGroup in src/hotkeysData.ts (evaluated with src/commandKeys.ts). */
+type HotkeyRowData = { commands: string[]; range?: boolean; label: string; i18nKey: string };
+type HotkeyGroupData = {
+  title: string;
+  i18nKey: string;
+  rows: HotkeyRowData[];
+};
+type KeyOs = 'mac' | 'pc';
+type CapRun = string[] | '/' | '–';
+/** The row formatter of src/hotkeysData.ts, the one the app uses. */
+let rowCaps: (row: HotkeyRowData, os: KeyOs, desktop: boolean, firstOnly?: boolean) => CapRun[] = () => [];
+/** The drawing canvas's keys (DRAWING_HOTKEY_GROUPS), the sheet's third set:
+ *  their own page, so each printout stays one A4 sheet. */
+let drawingHotkeyGroups: HotkeyGroupData[] = [];
+
+// Transpile a self-contained TS module (no imports) with Oxc and
+// import it as a data-URL ES module to pull out its exports.
+async function evalModule(file: string, ...before: string[]): Promise<Record<string, unknown>> {
+  // A module that imports a sibling (the help rows import the key list) is
+  // evaluated with that sibling's source in front and its import removed.
+  const src = [...before, file]
+    .map((f) => fs.readFileSync(f, 'utf8').replace(/^import [^;]* from '\.\/[^']+';$/gm, ''))
+    .join('\n');
+  const { code } = await transformWithOxc(src, file, { lang: 'ts' });
+  return (await import(
+    'data:text/javascript;base64,' + Buffer.from(code).toString('base64')
+  )) as Record<string, unknown>;
+}
+
+async function loadStructure(): Promise<{
+  order: FaqGroupKey[];
+  rows: FaqStructureRow[];
+  guideOrder: string[];
+  hotkeyGroups: HotkeyGroupData[];
+}> {
+  const faq = await evalModule(FAQ_SRC);
+  const guides = await evalModule(GUIDES_SRC);
+  const hotkeys = await evalModule(HOTKEYS_SRC, COMMAND_KEYS_SRC);
+  rowCaps = hotkeys.rowCaps as typeof rowCaps;
+  drawingHotkeyGroups = hotkeys.DRAWING_HOTKEY_GROUPS as HotkeyGroupData[];
+  return {
+    order: faq.FAQ_GROUP_ORDER as FaqGroupKey[],
+    rows: (faq.FAQ_STRUCTURE as FaqStructureRow[]).filter((r) => !hiddenFaqIds().includes(r.id)),
+    guideOrder: guides.GUIDE_ORDER as string[],
+    hotkeyGroups: hotkeys.HOTKEY_GROUPS as HotkeyGroupData[],
+  };
+}
+
+function readCatalog(locale: HelpLocale): FaqCatalog | null {
+  const file = path.join(LOCALES_DIR, locale, 'faq.json');
+  if (!fs.existsSync(file)) return null;
+  return JSON.parse(fs.readFileSync(file, 'utf8')) as FaqCatalog;
+}
+
+function readGuides(locale: HelpLocale): GuidesCatalog | null {
+  const file = path.join(LOCALES_DIR, locale, 'guides.json');
+  if (!fs.existsSync(file)) return null;
+  return JSON.parse(fs.readFileSync(file, 'utf8')) as GuidesCatalog;
+}
+
+/**
+ * Guides catalog with the same fallback discipline as the FAQ: page
+ * strings per key, whole guides atomically.
+ */
+function loadGuides(locale: HelpLocale, en: GuidesCatalog | null): GuidesCatalog | null {
+  if (!en) return null;
+  if (locale === 'en') return en;
+  const loc = readGuides(locale);
+  if (!loc) return en;
+  const guides: GuidesCatalog['guides'] = {};
+  for (const [id, enGuide] of Object.entries(en.guides)) {
+    const cand = loc.guides?.[id];
+    guides[id] =
+      cand && cand.app && cand.title && cand.lead && Array.isArray(cand.sections) && cand.sections.length > 0
+        ? cand
+        : enGuide;
+  }
+  return { page: { ...en.page, ...(loc.page ?? {}) }, guides };
+}
+
+/**
+ * Locale catalog with English fallback. Page/group strings fall back per
+ * key; entries fall back atomically (never an English answer under a
+ * translated question, or vice versa).
+ */
+function loadCatalog(locale: HelpLocale, en: FaqCatalog): FaqCatalog {
+  if (locale === 'en') return en;
+  const loc = readCatalog(locale);
+  if (!loc) return en;
+  const entries: FaqCatalog['entries'] = {};
+  for (const [id, enEntry] of Object.entries(en.entries)) {
+    const cand = loc.entries?.[id];
+    entries[id] =
+      cand && cand.q && Array.isArray(cand.a) && cand.a.length > 0 ? cand : enEntry;
+  }
+  return {
+    page: { ...en.page, ...(loc.page ?? {}) },
+    groups: { ...en.groups, ...(loc.groups ?? {}) },
+    entries,
+  };
+}
+
+/**
+ * "View in <language>" strings for the suggestion banner, reusing the
+ * app's own langSuggest.* keys from settings.json (LanguageSuggest.tsx),
+ * pre-interpolated with each language's endonym. Baked into a data
+ * attribute so static-pages.js can label the banner in the SUGGESTED
+ * language, exactly like the homepage banner.
+ */
+function suggestStrings(): Record<string, { action: string; dismiss: string }> {
+  const out: Record<string, { action: string; dismiss: string }> = {};
+  for (const locale of HELP_LOCALES) {
+    let action = 'View in {{lang}}';
+    let dismiss = 'Dismiss';
+    try {
+      const s = JSON.parse(
+        fs.readFileSync(path.join(LOCALES_DIR, locale, 'settings.json'), 'utf8')
+      ) as { langSuggest?: { action?: string; dismiss?: string } };
+      action = s.langSuggest?.action ?? action;
+      dismiss = s.langSuggest?.dismiss ?? dismiss;
+    } catch {
+      /* fall back to English wording */
+    }
+    out[locale] = {
+      action: action.replace('{{lang}}', LANGUAGE_META[locale]?.native ?? locale),
+      dismiss,
+    };
+  }
+  return out;
+}
+
+function esc(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/**
+ * The menu path vocabulary per locale, from the same code as
+ * `pnpm check:help-paths`, so a path is drawn exactly as far as the gate
+ * reads it. Built once per locale per render pass; `resetPathVocab` drops it
+ * so the dev server picks up an edited catalog.
+ */
+const pathVocabs = new Map<string, PathVocab | null>();
+type PathVocab = NonNullable<ReturnType<typeof pathVocab>>;
+
+function resetPathVocab(): void {
+  pathVocabs.clear();
+}
+
+function pathVocabFor(locale: HelpLocale): PathVocab | null {
+  if (!pathVocabs.has(locale)) pathVocabs.set(locale, loadPathVocab(path.resolve(__dirname, 'src'), locale));
+  return pathVocabs.get(locale) ?? null;
+}
+
+function markLocalePaths(s: string, locale: HelpLocale, drawn: string[]): string {
+  let v = pathVocabFor(locale);
+  // An entry not translated yet falls back to English text, which names the
+  // English menus.
+  if (locale !== 'en' && v && !s.includes(`${v.anchor} > `)) {
+    v = pathVocabFor('en');
+    locale = 'en';
+  }
+  return markPaths(s, v, locale, drawn);
+}
+
+// Converts the markups the catalogs support into HTML: [text](url) links,
+// **bold** and `code`. External links open a new tab; same-site paths
+// navigate in place. Bold exists for one job - naming a real UI label
+// inside an answer ("**Save to my notes**") - so keep it to that.
+// The .md twins carry the markups through unchanged, which is why the
+// syntax is markdown rather than anything of our own. With a `locale`, our
+// own menu paths are drawn as breadcrumbs too (pathHtml); a per-app guide
+// passes none for the steps that walk the OTHER app's menus.
+function renderInline(s: string, locale?: HelpLocale): string {
+  const drawn: string[] = [];
+  const marked = locale ? markLocalePaths(s, locale, drawn) : s;
+  const html = esc(marked)
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) =>
+      url.startsWith('/')
+        ? `<a href="${url}">${text}</a>`
+        : `<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>`
+    )
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
+  return restorePaths(html, drawn);
+}
+
+/**
+ * A whole paragraph wrapped in backticks is a value the reader has to move
+ * somewhere else by hand - an Obtainium source URL, and nothing else so far.
+ * It renders as a bordered monospace row with a Copy button rather than as
+ * prose, because a URL buried mid-sentence on a phone is selected wrong far
+ * more often than it is selected right.
+ *
+ * Deliberately paragraph-level, not an inline `code` span: the markup marks
+ * a value to be TAKEN, so it must own its line to be worth a button. The .md
+ * twins and the llms text layer carry the backticks through untouched, where
+ * they already mean exactly this.
+ */
+const CODE_PARA = /^`([^`]+)`$/;
+
+/**
+ * A paragraph whose every line starts with "- " is a list: one row per line,
+ * rendered as a borderless definition table rather than as prose. It exists
+ * for a set the reader scans to find their own row - the per-platform storage
+ * paths - where a sentence makes every reader read four answers that are not
+ * theirs. Single backticks inside a row mark a literal path or value.
+ *
+ * The .md twins and the llms text layer carry the dashes through untouched,
+ * where they already mean a list, and stripMd drops the markers for the text
+ * surfaces (JSON-LD, meta descriptions, the search haystack).
+ * // Spec: docs/contrib/help-center.md (the template)
+ */
+
+/**
+ * A whole paragraph that is one linked image is a badge: today the Obtainium
+ * one, which adds PrivacyNotes to a reader's phone in a tap. It renders as a
+ * plain tappable image rather than as prose, because a store badge already IS
+ * the button, and a reader looking for the install route finds a shape they
+ * know faster than they find a sentence.
+ *
+ * Standard markdown on purpose, exactly like the two inline markups: the .md
+ * twins and llms-full.txt carry `[![alt](src)](href)` through `absoluteLinks`
+ * untouched, where an image inside a link means precisely this, and where the
+ * relative src comes out absolute for free.
+ */
+const BADGE_PARA = /^\[!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\)$/;
+
+/**
+ * Intrinsic size for that badge, as a constant rather than as syntax in the
+ * catalogs: every badge we ship is the Obtainium one at its own 3.36:1 shape,
+ * and a reader on a slow connection still gets the box reserved before the
+ * image lands. A second badge of another shape is the moment to widen the
+ * markup, not the moment to guess.
+ * // Spec: docs/internal/packaging/obtainium/README.md (the badge)
+ */
+const BADGE_W = 161;
+const BADGE_H = 48;
+
+/**
+ * A whole paragraph that is one link to a FILE is a download button.
+ *
+ * The same idea as the badge above: a reader looking for a file finds a shape
+ * they know faster than they find a sentence, and an example note buried
+ * mid-paragraph reads as a reference rather than as something to fetch. The
+ * `download` attribute matters as much as the look: a `.md` file is served as
+ * text, so a plain link opens it in the tab instead of saving it, and the
+ * reader then has nothing to import.
+ *
+ * The href must name a file, which is what keeps an ordinary one-link
+ * paragraph (a `/help/<id>` pointer) out of it. Standard markdown on
+ * purpose, like the other rows, so the .md twins and llms-full.txt carry it
+ * through as a link and `stripMd` reduces it to its label.
+ * // Spec: docs/contrib/help-center.md (the template)
+ */
+const DOWNLOAD_PARA = /^\[([^\]]+)\]\((\/[^)\s]+\.[a-z0-9]{2,4})\)$/;
+
+/**
+ * One answer paragraph: prose, the badge above, or the copy row above.
+ * `askCopyShort` and `askCopied` are reused rather than adding a label of its
+ * own, so a new copy row never costs a 17-locale batch.
+ */
+function renderParagraph(par: string, p: Record<string, string>, locale: HelpLocale): string {
+  const badge = BADGE_PARA.exec(par.trim());
+  if (badge) {
+    const [, alt, src, href] = badge;
+    return `<a class="bdg" href="${esc(href)}" target="_blank" rel="noopener noreferrer"><img src="${esc(src)}" alt="${esc(alt)}" width="${BADGE_W}" height="${BADGE_H}" loading="lazy"></a>`;
+  }
+  const file = DOWNLOAD_PARA.exec(par.trim());
+  if (file) {
+    const [, label, href] = file;
+    return `<a class="dlb" href="${esc(href)}" download><span class="ic">${icon(DOWNLOAD_PATH, 14)}</span><span class="lbl">${esc(label)}</span></a>`;
+  }
+  const lines = par.trim().split('\n');
+  if (lines.length > 1 && lines.every((l) => l.startsWith('- '))) {
+    const items = lines.map((l) => `<li>${renderInline(l.slice(2), locale)}</li>`).join('');
+    return `<ul class="lst">${items}</ul>`;
+  }
+  const code = CODE_PARA.exec(par.trim());
+  if (!code) return `<p>${renderInline(par, locale)}</p>`;
+  return `<div class="cbx"><code>${esc(code[1])}</code><button class="btn-ok js-cbx-copy" type="button" data-copied="${esc(p.askCopied)}" hidden><span class="ic ic-copy">${icon(COPY_PATH, 13)}</span><span class="ic ic-done">${icon(CHECK_PATH, 13)}</span><span class="lbl">${esc(p.askCopyShort)}</span></button></div>`;
+}
+
+/** Links, bold and code to plain text, for JSON-LD, descriptions, haystacks. */
+function stripMd(s: string): string {
+  return s
+    .replace(/\[!\[([^\]]*)\]\([^)]+\)\]\([^)]+\)/g, '$1')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^- /gm, '');
+}
+
+/**
+ * Same-site links in the catalogs are relative (`/help/remove-device`),
+ * which is right inside a page and ambiguous inside a standalone .md file
+ * an agent fetched on its own. Absolutize them so every link resolves
+ * without the reader knowing where the file came from.
+ */
+function absoluteLinks(s: string): string {
+  return s.replace(/\]\((\/[^)]*)\)/g, `](${ORIGIN}$1)`);
+}
+
+/** The haystack for the client-side search, folded as the app folds text. */
+function normalize(s: string): string {
+  return foldText(stripMd(s));
+}
+
+/** One entry's question and answer, as the hub filter and the leaf search read it. */
+function entryHaystack(e: { q: string; a: string[] }): string {
+  return normalize(`${e.q} ${e.a.join(' ')}`);
+}
+
+/** Excerpt for a meta description (~155 chars, word boundary). */
+function excerpt(text: string): string {
+  const plain = stripMd(text);
+  if (plain.length <= 155) return plain;
+  const cut = plain.slice(0, 155);
+  // Trim to a word boundary, but only when there IS one near the end. Japanese
+  // and Chinese write no spaces, so the last space in a CJK excerpt sits after
+  // whatever Latin fragment happens to appear first, and the trim collapsed the
+  // whole description: the ja burn-notes page shipped a 7-character "burn...".
+  // Below the threshold the hard cut wins, which is what a CJK reader expects
+  // anyway. English is unaffected: its last space is almost always past 140.
+  const space = cut.lastIndexOf(' ');
+  return `${space > 120 ? cut.slice(0, space) : cut}...`;
+}
+
+function fill(template: string, vars: Record<string, string | number>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, k) => String(vars[k] ?? ''));
+}
+
+type Section = { key: FaqGroupKey; label: string; entries: { id: string; q: string; a: string[] }[] };
+
+function buildSections(order: FaqGroupKey[], rows: FaqStructureRow[], cat: FaqCatalog): Section[] {
+  return order
+    .map((key) => ({
+      key,
+      label: cat.groups[key] ?? key,
+      entries: rows
+        .filter((r) => r.group === key)
+        .map((r) => ({ id: r.id, ...cat.entries[r.id] }))
+        .filter((e) => e.q && e.a?.length),
+    }))
+    .filter((s) => s.entries.length > 0);
+}
+
+type RailItem = { href: string; label: string; count?: number; on?: boolean; search?: string; icon?: string };
+
+function railRows(items: RailItem[], cls: string): string {
+  return items
+    .map(
+      (it) =>
+        `<a class="ritem ${cls}${it.on ? ' on' : ''}" href="${it.href}"${it.search ? ` data-s="${esc(it.search)}"` : ''}>${it.icon ?? ''}<span class="rlbl">${esc(it.label)}</span>${it.count != null ? `<span class="rct">${it.count}</span>` : ''}</a>`
+    )
+    .join('\n');
+}
+
+/**
+ * The published documents, as rail rows.
+ *
+ * The file names rather than one row saying "GitHub", because the file
+ * names are the claim: a reader deciding whether this project is worth
+ * trusting learns more from seeing THREAT_MODEL.md listed than from any
+ * sentence we could write about it. They sit between the topics and the
+ * import guides, since somebody who wants a threat model will not scroll
+ * past a column of importer logos to find one.
+ *
+ * The rows point at GitHub, never at the plain-text copies this site
+ * serves for assistants: a person who clicks a row wants the repository,
+ * with its history, its issues and the code beside the prose.
+ *
+ * The rail is labelled "Documentation" and NOT "Read the source", which is
+ * the per-answer block's label, because a leaf page carries both and two
+ * identical headings on one page describe two different scopes: the block
+ * is the evidence for THAT answer, the rail is every document there is.
+ * Its own key, so it can be a noun in each language the way "Topics" and
+ * "Import guides" beside it are.
+ *
+ * `rs` rather than `rt`, so static-pages.js leaves them out of the search
+ * filter and the scroll-spy. Neither applies: these rows are not sections
+ * of the page below them.
+ */
+function sourceRailRows(): string {
+  return PUBLISHED_DOCS.map(
+    (d) =>
+      `<a class="ritem rs" href="${docSourceUrl(d)}" target="_blank" rel="noopener noreferrer">${GITHUB_MARK_SM}<span class="rlbl rlbl-mono" dir="auto">${esc(d.published.split('/').pop() ?? d.published)}</span></a>`
+  ).join('\n');
+}
+
+/**
+ * The unified sidebar shown on EVERY Help view (hub, FAQ leaves, guides):
+ * the FAQ topics on top, the published documents next, the import guides
+ * beneath. Topic rows carry the `rt` class so static-pages.js can scope
+ * search-filtering and the scroll-spy to them without touching the rest.
+ */
+function renderSidebar(opts: {
+  topicsLabel: string;
+  topics: RailItem[];
+  guidesLabel: string;
+  guideItems: RailItem[];
+  sourcesLabel: string;
+  sourcesNote: string;
+  homeHref: string;
+  homeLabel: string;
+  id?: string;
+}): string {
+  const sourcesNav = `<nav class="rail rail-sources" aria-label="${esc(opts.sourcesLabel)}">
+<p class="eyebrow rail-sep">// ${esc(opts.sourcesLabel)}</p>
+${sourceRailRows()}
+<p class="rail-note">${esc(opts.sourcesNote)}</p>
+</nav>`;
+  const guidesNav = opts.guideItems.length
+    ? `<nav class="rail rail-guides" aria-label="${esc(opts.guidesLabel)}">
+<p class="eyebrow rail-sep">// ${esc(opts.guidesLabel)}</p>
+${railRows(opts.guideItems, 'rg')}
+</nav>`
+    : '';
+  // Three navs inside one column so mobile can split them: topics up under
+  // the breadcrumb, the documents and the import guides below the article.
+  // The home row is the one rail entry that is never a filter target: on a
+  // leaf it walks back to the hub, on the hub it drops an active query.
+  const homeRow = `<a class="ritem rhome" href="${opts.homeHref}">${RAIL_HOME_ICON}<span class="rlbl">${esc(opts.homeLabel)}</span></a>`;
+  return `<div class="rail-col"${opts.id ? ` id="${opts.id}"` : ''}>
+<nav class="rail rail-topics" aria-label="${esc(opts.topicsLabel)}">
+<p class="eyebrow">// ${esc(opts.topicsLabel)}</p>
+${homeRow}
+${railRows(opts.topics, 'rt')}
+</nav>
+${sourcesNav}
+${guidesNav}
+</div>`;
+}
+
+function topicRailItems(sections: Section[], hrefOf: (key: FaqGroupKey) => string, activeKey?: FaqGroupKey): RailItem[] {
+  return sections.map((s) => ({
+    href: hrefOf(s.key),
+    label: s.label,
+    count: s.entries.length,
+    on: s.key === activeKey,
+    icon: topicIcon(s.key),
+  }));
+}
+
+function guideRailItems(locale: HelpLocale, guideOrder: string[], guides: GuidesCatalog | null, activeId?: string): RailItem[] {
+  if (!guides) return [];
+  return guideOrder
+    .filter((id) => guides.guides[id]?.app)
+    .map((id) => {
+      const g = guides.guides[id];
+      const icon = guideIconHref(id);
+      return {
+        href: guidePath(locale, id),
+        label: g.app,
+        on: id === activeId,
+        // Lets the hub search keep matching guides visible (e.g. a query
+        // like "takeout" that only appears in the Google Keep guide).
+        search: normalize(`${g.app} ${g.title} ${g.lead}`),
+        // Neutral chip behind the colorful app logo so light and dark
+        // logos both sit comfortably on either theme.
+        icon: icon
+          ? `<span class="ichip"><img src="${icon}" width="18" height="18" alt="" loading="lazy"></span>`
+          : guideGlyph(id, 18)
+            ? `<span class="ichip">${guideGlyph(id, 18)}</span>`
+            : undefined,
+      };
+    });
+}
+
+function renderSections(
+  sections: Section[],
+  locale: HelpLocale,
+  cat: FaqCatalog
+): string {
+  const openLabel = cat.page.openAnswer;
+  return sections
+    .map((s) => {
+      const entries = s.entries
+        .map((e) => {
+          // Same as the leaves: the showcase entry renders its demo section
+          // inside the answer.
+          const paragraphs = e.a.map((par) => renderParagraph(par, cat.page, locale)).join('');
+          const extra = entryShowcase(e.id, cat.page);
+          const hay = entryHaystack(e);
+          const leaf = leafPath(locale, e.id);
+          return `<details class="entry" id="${esc(e.id)}" data-s="${esc(hay)}" data-leaf="${leaf}">
+<summary><span class="q">${esc(e.q)}</span><span class="chev" aria-hidden="true"></span></summary>
+<div class="a">${paragraphs}${extra}<div class="a-acts"><a class="a-act" href="${leaf}">${OPEN_ICON}<span>${esc(openLabel)}</span></a></div></div>
+</details>`;
+        })
+        .join('\n');
+      return `<section class="fgroup" id="g-${esc(s.key)}">
+<h2 class="eyebrow">// ${esc(s.label)}</h2>
+${entries}
+</section>`;
+    })
+    .join('\n');
+}
+
+/** Phosphor bold paths, inlined like TOPIC_ICON above. Sparkle, ShieldCheck, Copy, Check. */
+const SPARKLE_PATH =
+  'M199,125.31l-49.88-18.39L130.69,57a19.92,19.92,0,0,0-37.38,0L74.92,106.92,25,125.31a19.92,19.92,0,0,0,0,37.38l49.88,18.39L93.31,231a19.92,19.92,0,0,0,37.38,0l18.39-49.88L199,162.69a19.92,19.92,0,0,0,0-37.38Zm-63.38,35.16a12,12,0,0,0-7.11,7.11L112,212.28l-16.47-44.7a12,12,0,0,0-7.11-7.11L43.72,144l44.7-16.47a12,12,0,0,0,7.11-7.11L112,75.72l16.47,44.7a12,12,0,0,0,7.11,7.11L180.28,144ZM140,40a12,12,0,0,1,12-12h12V16a12,12,0,0,1,24,0V28h12a12,12,0,0,1,0,24H188V64a12,12,0,0,1-24,0V52H152A12,12,0,0,1,140,40ZM252,88a12,12,0,0,1-12,12h-4v4a12,12,0,0,1-24,0v-4h-4a12,12,0,0,1,0-24h4V72a12,12,0,0,1,24,0v4h4A12,12,0,0,1,252,88Z';
+const SHIELD_PATH =
+  'M208,36H48A20,20,0,0,0,28,56v56c0,54.29,26.32,87.22,48.4,105.29,23.71,19.39,47.44,26,48.44,26.29a12.1,12.1,0,0,0,6.32,0c1-.28,24.73-6.9,48.44-26.29,22.08-18.07,48.4-51,48.4-105.29V56A20,20,0,0,0,208,36Zm-4,76c0,35.71-13.09,64.69-38.91,86.15A126.28,126.28,0,0,1,128,219.38a126.14,126.14,0,0,1-37.09-21.23C65.09,176.69,52,147.71,52,112V60H204ZM79.51,144.49a12,12,0,1,1,17-17L112,143l47.51-47.52a12,12,0,0,1,17,17l-56,56a12,12,0,0,1-17,0Z';
+
+const COPY_PATH =
+  'M216,28H88A12,12,0,0,0,76,40V76H40A12,12,0,0,0,28,88V216a12,12,0,0,0,12,12H168a12,12,0,0,0,12-12V180h36a12,12,0,0,0,12-12V40A12,12,0,0,0,216,28ZM156,204H52V100H156Zm48-48H180V88a12,12,0,0,0-12-12H100V52H204Z';
+const CHECK_PATH =
+  'M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z';
+const DOWNLOAD_PATH =
+  'M228,144v64a12,12,0,0,1-12,12H40a12,12,0,0,1-12-12V144a12,12,0,0,1,24,0v52H204V144a12,12,0,0,1,24,0ZM119.51,152.49a12,12,0,0,0,17,0l40-40a12,12,0,0,0-17-17L140,115V32a12,12,0,0,0-24,0v83L96.49,95.51a12,12,0,0,0-17,17Z';
+
+/** Arrow into the answer's own page, drawn like LINK_ICON (24px grid, 2px stroke). */
+const OPEN_ICON = `<svg data-ic viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>`;
+
+/** One inline glyph, same shape as topicIcon. */
+function icon(d: string, size: number): string {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="${d}"/></svg>`;
+}
+
+/**
+ * The prompt the "Ask an AI" box copies. English, and deliberately not in
+ * the locale catalogs: it is an instruction to a model, not UI copy, and
+ * models follow English instructions more reliably than a translation of
+ * them. The language rule makes the model answer in the reader's language,
+ * so a German reader pastes this and gets German back.
+ *
+ * That rule names the QUESTION as the signal, and it has to. "Reply in my
+ * language" reads as a fact about the person rather than about the text in
+ * front of the model, so a model with any other hint - a region, an
+ * account, a stored preference - is free to prefer it over the words it was
+ * actually sent. One did: an English question about the cipher, answered
+ * out of an English page, came back in German. The language of the question
+ * is the one signal that is always present and never wrong.
+ *
+ * The help URL carries the reader's locale slug: the model shows
+ * that link to a person who then clicks it. /llms-full.txt stays bare -
+ * it is one English file, not a marketing page with locale variants.
+ *
+ * SHORT ON PURPOSE, and it must stay short. Four rounds of tuning taught the
+ * lesson the hard way: every failure tempted us to add a rule, each rule
+ * added surface to misread, and one of them caused the next failure - naming
+ * an internal marker got "Cite as:" echoed verbatim in front of readers. The
+ * behaviour that actually stuck came from the FILES, not from prose: a
+ * "Source:" line beside every answer fixed citations after three prompt
+ * rewrites could not. So when an assistant gets something wrong here, change
+ * what the files say and leave this alone. One rule per job, no more.
+ *
+ * The one exception is SCOPE, which is why /changelog.md and /docs/index.md
+ * are named here rather than only in the data. A behaviour fix belongs in the
+ * data; a permission does not. The first line and rule 1 together tell the
+ * model what it is allowed to read, so a pointer living only inside
+ * llms-index.txt asks the DATA to widen a boundary the READER set, which is
+ * the shape a careful model is right to refuse. Each grant costs one word in
+ * the first line and one addressed line below, and no new rule: everything
+ * the address block names is already covered by "Use only those pages".
+ *
+ * The documentation line names the INDEX and nothing else. The published
+ * documents run to about 13,000 tokens together, so a model handed every URL
+ * with no way to choose reads all of them or none; /docs/index.md lists the
+ * sections of each, and the choice happens there for the price of 2 KB.
+ *
+ * It also says the index is a router, which is the one citation instruction
+ * that cannot live in the data. Every other misquote is fixed by changing
+ * what a file says, because a model cites what it fetched. This one is the
+ * opposite: an assistant answered the cipher question out of GitHub without
+ * fetching the index at all, and signed off with the index URL anyway, for
+ * the simple reason that this message had printed it and the rules asked for
+ * a source. No file can retract an address the prompt handed out, so the
+ * retraction belongs beside the address. Same shape as the scope grant
+ * above: the reader's message is the only place that can say it.
+ *
+ * Three fallbacks, narrowing: index, then the one-file bundle, then the
+ * HTML pages. The last one names the repository beside our own two pages,
+ * because an assistant that cannot fetch a .md file has otherwise NO route
+ * to the security documentation at all: every address that carries it is a
+ * .md. GitHub renders the same documents as ordinary HTML, and a fetcher
+ * that declines a text file will usually take a page. It exists because at
+ * least one major assistant reports
+ * "an automated web-fetching error" on a .txt URL while happily reading a
+ * page; our own hosting is not the problem (every user agent gets a 200,
+ * no challenge, no bot rule), so the prompt degrades instead of arguing.
+ * The ladder names both file types because the same assistant refused a .md
+ * URL on 2026-08-23, and refused the plain HTML changelog page in the same
+ * breath, which no wording here can fix: production answered all three with
+ * a 200 to every user agent tried, including the AI-crawler ones. Suspect
+ * an edge-level AI-bot block before suspecting these files.
+ *
+ * The changelog and documentation lines sit outside that ladder, each after a
+ * blank line, because neither is a fallback. Inside the ladder they would read
+ * as "only if you cannot fetch a .txt file", which is the opposite of when
+ * they apply.
+ *
+ * The line before the sign-off is a usability catch, not a rule, which is
+ * why it sits outside the list. Someone who has never done this pastes the
+ * block and presses enter with nothing typed; without that line the
+ * assistant answers a prompt with no question in it, and the reader is
+ * confused at the exact moment they were about to be helped. With it, the
+ * assistant asks what they want to know, which is the recovery a person
+ * needs after the box is off their screen.
+ *
+ * The refusal rule is the load-bearing one. Sending readers to a third
+ * party creates exactly one new way to lose a vault, which is a reader
+ * pasting twelve words into someone else's chat box. The box says it too.
+ */
+function askPrompt(locale: HelpLocale): string {
+  return `Answer my questions about PrivacyNotes using only its help center, its changelog and its security documentation.
+
+Start here: ${ORIGIN}/llms-index.txt
+It lists every question with the page that answers it. Fetch the one or two that match mine.
+If you can only make one request, fetch ${ORIGIN}/llms-full.txt instead.
+If you cannot fetch a .txt or .md file, read ${ORIGIN}${helpPath(locale)}, ${ORIGIN}/changelog and ${REPO_URL} instead.
+
+For what changed, or where something moved, fetch ${ORIGIN}/changelog.md.
+
+For how the encryption works, what the server can read, or how to check any of it yourself, fetch ${ORIGIN}/docs/index.md and follow it to one of the documents it lists. That index is a router: cite the document, never the index.
+
+Rules:
+- Use only those pages. If they do not answer something, say so instead of guessing.
+- Never invent a feature, a menu path, a price, or a limit.
+- End your reply with the "Source:" URL from the page you used, exactly as written.
+- Answer in the same language as my question.
+- Never ask me for my recovery phrase, my PIN, or the contents of a note.
+
+If no question follows, ask me what I would like to know.
+
+My first question:`;
+}
+
+/**
+ * One copy control, rendered twice: compact beside the disclosure toggle and
+ * full-label under the prompt text. Same function, same class, same CSS, so
+ * the two can never drift apart visually.
+ *
+ * The compact one lives INSIDE the <summary> so it can share that row
+ * without a wrapper element: the summary is a flex container here and the
+ * button is just another item in it. static-pages.js stops the click
+ * bubbling, or copying would toggle the disclosure at the same time. Both
+ * ship `hidden` and are revealed by that script, so a reader without JS sees
+ * neither and still gets the prompt text from the open <details>.
+ */
+function copyButton(p: Record<string, string>, id: string, label: string): string {
+  return `<button class="btn-ok js-ask-copy" id="${id}" type="button" data-copied="${esc(p.askCopied)}" hidden><span class="ic ic-copy">${icon(COPY_PATH, 13)}</span><span class="ic ic-done">${icon(CHECK_PATH, 13)}</span><span class="lbl">${esc(label)}</span></button>`;
+}
+
+/**
+ * "Ask an AI" - the support-deflection box, directly above the block that
+ * hands out our contact links. That order is the whole point: it meets a
+ * reader at the moment they have decided we did not answer them, and gives
+ * them something that answers in seconds instead of a day.
+ *
+ * Numbered steps rather than a paragraph, because the reader who reaches
+ * this box has already failed to find an answer and is deciding whether to
+ * write to us: copy, paste, ask has to be readable at a glance. The fourth
+ * step exists because the prompt only has to be pasted once - a reader who
+ * keeps the chat can ask the next question straight away, which is the
+ * difference between a one-off and a habit.
+ *
+ * The copy button ships `hidden` and static-pages.js reveals it, so a
+ * no-JS reader still gets the prompt from the <details> underneath. Same
+ * progressive-enhancement contract as the /brand copy cards.
+ */
+function askAiBlock(p: Record<string, string>, locale: HelpLocale, sections: Section[]): string {
+  const total = sections.reduce((n, sec) => n + sec.entries.length, 0);
+  const steps = [p.askStep1, p.askStep2, p.askStep3, p.askStep4]
+    .filter(Boolean)
+    .map((st) => `<li>${esc(st)}</li>`)
+    .join('\n');
+  return `<div class="ask" id="ask">
+<div class="ask-head">
+<span class="ask-ico">${icon(SPARKLE_PATH, 18)}</span>
+<div>
+<h2>${esc(p.askTitle)}</h2>
+<p>${esc(fill(p.askBody, { total }))}</p>
+</div>
+</div>
+<ol class="ask-steps">
+${steps}
+</ol>
+<details class="ask-more">
+<summary><span class="sum-lbl">${esc(p.askShow)}</span>${copyButton(p, 'ask-copy', p.askCopyShort)}</summary>
+<pre id="ask-prompt">${esc(askPrompt(locale))}</pre>
+<div class="ask-act">${copyButton(p, 'ask-copy-full', p.askCopy)}</div>
+</details>
+<p class="askwarn">${icon(SHIELD_PATH, 15)}<span>${esc(p.askWarn)}</span></p>
+</div>
+`;
+}
+
+/**
+ * The one-line twin of the box above, rendered in the page header and
+ * anchored at it. Someone who lands on a leaf from a search engine meets
+ * the full box only after the answer, the hub section and the related
+ * list; this gives them the same door at the top without repeating the
+ * pitch, which is why it is a label and an arrow rather than a panel.
+ */
+function askMiniBar(p: Record<string, string>): string {
+  return `<a class="askmini" href="#ask">${icon(SPARKLE_PATH, 13)}<span>${esc(p.askMini)}</span><span class="askmini-arr" aria-hidden="true"></span></a>`;
+}
+
+/** The same shape at rail size, beside a monospace file name. */
+const GITHUB_MARK_SM =
+  '<svg data-ic viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M216,104v8a56.06,56.06,0,0,1-48.44,55.47A39.8,39.8,0,0,1,176,192v40a8,8,0,0,1-8,8H104a8,8,0,0,1-8-8V216H72a40,40,0,0,1-40-40A24,24,0,0,0,8,152a8,8,0,0,1,0-16,40,40,0,0,1,40,40,24,24,0,0,0,24,24H96v-8a39.8,39.8,0,0,1,8.44-24.53A56.06,56.06,0,0,1,56,112v-8a58.14,58.14,0,0,1,7.69-28.32A59.78,59.78,0,0,1,69.07,28,8,8,0,0,1,76,24a59.75,59.75,0,0,1,48,24h24a59.75,59.75,0,0,1,48-24,8,8,0,0,1,6.93,4,59.74,59.74,0,0,1,5.37,47.68A58,58,0,0,1,216,104Z"/></svg>';
+
+/** @phosphor-icons "github-logo" (fill), the shape the feedback row uses. */
+const GITHUB_MARK =
+  '<svg data-ic viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M216,104v8a56.06,56.06,0,0,1-48.44,55.47A39.8,39.8,0,0,1,176,192v40a8,8,0,0,1-8,8H104a8,8,0,0,1-8-8V216H72a40,40,0,0,1-40-40A24,24,0,0,0,8,152a8,8,0,0,1,0-16,40,40,0,0,1,40,40,24,24,0,0,0,24,24H96v-8a39.8,39.8,0,0,1,8.44-24.53A56.06,56.06,0,0,1,56,112v-8a58.14,58.14,0,0,1,7.69-28.32A59.78,59.78,0,0,1,69.07,28,8,8,0,0,1,76,24a59.75,59.75,0,0,1,48,24h24a59.75,59.75,0,0,1,48-24,8,8,0,0,1,6.93,4,59.74,59.74,0,0,1,5.37,47.68A58,58,0,0,1,216,104Z"/></svg>';
+
+/**
+ * The published source that backs one answer, as a row per document.
+ *
+ * A row carries the file name and the exact heading it jumps to, both
+ * quoted from the document, so the block needs no translated prose: the
+ * only strings around it are its title and the line saying the documents
+ * are in English. `FAQ_SOURCES` decides which entries get one.
+ *
+ * No trailing arrow on a row. The GitHub mark and the monospace file
+ * name already read as a link off this site, and a second glyph is the
+ * chrome the help chip lost for the same reason.
+ */
+function sourcesBlock(p: Record<string, string>, id: string): string {
+  const rows = FAQ_SOURCES[id];
+  if (!rows?.length) return '';
+  const items = rows
+    .map(
+      (s) =>
+        `<a class="src-row" href="${sourceUrl(s)}" target="_blank" rel="noopener noreferrer">${GITHUB_MARK}<span class="src-lbl"><span class="src-file">${esc(SOURCE_FILES[s.doc])}</span>${s.heading ? `<span class="src-head">${esc(s.heading)}</span>` : ''}</span></a>`
+    )
+    .join('\n');
+  return `<div class="srcs">
+<p class="eyebrow">// ${esc(p.sourcesTitle)}</p>
+${items}
+<p class="src-note">${esc(p.sourcesNote)}</p>
+</div>`;
+}
+
+/**
+ * The same rows as markdown, for the .md twin and the text bundle.
+ *
+ * A row that is served here as plain text names both URLs, in the index
+ * convention: fetch the first, cite the second. The reader-facing block
+ * above stays on GitHub alone, because a person clicking "Read the source"
+ * wants the repository rather than a text file.
+ */
+function sourcesMd(id: string): string {
+  const rows = FAQ_SOURCES[id];
+  if (!rows?.length) return '';
+  const items = rows
+    .map((s) => {
+      const served = PUBLISHED_DOCS.find((d) => d.published === SOURCE_FILES[s.doc]);
+      const label = `${SOURCE_FILES[s.doc]}${s.heading ? `: ${s.heading}` : ''}`;
+      if (!served) return `- [${label}](${sourceUrl(s)})`;
+      return `- ${label} -> ${docUrl(served)} (source: ${sourceUrl(s)})`;
+    })
+    .join('\n');
+  return `\n## Read the source\n\n${items}\n`;
+}
+
+// "Question not answered" prompt with the same platforms as the site
+// footer (footerData.ts). Icon paths: @phosphor-icons fill variants
+// (viewBox 0 0 256 256), same shapes static-page-chrome.ts uses.
+function feedbackBlock(prompt: string): string {
+  return `<div class="feedback">
+<p>${esc(prompt)}</p>
+<div class="fb-links">
+<a class="btn btn-ghost" href="https://github.com/LifetimeLabsHQ/PrivacyNotes.app/issues" target="_blank" rel="noopener noreferrer"><svg data-ic viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M216,104v8a56.06,56.06,0,0,1-48.44,55.47A39.8,39.8,0,0,1,176,192v40a8,8,0,0,1-8,8H104a8,8,0,0,1-8-8V216H72a40,40,0,0,1-40-40A24,24,0,0,0,8,152a8,8,0,0,1,0-16,40,40,0,0,1,40,40,24,24,0,0,0,24,24H96v-8a39.8,39.8,0,0,1,8.44-24.53A56.06,56.06,0,0,1,56,112v-8a58.14,58.14,0,0,1,7.69-28.32A59.78,59.78,0,0,1,69.07,28,8,8,0,0,1,76,24a59.75,59.75,0,0,1,48,24h24a59.75,59.75,0,0,1,48-24,8,8,0,0,1,6.93,4,59.74,59.74,0,0,1,5.37,47.68A58,58,0,0,1,216,104Z"/></svg>GitHub</a>
+<a class="btn btn-ghost" href="https://www.reddit.com/r/PrivacyNotes/" target="_blank" rel="noopener noreferrer"><svg data-ic viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M248,104a32,32,0,0,0-52.94-24.19c-16.75-8.9-36.76-14.28-57.66-15.53l5.19-31.17,17.72,2.72a24,24,0,1,0,2.87-15.74l-26-4a8,8,0,0,0-9.11,6.59L121.2,64.16c-21.84.94-42.82,6.38-60.26,15.65a32,32,0,0,0-42.59,47.74A59,59,0,0,0,16,144c0,21.93,12,42.35,33.91,57.49C70.88,216,98.61,224,128,224s57.12-8,78.09-22.51C228,186.35,240,165.93,240,144a59,59,0,0,0-2.35-16.45A32.16,32.16,0,0,0,248,104ZM72,128a16,16,0,1,1,16,16A16,16,0,0,1,72,128Zm91.75,55.07a76.18,76.18,0,0,1-71.5,0,8,8,0,1,1,7.5-14.14,60.18,60.18,0,0,0,56.5,0,8,8,0,1,1,7.5,14.14ZM168,144a16,16,0,1,1,16-16A16,16,0,0,1,168,144Z"/></svg>Reddit</a>
+<a class="btn btn-ghost" href="https://x.com/PrivacyNotesApp" target="_blank" rel="noopener noreferrer"><svg data-ic viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M215,219.85a8,8,0,0,1-7,4.15H160a8,8,0,0,1-6.75-3.71l-40.49-63.63L53.92,221.38a8,8,0,0,1-11.84-10.76l61.77-68L41.25,44.3A8,8,0,0,1,48,32H96a8,8,0,0,1,6.75,3.71l40.49,63.63,58.84-64.72a8,8,0,0,1,11.84,10.76l-61.77,67.95,62.6,98.38A8,8,0,0,1,215,219.85Z"/></svg>X.com</a>
+<a class="btn btn-ghost" href="https://mastodon.social/@privacynotes" target="_blank" rel="noopener noreferrer"><svg data-ic viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M184,32H72A40,40,0,0,0,32,72V192a40,40,0,0,0,40,40h88a8,8,0,0,0,0-16H72a24,24,0,0,1-24-24v-8H184a40,40,0,0,0,40-40V72A40,40,0,0,0,184,32Zm0,104a8,8,0,0,1-16,0V104a16,16,0,0,0-32,0v32a8,8,0,0,1-16,0V104a16,16,0,0,0-32,0v32a8,8,0,0,1-16,0V104a32,32,0,0,1,56-21.13A32,32,0,0,1,184,104Z"/></svg>Mastodon</a>
+<a class="btn btn-ghost" href="https://www.youtube.com/@PrivacyNotesApp" target="_blank" rel="noopener noreferrer"><svg data-ic viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M234.33,69.52a24,24,0,0,0-14.49-16.4C185.56,39.88,131,40,128,40s-57.56-.12-91.84,13.12a24,24,0,0,0-14.49,16.4C19.08,79.5,16,97.74,16,128s3.08,48.5,5.67,58.48a24,24,0,0,0,14.49,16.41C69,215.56,120.4,216,127.34,216h1.32c6.94,0,58.37-.44,91.18-13.11a24,24,0,0,0,14.49-16.41c2.59-10,5.67-28.22,5.67-58.48S236.92,79.5,234.33,69.52Zm-73.74,65-40,28A8,8,0,0,1,108,156V100a8,8,0,0,1,12.59-6.55l40,28a8,8,0,0,1,0,13.1Z"/></svg>YouTube</a>
+<a class="btn btn-ghost" href="https://www.facebook.com/PrivacyNotesApp/" target="_blank" rel="noopener noreferrer"><svg data-ic viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M232,128a104.16,104.16,0,0,1-91.55,103.26,4,4,0,0,1-4.45-4V152h24a8,8,0,0,0,8-8.53,8.17,8.17,0,0,0-8.25-7.47H136V112a16,16,0,0,1,16-16h16a8,8,0,0,0,8-8.53A8.17,8.17,0,0,0,167.73,80H152a32,32,0,0,0-32,32v24H96a8,8,0,0,0-8,8.53A8.17,8.17,0,0,0,96.27,152H120v75.28a4,4,0,0,1-4.44,4A104.15,104.15,0,0,1,24.07,124.09c2-54,45.74-97.9,99.78-100A104.12,104.12,0,0,1,232,128Z"/></svg>Facebook</a>
+</div>
+</div>`;
+}
+
+/**
+ * Help-center freshness, as ISO days, emitted as `dateModified` on the hub,
+ * on every FAQ leaf and on every guide. Nothing here carried a date before
+ * 2026-08-26, so neither search nor an AI reader could tell a page written
+ * last week from one written last year.
+ *
+ * CONTENT_BASELINE is the day the whole centre was last reviewed end to end.
+ * CONTENT_UPDATED overrides it per page, and that is how the tracking works
+ * from here on: a turn that rewrites one answer or one guide adds that id
+ * with the day it changed, and only that page's date moves. Review the whole
+ * centre again and the baseline moves instead, and the overrides empty out.
+ *
+ * Keys are FAQ entry ids and guide ids. They share one map because no id
+ * appears in both catalogs. Never write a future date and never bump one for
+ * a typo: the whole value of the signal is that it is true.
+ * // Spec: docs/contrib/help-center.md (freshness dates)
+ */
+const CONTENT_BASELINE = '2026-08-26';
+const CONTENT_UPDATED: Record<string, string> = {
+  'replace-password-manager': '2026-11-15',
+  'vibe-coded': '2026-11-15',
+  'feature-requests': '2026-11-15',
+  'backup-strategy': '2026-11-11',
+  'trackers-in-backup': '2026-11-11',
+  'ninja-quick-add': '2026-10-23',
+  'ninja-dates': '2026-10-23',
+  'ninja-add-to-list': '2026-10-23',
+  'ninja': '2026-10-23',
+  'no-ai': '2026-10-23',
+  'search-local': '2026-10-23',
+  'offline': '2026-10-23',
+  'calendar': '2026-10-23',
+  'tasks': '2026-10-23',
+  'bookmarks': '2026-10-31',
+  'save-page-as-note': '2026-10-31',
+  'browser-extension': '2026-11-10',
+  'quick-note-shortcut': '2026-11-10',
+  'browser-extension-security': '2026-10-31',
+  'custom-themes': '2026-10-23',
+  'keyboard-shortcuts': '2026-10-23',
+  'us-company': '2026-10-23',
+  'app-privacy-label': '2026-10-09',
+  'appearance': '2026-10-09',
+  'spoiler-text': '2026-10-08',
+  'copy-box': '2026-10-08',
+  'footnotes': '2026-10-08',
+  'statistics': '2026-10-08',
+  'drag-to-folder': '2026-10-08',
+  'format-bar': '2026-10-08',
+  'window-zoom': '2026-10-08',
+  'zen-mode': '2026-10-08',
+  'date-format': '2026-10-08',
+  'checklists': '2026-10-08',
+  'find-in-note': '2026-10-08',
+  'screen-capture': '2026-10-08',
+  'connected-logins': '2026-10-08',
+  'session-expired': '2026-10-08',
+  'archive': '2026-10-09',
+  'share-into-app': '2026-10-08',
+  'desktop-updates': '2026-10-08',
+  'note-links': '2026-10-07',
+  'guess-phrase': '2026-09-26',
+  'need-email': '2026-09-25',
+  'phrase-vs-password': '2026-09-25',
+  'lost-phrase': '2026-09-25',
+  'export': '2026-09-25',
+  'vault': '2026-09-25',
+  'free-vs-pro': '2026-09-25',
+  'one-time-pricing': '2026-09-25',
+  'paddle-privacy': '2026-09-25',
+  'buy-pro-anonymously': '2026-09-25',
+  'platforms': '2026-09-25',
+  'markdown-syntax': '2026-09-25',
+  'trash-auto-delete': '2026-09-25',
+  'referral-links': '2026-09-25',
+  'signup-options': '2026-09-27',
+  'sync-conflicts': '2026-09-25',
+  'what-can-you-see': '2026-09-27',
+  'data-location': '2026-09-24',
+  'shutdown': '2026-09-25',
+  'attachment-limits': '2026-09-23',
+  'languages': '2026-09-23',
+  'hotkey-cheat-sheet': '2026-10-06',
+  'store-purchases': '2026-09-23',
+  'markdown-folder-mobile': '2026-09-14',
+  'image-quality': '2026-09-08',
+  'data-on-disk': '2026-09-25',
+  'open-source': '2026-08-30',
+  'report-vulnerability': '2026-08-31',
+  'bip39-wordlist': '2026-08-30',
+  'leaving': '2026-08-30',
+  'android-backup': '2026-09-25',
+  'try-before-signup': '2026-08-31',
+  'threat-model-levels': '2026-09-27',
+  'twelve-word-phrase': '2026-08-31',
+  'enable-2fa': '2026-09-27',
+  'remove-device': '2026-08-31',
+  'note-size-limit': '2026-08-31',
+  'feature-requests': '2026-08-31',
+  'android-updates': '2026-08-31',
+  'translation-quality': '2026-09-25',
+  'ask-an-ai': '2026-08-31',
+  'locked-vs-protected': '2026-09-25',
+  'phrase-compromised': '2026-08-31',
+  'lost-device': '2026-08-31',
+  'device-limit': '2026-08-31',
+  'backup-strategy': '2026-08-31',
+  'restore-backup': '2026-09-25',
+  'upload-failed': '2026-09-25',
+  'manage-storage-addon': '2026-09-24',
+  'play-vs-apk': '2026-08-31',
+  'markdown-folder': '2026-08-31',
+  'note-links': '2026-08-31',
+  'share-with-someone': '2026-08-31',
+  'wifi-only': '2026-08-31',
+  'note-history': '2026-08-31',
+  'vault-totp': '2026-08-31',
+  'verify-download': '2026-08-31',
+  'family-sharing': '2026-08-31',
+  'business-use': '2026-08-31',
+  'samsung-notes': '2026-08-31',
+  'bitwarden': '2026-08-31',
+  'upnote': '2026-08-31',
+  'browser-passwords': '2026-08-31',
+  'nextcloud-notes': '2026-08-31',
+  'standard-notes': '2026-10-16',
+  'joplin': '2026-10-16',
+  'bear': '2026-10-16',
+  'import-from-other-apps': '2026-10-16',
+  'import-bear': '2026-10-16',
+  'import-joplin': '2026-10-16',
+};
+
+/** The day one page last changed, or the baseline when it has not since. */
+function contentDate(id?: string): string {
+  return (id && CONTENT_UPDATED[id]) || CONTENT_BASELINE;
+}
+
+/** The newest date anywhere. The hub aggregates every answer, so it reports this. */
+function newestContentDate(): string {
+  return Object.values(CONTENT_UPDATED).reduce((a, b) => (b > a ? b : a), CONTENT_BASELINE);
+}
+
+/** CSP-inert structured data. `entries` = all for the hub, one for a leaf. */
+function faqJsonLd(entries: { q: string; a: string[] }[], dateModified: string): string {
+  const data = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    dateModified,
+    mainEntity: entries.map((e) => ({
+      '@type': 'Question',
+      name: stripMd(e.q),
+      acceptedAnswer: { '@type': 'Answer', text: e.a.map(stripMd).join('\n\n') },
+    })),
+  };
+  return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`;
+}
+
+/**
+ * A guide is an article about somebody else's export, so it says so. Google
+ * shows no rich result for TechArticle and that is not what this is for: it
+ * names the thing the page is ABOUT, the language it is written in and the
+ * day it last changed, which is what an engine or an assistant needs to
+ * decide the page answers "how do I export from <app>" and is still current.
+ *
+ * `about` is a plain Thing on purpose. Two guides cover a category rather
+ * than one app - browser bookmarks, browser passwords - and calling those a
+ * SoftwareApplication would be false. `datePublished` is deliberately absent:
+ * we do not know it, and inventing one to fill a recommended field is the
+ * kind of structured data that is worse than none.
+ */
+function guideJsonLd(
+  g: { app: string; title: string; lead: string },
+  url: string,
+  locale: HelpLocale,
+  dateModified: string
+): string {
+  const data = {
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    headline: stripMd(g.title),
+    description: excerpt(g.lead),
+    inLanguage: locale,
+    dateModified,
+    about: { '@type': 'Thing', name: g.app },
+    mainEntityOfPage: url,
+    isPartOf: { '@type': 'WebSite', name: 'PrivacyNotes', url: ORIGIN },
+    publisher: { '@type': 'Organization', name: 'PrivacyNotes', url: ORIGIN },
+  };
+  return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`;
+}
+
+function breadcrumbJsonLd(hubLabel: string, hubUrl: string, name: string, url: string): string {
+  const data = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: hubLabel, item: hubUrl },
+      { '@type': 'ListItem', position: 2, name: stripMd(name), item: url },
+    ],
+  };
+  return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`;
+}
+
+/**
+ * Points a machine reader at this page's plain-text twin (see the
+ * plain-text layer below). English only, because only English has one.
+ * Declared as text/markdown, which is the format; it is SERVED as
+ * text/plain so that a person following the link reads it in the browser
+ * instead of downloading it (see public/_headers).
+ */
+function textAlternate(locale: HelpLocale, href: string): string {
+  return locale === 'en' ? `\n<link rel="alternate" type="text/markdown" href="${ORIGIN}${href}">` : '';
+}
+
+/** hreflang cluster for the hub, or for one FAQ leaf when `id` is given. */
+function hreflangCluster(id?: string): string {
+  const href = (l: HelpLocale) => (id ? `${ORIGIN}${leafPath(l, id)}` : `${ORIGIN}${helpPath(l)}`);
+  const links = HELP_LOCALES.map((l) => `<link rel="alternate" hreflang="${l}" href="${href(l)}">`);
+  links.push(`<link rel="alternate" hreflang="x-default" href="${href('en')}">`);
+  return links.join('\n');
+}
+
+/** Full hreflang cluster for one guide across every locale. */
+function guideHreflang(id: string): string {
+  const links = HELP_LOCALES.map(
+    (l) => `<link rel="alternate" hreflang="${l}" href="${ORIGIN}${guidePath(l, id)}">`
+  );
+  links.push(`<link rel="alternate" hreflang="x-default" href="${ORIGIN}${guidePath('en', id)}">`);
+  return links.join('\n');
+}
+
+// Phosphor "bold" path data (viewBox 0 0 256 256), extracted from the
+// installed @phosphor-icons/react package so the sidebar matches the icon
+// set the rest of the site uses. One icon per FAQ topic group.
+/** Phosphor Key, bold. Shared: the Account & recovery topic wears it, and
+ *  so does the Browser passwords guide, which has no app logo. */
+const KEY_BOLD =
+  'M196,76a16,16,0,1,1-16-16A16,16,0,0,1,196,76Zm48,22.74A84.3,84.3,0,0,1,160.11,180H160a83.52,83.52,0,0,1-23.65-3.38l-7.86,7.87A12,12,0,0,1,120,188H108v12a12,12,0,0,1-12,12H84v12a12,12,0,0,1-12,12H40a20,20,0,0,1-20-20V187.31a19.86,19.86,0,0,1,5.86-14.14l53.52-53.52A84,84,0,1,1,244,98.74ZM202.43,53.57A59.48,59.48,0,0,0,158,36c-32,1-58,27.89-58,59.89a59.69,59.69,0,0,0,4.2,22.19,12,12,0,0,1-2.55,13.21L44,189v23H60V200a12,12,0,0,1,12-12H84V176a12,12,0,0,1,12-12h19l9.65-9.65a12,12,0,0,1,13.22-2.55A59.58,59.58,0,0,0,160,156h.08c32,0,58.87-26.07,59.89-58A59.55,59.55,0,0,0,202.43,53.57Z';
+
+const TOPIC_ICON: Record<string, string> = {
+  /** Phosphor PuzzlePiece, bold: the Extension & AI topic. */
+  extensionAi:
+    'M222.41,155.16a12,12,0,0,0-11.56-.69A16,16,0,0,1,188,139,16.2,16.2,0,0,1,202.8,124a15.83,15.83,0,0,1,8,1.5A12,12,0,0,0,228,114.7V72a20,20,0,0,0-20-20H176a40.15,40.15,0,0,0-12.62-29.16,39.67,39.67,0,0,0-29.94-10.76,40.08,40.08,0,0,0-37.34,37C96,50.07,96,51,96,52H64A20,20,0,0,0,44,72v28a40.15,40.15,0,0,0-29.16,12.62A40,40,0,0,0,41.1,179.9a28.3,28.3,0,0,0,2.9.1v28a20,20,0,0,0,20,20H208a20,20,0,0,0,20-20V165.31A12,12,0,0,0,222.41,155.16ZM204,204H68V165.31a12,12,0,0,0-17.15-10.84A15.9,15.9,0,0,1,42.8,156,16.2,16.2,0,0,1,28,141.06a16,16,0,0,1,22.82-15.52A12,12,0,0,0,68,114.7V76h42.7a12,12,0,0,0,10.83-17.15A15.9,15.9,0,0,1,120,50.8,16.19,16.19,0,0,1,134.94,36a16,16,0,0,1,15.53,22.81A12,12,0,0,0,161.31,76H204v24c-1,0-1.93,0-2.9.11A40,40,0,0,0,204,180h0Z',
+  /** Phosphor PencilSimpleLine, bold: the Writing topic. */
+  writing:
+    'M230.15,70.54,185.46,25.86a20,20,0,0,0-28.28,0L33.86,149.17A19.86,19.86,0,0,0,28,163.31V208a20,20,0,0,0,20,20H216a12,12,0,0,0,0-24H125L230.15,98.83A20,20,0,0,0,230.15,70.54ZM91,204H52V165l84-84,39,39ZM192,103,153,64l18.34-18.34,39,39Z',
+  /** Phosphor CalendarCheck, bold: the Tasks & calendar topic. */
+  tasksCalendar:
+    'M208,28H188V24a12,12,0,0,0-24,0v4H92V24a12,12,0,0,0-24,0v4H48A20,20,0,0,0,28,48V208a20,20,0,0,0,20,20H208a20,20,0,0,0,20-20V48A20,20,0,0,0,208,28ZM68,52a12,12,0,0,0,24,0h72a12,12,0,0,0,24,0h16V76H52V52ZM52,204V100H204V204Zm120.49-84.49a12,12,0,0,1,0,17l-48,48a12,12,0,0,1-17,0l-24-24a12,12,0,0,1,17-17L116,159l39.51-39.52A12,12,0,0,1,172.49,119.51Z',
+  /** Phosphor Lock, bold: the Vault & bookmarks topic. */
+  vaultBookmarks:
+    'M208,76H180V56A52,52,0,0,0,76,56V76H48A20,20,0,0,0,28,96V208a20,20,0,0,0,20,20H208a20,20,0,0,0,20-20V96A20,20,0,0,0,208,76ZM100,56a28,28,0,0,1,56,0V76H100ZM204,204H52V100H204Zm-60-52a16,16,0,1,1-16-16A16,16,0,0,1,144,152Z',
+  /** Phosphor Keyboard, bold: the Shortcuts & look topic. */
+  shortcutsLook:
+    'M224,44H32A20,20,0,0,0,12,64V192a20,20,0,0,0,20,20H224a20,20,0,0,0,20-20V64A20,20,0,0,0,224,44Zm-4,144H36V68H220ZM52,128a12,12,0,0,1,12-12H192a12,12,0,0,1,0,24H64A12,12,0,0,1,52,128Zm0-36A12,12,0,0,1,64,80H192a12,12,0,0,1,0,24H64A12,12,0,0,1,52,92Zm0,72a12,12,0,0,1,12-12h8a12,12,0,0,1,0,24H64A12,12,0,0,1,52,164Zm108,0a12,12,0,0,1-12,12H108a12,12,0,0,1,0-24h40A12,12,0,0,1,160,164Zm44,0a12,12,0,0,1-12,12h-8a12,12,0,0,1,0-24h8A12,12,0,0,1,204,164Z',
+  /** Phosphor HardDrives, bold: the Storage & files topic. */
+  storageFiles:
+    'M208,36H48A20,20,0,0,0,28,56V200a20,20,0,0,0,20,20H208a20,20,0,0,0,20-20V56A20,20,0,0,0,208,36Zm-4,24v56H52V60ZM52,196V140H204v56ZM160,88a16,16,0,1,1,16,16A16,16,0,0,1,160,88Zm32,80a16,16,0,1,1-16-16A16,16,0,0,1,192,168Z',
+  /** Phosphor Pill, bold: the Medications topic. */
+  medications:
+    'M219.26,36.77a57.28,57.28,0,0,0-81,0L36.77,138.26a57.26,57.26,0,0,0,81,81L219.26,117.74A57.33,57.33,0,0,0,219.26,36.77ZM100.78,202.26a33.26,33.26,0,1,1-47-47L96,113l47,47Zm101.5-101.49L160,143,113,96l42.27-42.26a33.26,33.26,0,0,1,47,47Zm-9.77-25.26a12,12,0,0,1,0,17l-24,24a12,12,0,1,1-17-17l24-24A12,12,0,0,1,192.51,75.51Z',
+  gettingStarted:
+    'M40.14,46.88A12,12,0,0,0,36,56V224a12,12,0,0,0,24,0V181.72c22.84-17.12,42.1-9.12,70.68,5,16.23,8,34.74,17.2,54.8,17.2,14.72,0,30.28-4.94,46.38-18.88A12,12,0,0,0,236,176V56a12,12,0,0,0-19.86-9.07c-24.71,21.41-44.53,13.31-74.82-1.68C113.19,31.27,78.17,13.94,40.14,46.88ZM212,170.26c-22.84,17.13-42.1,9.11-70.68-5C118.16,153.76,90.33,140,60,153.87V61.69c22.84-17.12,42.1-9.12,70.68,5,16.23,8,34.74,17.2,54.8,17.2A63,63,0,0,0,212,78.08Z',
+  /** Phosphor Heartbeat, bold: the Statistics & trackers topic, the icon of
+   *  Settings > Trackers in the app. */
+  statsTrackers:
+    'M71.76,148H31.7a12,12,0,1,1,0-24H65.33l12.45-18.66a12,12,0,0,1,20,0l22,33,6-9a12,12,0,0,1,10-5.34h24a12,12,0,1,1,0,24h-17.6l-12.46,18.66a12,12,0,0,1-20,0l-22-33-6,9A12,12,0,0,1,71.76,148ZM177.91,36c-20.12,0-38,7.93-50.07,21.56C115.74,43.93,97.89,36,77.76,36A66,66,0,0,0,12.07,94.68,12,12,0,0,0,36,97.32,42,42,0,0,1,77.76,60c17.83,0,32.75,9.4,38.95,24.54a12,12,0,0,0,22.25,0C145.16,69.4,160.08,60,177.91,60A42.08,42.08,0,0,1,220,102c0,29.42-25.86,57.77-47.56,76.36a329,329,0,0,1-44.58,31.81c-10.87-6.45-35.37-22-56.51-42.73a12,12,0,1,0-16.84,17.12c30.39,29.81,66.15,49.2,67.66,50a12.06,12.06,0,0,0,11.39,0C138,232.14,244,174.34,244,102A66.12,66.12,0,0,0,177.91,36Z',
+  securityPrivacy:
+    'M208,36H48A20,20,0,0,0,28,56v56c0,54.29,26.32,87.22,48.4,105.29,23.71,19.39,47.44,26,48.44,26.29a12.1,12.1,0,0,0,6.32,0c1-.28,24.73-6.9,48.44-26.29,22.08-18.07,48.4-51,48.4-105.29V56A20,20,0,0,0,208,36Zm-4,76c0,35.71-13.09,64.69-38.91,86.15A126.28,126.28,0,0,1,128,219.38a126.14,126.14,0,0,1-37.09-21.23C65.09,176.69,52,147.71,52,112V60H204ZM79.51,144.49a12,12,0,1,1,17-17L112,143l47.51-47.52a12,12,0,0,1,17,17l-56,56a12,12,0,0,1-17,0Z',
+  accountRecovery: KEY_BOLD,
+  syncDevices:
+    'M228,48V96a12,12,0,0,1-12,12H168a12,12,0,0,1,0-24h19l-7.8-7.8a75.55,75.55,0,0,0-53.32-22.26h-.43A75.49,75.49,0,0,0,72.39,75.57,12,12,0,1,1,55.61,58.41a99.38,99.38,0,0,1,69.87-28.47H126A99.42,99.42,0,0,1,196.2,59.23L204,67V48a12,12,0,0,1,24,0ZM183.61,180.43a75.49,75.49,0,0,1-53.09,21.63h-.43A75.55,75.55,0,0,1,76.77,179.8L69,172H88a12,12,0,0,0,0-24H40a12,12,0,0,0-12,12v48a12,12,0,0,0,24,0V189l7.8,7.8A99.42,99.42,0,0,0,130,226.06h.56a99.38,99.38,0,0,0,69.87-28.47,12,12,0,0,0-16.78-17.16Z',
+  yourData:
+    'M196,35.52C177.62,25.51,153.48,20,128,20S78.38,25.51,60,35.52C39.37,46.79,28,62.58,28,80v96c0,17.42,11.37,33.21,32,44.48,18.35,10,42.49,15.52,68,15.52s49.62-5.51,68-15.52c20.66-11.27,32-27.06,32-44.48V80C228,62.58,216.63,46.79,196,35.52ZM204,128c0,17-31.21,36-76,36s-76-19-76-36v-8.46a88.9,88.9,0,0,0,8,4.94c18.35,10,42.49,15.52,68,15.52s49.62-5.51,68-15.52a88.9,88.9,0,0,0,8-4.94ZM128,44c44.79,0,76,19,76,36s-31.21,36-76,36S52,97,52,80,83.21,44,128,44Zm0,168c-44.79,0-76-19-76-36v-8.46a88.9,88.9,0,0,0,8,4.94c18.35,10,42.49,15.52,68,15.52s49.62-5.51,68-15.52a88.9,88.9,0,0,0,8-4.94V176C204,193,172.79,212,128,212Z',
+  /** Phosphor ClockCounterClockwise, bold: the Backup & restore topic, the
+   *  icon of Settings > Backup > Automatic in the app. */
+  backupRestore:
+    'M140,80v41.21l34.17,20.5a12,12,0,1,1-12.34,20.58l-40-24A12,12,0,0,1,116,128V80a12,12,0,0,1,24,0ZM128,28A99.38,99.38,0,0,0,57.24,57.34c-4.69,4.74-9,9.37-13.24,14V64a12,12,0,0,0-24,0v40a12,12,0,0,0,12,12H72a12,12,0,0,0,0-24H57.77C63,86,68.37,80.22,74.26,74.26a76,76,0,1,1,1.58,109,12,12,0,0,0-16.48,17.46A100,100,0,1,0,128,28Z',
+  pricingPro:
+    'M227.85,46.89a20,20,0,0,0-18.74-18.74c-13.13-.77-46.65.42-74.48,28.24L131,60H74.36a19.83,19.83,0,0,0-14.14,5.86L25.87,100.19a20,20,0,0,0,11.35,33.95l37.14,5.18,42.32,42.32,5.19,37.18A19.88,19.88,0,0,0,135.34,235a20.13,20.13,0,0,0,6.37,1,19.9,19.9,0,0,0,14.1-5.87l34.34-34.35A19.85,19.85,0,0,0,196,181.64V125l3.6-3.59C227.43,93.54,228.62,60,227.85,46.89ZM76,84h31L75.75,115.28l-27.23-3.8ZM151.6,73.37A72.27,72.27,0,0,1,204,52a72.17,72.17,0,0,1-21.38,52.41L128,159,97,128ZM172,180l-27.49,27.49-3.8-27.23L172,149Zm-72,22c-8.71,11.85-26.19,26-60,26a12,12,0,0,1-12-12c0-33.84,14.12-51.32,26-60A12,12,0,1,1,68.18,175.3C62.3,179.63,55.51,187.8,53,203c15.21-2.51,23.37-9.3,27.7-15.18A12,12,0,1,1,100,202Z',
+  appsPlatforms:
+    'M100,36H56A20,20,0,0,0,36,56v44a20,20,0,0,0,20,20h44a20,20,0,0,0,20-20V56A20,20,0,0,0,100,36ZM96,96H60V60H96ZM200,36H156a20,20,0,0,0-20,20v44a20,20,0,0,0,20,20h44a20,20,0,0,0,20-20V56A20,20,0,0,0,200,36Zm-4,60H160V60h36Zm-96,40H56a20,20,0,0,0-20,20v44a20,20,0,0,0,20,20h44a20,20,0,0,0,20-20V156A20,20,0,0,0,100,136Zm-4,60H60V160H96Zm104-60H156a20,20,0,0,0-20,20v44a20,20,0,0,0,20,20h44a20,20,0,0,0,20-20V156A20,20,0,0,0,200,136Zm-4,60H160V160h36Z',
+};
+
+function topicIcon(key: FaqGroupKey, size = 15): string {
+  const d = TOPIC_ICON[key];
+  if (!d) return '';
+  return `<svg width="${size}" height="${size}" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="${d}"/></svg>`;
+}
+
+/**
+ * Guides drawn with a phosphor glyph instead of an app logo, keyed by guide
+ * id. A guide about one app gets that app's icon from public/help/icons/;
+ * a guide about a whole category has no logo that would be honest, so it
+ * borrows the glyph the app itself uses. `GUIDE_META` marks these by
+ * omitting `icon` - keep the two in step.
+ */
+const GUIDE_GLYPH: Record<string, string> = {
+  'browser-passwords': KEY_BOLD,
+  // Phosphor AddressBook, bold: the glyph the contacts importer row wears.
+  contacts:
+    'M208,20H64A20,20,0,0,0,44,40V60H32a12,12,0,0,0,0,24H44v32H32a12,12,0,0,0,0,24H44v32H32a12,12,0,0,0,0,24H44v20a20,20,0,0,0,20,20H208a20,20,0,0,0,20-20V40A20,20,0,0,0,208,20Zm-4,192H68V44H204ZM100.8,171.37a48,48,0,0,1,70.4,0,12,12,0,0,0,17.6-16.32,72,72,0,0,0-19.21-14.68,44,44,0,1,0-67.19,0,72.12,72.12,0,0,0-19.2,14.68,12,12,0,0,0,17.6,16.32ZM116,112a20,20,0,1,1,20,20A20,20,0,0,1,116,112Z',
+};
+
+/** Inline glyph for a guide with no logo asset, or '' when it has one. */
+function guideGlyph(id: string, size: number): string {
+  const d = GUIDE_GLYPH[id];
+  if (!d) return '';
+  return `<svg width="${size}" height="${size}" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="${d}"/></svg>`;
+}
+
+const ICONS_DIR = path.resolve(__dirname, 'public/help/icons');
+
+/**
+ * App icon for a guide, if an asset exists in public/help/icons/ (SVG
+ * preferred, .webp fallback for the raster ones). Returns the public URL.
+ */
+function guideIconHref(id: string): string | null {
+  for (const ext of ['svg', 'webp', 'png']) {
+    if (fs.existsSync(path.join(ICONS_DIR, `${id}.${ext}`))) return `/help/icons/${id}.${ext}`;
+  }
+  return null;
+}
+
+/** The shared language menu over the Help locales; System lands on the x-default hub. */
+function helpLanguageMenu(
+  current: HelpLocale,
+  label: string,
+  pathOf: (l: HelpLocale) => string,
+  id = 'lang-menu'
+): string {
+  return languageMenu({ current, label, pathOf: (l) => pathOf(l as HelpLocale), locales: HELP_LOCALES, id, systemHref: '/help' });
+}
+
+/**
+ * The footer every Help page ends on: the shared chrome footer plus the
+ * SAME language menu the top bar renders, in the slot the homepage footer
+ * puts it. `pathOf` is the caller's own page-shape mapper (hub, leaf, or
+ * guide), so picking a language from the footer lands on the translated
+ * version of the page you were reading, not the hub.
+ */
+function helpFooter(
+  locale: HelpLocale,
+  label: string,
+  pathOf: (l: HelpLocale) => string
+): string {
+  return siteFooterFor(
+    helpPath(locale),
+    LOCALE_TO_SLUG[locale],
+    helpLanguageMenu(locale, label, pathOf, 'lang-menu-footer')
+  );
+}
+
+const SEARCH_ICON =
+  '<svg data-ic viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
+
+const CLEAR_ICON =
+  '<svg data-ic viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+
+const RAIL_HOME_ICON =
+  '<svg data-ic viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128ZM40,72H216a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16ZM216,184H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z"/></svg>';
+
+/** Shared <head> boilerplate for every Help page. */
+function headCommon(
+  title: string,
+  description: string,
+  canonical: string,
+  alternates: string,
+  locale: HelpLocale
+): string {
+  return `<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(title)}</title>
+<meta name="description" content="${esc(description)}">
+<link rel="canonical" href="${canonical}">
+${alternates}
+<meta property="og:title" content="${esc(title)}">
+<meta property="og:description" content="${esc(description)}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="${canonical}">
+<meta property="og:site_name" content="PrivacyNotes">
+${ogLocaleTag(locale)}
+${OG_IMAGE_TAGS}
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+${THEME_SCRIPT_TAG}
+${SEARCH_CORE_SCRIPT_TAG}
+<script src="/static-pages.js" defer></script>`;
+}
+
+const PAGE_VARS = themeVarsCss(
+  `${WASHI_LIGHT};--accent:#1E40AF;--mark-fg:#1E40AF;--on-accent:#fff;--ok:#3b6d11;--ok-bg:#f1f7e8;--ok-line:#d3e3bc`,
+  `${WASHI_DARK};--accent:#4A90D9;--mark-fg:#7FB0E4;--on-accent:#03203E;--ok:#a7cf6f;--ok-bg:#161d0e;--ok-line:#2e3d1d`
+);
+
+/** Styles shared by hub, leaves, and guides. */
+const HELP_SHARED_CSS = `
+.entry{border-top:1px solid var(--line)}
+.eyebrow + .entry{border-top:0}
+.entry[hidden]{display:none}
+summary{display:flex;align-items:center;gap:12px;padding:18px 0;cursor:pointer;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary .q{flex:1;font-size:var(--fs-title);font-weight:600;letter-spacing:-.01em}
+summary:hover .q{color:var(--accent)}
+.chev{flex:0 0 auto;width:10px;height:10px;border-right:2px solid var(--faint);border-bottom:2px solid var(--faint);transform:rotate(45deg);transition:transform .15s ease;margin-top:-4px}
+details[open] .chev{transform:rotate(-135deg);margin-top:4px}
+.a{padding:0 0 22px}
+.a p{margin:0 0 12px;font-size:var(--fs-row);color:var(--muted)}\n.cbx{display:flex;flex-wrap:wrap;align-items:center;gap:9px 10px;margin:0 0 12px;padding:9px 10px 9px 13px;border:1px solid var(--line);border-radius:9px;background:var(--rail)}\n.cbx code{flex:1 1 210px;min-width:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:var(--fs-compact);line-height:1.5;color:var(--fg);word-break:break-all}\n.cbx .btn-ok{flex:none;margin-inline-start:auto}\n.lst{margin:0 0 14px;padding-inline-start:19px;list-style:disc}\n.lst li{margin:0 0 7px;font-size:var(--fs-row);color:var(--muted);line-height:1.65}\n.lst strong{color:var(--fg)}\n.lst code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:var(--fs-compact);color:var(--fg);word-break:break-all;direction:ltr;unicode-bidi:isolate}\n.bdg{display:block;width:max-content;max-width:100%;margin:0 0 14px;transition:opacity .15s ease}\n.bdg:hover{opacity:.82}\n.bdg img{display:block;height:48px;width:auto}\n.dlb{display:inline-flex;align-items:center;gap:8px;width:max-content;max-width:100%;margin:0 0 14px;padding:9px 14px;border:1px solid var(--line);border-radius:9px;background:var(--rail);color:var(--fg);font-size:var(--fs-body);font-weight:500;text-decoration:none;transition:border-color .15s ease}\n.dlb:hover{border-color:var(--accent);text-decoration:none}\n.dlb .ic{display:flex;flex:none;color:var(--accent)}
+.a p:last-child{margin-bottom:0}
+/* Inline code and menu paths inside prose. Code is a literal the reader
+   types or pastes, so it reads as a monospace chip; a menu path is a place
+   to click, so it reads as the app's own labels in a breadcrumb, never as
+   code (help-center.md rule 12). Both clone their box across a line break.
+   Spec: docs/internal/design/patterns/ (inline code and menu path) */
+:is(.a,.leaf-body,.guide-body) :is(p,li) code:not([class]){font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em;color:var(--fg);background:var(--chip);border-radius:5px;padding:.12em .4em;overflow-wrap:anywhere;-webkit-box-decoration-break:clone;box-decoration-break:clone;direction:ltr;unicode-bidi:isolate}
+${MENU_PATH_CSS}
+/* The answer's own page and its link, always visible under an open answer.
+   Until 2026-10-23 the page link was a chain icon in the question row that
+   only appeared on hover, so most readers never found the leaf pages. */
+.a-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.a-act{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:none;color:var(--muted);font:inherit;font-size:var(--fs-compact);font-weight:500;line-height:1.3;text-decoration:none;cursor:pointer;transition:border-color .15s ease,color .15s ease}
+.a-act:hover{border-color:var(--accent);color:var(--accent);text-decoration:none}
+.a-act svg{flex:0 0 auto;color:var(--accent)}
+/* .langmenu / .langlist moved to CHROME_CSS (static-page-chrome.ts): the
+   footer renders one too, and the footer is that module's. Only the
+   suggest banner below is Help-specific. */
+.lang-banner{display:flex;align-items:center;gap:6px;width:max-content;max-width:100%;margin:0 0 14px;padding:5px 6px 5px 12px;border:1px solid var(--line);border-radius:99px;background:var(--imp-bg)}
+.lang-banner a{display:inline-flex;align-items:center;gap:8px;font-size:var(--fs-body);font-weight:600;color:var(--accent);text-decoration:none}
+.lang-banner a svg{width:20px;height:14px;border-radius:2px}
+.lang-banner button{border:0;background:none;cursor:pointer;color:var(--faint);font-size:var(--fs-body);line-height:1;padding:5px 7px;border-radius:99px}
+.lang-banner button:hover{color:var(--fg)}
+/* flow-root + a FLOATED tile, not a flex row: as a flex item the tile reserved
+   its column for the whole head, so on a phone every line of the lead wrapped
+   short against an icon that had ended several lines earlier. Floated, the
+   text runs full width the moment it clears the tile. flow-root contains the
+   float, so a tile taller than its text still cannot ride over the pill below.
+   The tile is emitted BEFORE .head-txt in the markup because a float only
+   wraps the content that follows it. */
+.head-row{display:flow-root}
+.head-txt{min-width:0}
+/* float:right plus a dir=rtl mirror, rather than the logical float:inline-end:
+   that value is recent enough that a browser which ignores it drops the float
+   altogether, and the pair below costs one line.
+   Spec: docs/internal/design/ui-patterns.md (section 67, icon mirroring) */
+.app-tile{float:right;margin-inline-start:24px;margin-block-end:12px;width:96px;height:96px;background:var(--chip);border-radius:22px;display:flex;align-items:center;justify-content:center}
+[dir=rtl] .app-tile{float:left}
+.app-tile img{width:72px;height:72px;object-fit:contain}
+.feedback{margin:22px 0 0}
+.feedback p{margin:0 0 10px;color:var(--muted);font-size:var(--fs-body)}
+.ask{margin:30px 0 0;padding:18px 20px;border:1px solid var(--ok-line);background:var(--ok-bg);border-radius:12px}
+.ask-head{display:flex;gap:13px;align-items:flex-start}
+.ask-ico{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:9px;background:var(--ok);color:var(--ok-bg)}
+.ask h2{margin:0 0 4px;font-size:var(--fs-title);font-weight:700;color:var(--ok);letter-spacing:-.01em}
+.ask-head p{margin:0;color:var(--muted);font-size:var(--fs-body);line-height:1.6}
+.ask-steps{margin:15px 0 0;padding:0;list-style:none;counter-reset:askstep}
+.ask-steps li{counter-increment:askstep;position:relative;padding-inline-start:31px;margin:0 0 8px;font-size:var(--fs-body);line-height:1.5;color:var(--fg)}
+.ask-steps li:last-child{margin-bottom:0}
+.ask-steps li::before{content:counter(askstep);position:absolute;inset-inline-start:0;top:0;width:20px;height:20px;border-radius:99px;background:var(--ok);color:var(--ok-bg);font-size:var(--fs-small);font-weight:700;display:flex;align-items:center;justify-content:center}
+.ask-more{margin:16px 0 0}
+.ask-more summary{display:inline-flex;align-items:center;gap:10px;cursor:pointer;list-style:none}
+.ask-more summary::-webkit-details-marker{display:none}
+.sum-lbl{display:inline-flex;align-items:center;gap:8px;padding:0 14px;height:32px;border:1px solid var(--ok);border-radius:8px;font-size:var(--fs-compact);font-weight:600;color:var(--ok)}
+.sum-lbl:hover{background:var(--bg)}
+.sum-lbl::after{content:'';width:6px;height:6px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin-block-start:-4px}
+/* The chevrons here use PHYSICAL borders while every other rule in this block is logical, on purpose: a down-pointing arrow means the same thing in both directions, and border-inline-end turns it sideways under dir=rtl. Spec: docs/internal/design/ui-patterns.md (section 67, icon mirroring) */
+.ask-more[open] .sum-lbl::after{transform:rotate(-135deg);margin-block-start:2px}
+.ask-act{margin:13px 0 0}
+/* One rule for both copy buttons, the compact one on the summary row and the
+   long one under the prompt. Matching the 32px height to .sum-lbl is what
+   makes the pair read as one control rather than two stacked things. */
+.btn-ok{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 14px;border:0;border-radius:8px;background:var(--ok);color:var(--ok-bg);font-family:inherit;font-size:var(--fs-compact);font-weight:600;line-height:1;white-space:nowrap;cursor:pointer;transition:filter .13s ease,transform .13s ease}
+.btn-ok:hover{filter:brightness(1.09)}
+.btn-ok:active{transform:scale(.95)}
+.btn-ok .ic{display:inline-flex}
+.btn-ok .ic-done{display:none}
+.btn-ok.on{animation:ask-pop .34s ease}
+.btn-ok.on .ic-copy{display:none}
+.btn-ok.on .ic-done{display:inline-flex}
+@keyframes ask-pop{0%{transform:scale(1)}35%{transform:scale(1.09)}70%{transform:scale(.98)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.btn-ok{transition:none}.btn-ok.on{animation:none}.btn-ok:active{transform:none}}
+.ask pre{margin:13px 0 0;padding:13px 15px;max-height:480px;overflow-y:auto;border:1px solid var(--ok-line);border-radius:9px;background:var(--bg);color:var(--fg);font-size:var(--fs-compact);line-height:1.55;white-space:pre-wrap;overflow-x:auto}
+/* display:flex + width:fit-content, NOT inline-flex: an inline-level box has its vertical margins ignored for line-box height, so margin-block-end here did nothing and the gap below the pill was whatever the grid happened to give - which differs between the wide layout and the reordered narrow one. Block-level shrink-wrap keeps the pill hugging its text and makes both margins real. */
+.askmini{display:flex;width:fit-content;align-items:center;gap:8px;margin:18px 0 22px;padding:7px 14px;border:1px solid var(--ok-line);background:var(--ok-bg);border-radius:99px;font-size:var(--fs-compact);font-weight:600;color:var(--ok);text-decoration:none}
+.askmini:hover{text-decoration:none;border-color:var(--ok)}
+.askmini-arr{width:6px;height:6px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin-block-start:-4px}
+.ask .askwarn{display:flex;gap:9px;align-items:flex-start;margin:17px 0 0;padding-block-start:14px;border-block-start:1px solid var(--ok-line);font-size:var(--fs-compact);font-weight:600;line-height:1.5;color:var(--fg)}
+.ask .askwarn svg{flex:0 0 auto;color:var(--ok);margin-block-start:1px}
+.fb-links{display:flex;gap:8px;flex-wrap:wrap}
+/* The published-document rows. A monospace file name is the whole point of the block, so it takes the weight the topic labels take and drops a step in size to stay on one line inside the 208px rail: THREAT_MODEL.md is the longest name we ship and it fits at 12.5px. It carries dir="auto" like every other file name the app renders, and therefore must NOT stretch the way a topic label does: a stretched box under dir=rtl aligns its LTR name to the far edge and leaves a hole beside the icon. Shrink-wrapping puts the name against its mark in both directions. Spec: docs/internal/design/ui-patterns.md (section 67, dir=auto convention) */
+.rlbl-mono{flex:0 1 auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:var(--fs-compact);font-weight:600}
+/* A topic label wraps to a second line rather than losing its end: a translation runs longer than the English, and a cut topic name is a topic nobody can read. The icon and the count stay on the first line. */
+.ritem.rt{align-items:flex-start}
+.ritem.rt svg,.ritem.rt .rct{margin-block-start:2px}
+.ritem.rt .rlbl{white-space:normal;overflow:visible;line-height:1.3;overflow-wrap:anywhere}
+.rail-note{margin:8px 10px 0;font-size:var(--fs-small);line-height:1.5;color:var(--faint)}
+/* The page shell (.wrap width, .pcols grid, .rail-col, .ritem, .search,
+   .count, mark) lives in CHROME_CSS - every static page uses it now, not
+   just Help. Only the Help-specific pieces are below. */
+.crumb{grid-area:crumb;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:var(--fs-meta);font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin:4px 0 14px}
+.crumb a{color:var(--accent);text-decoration:none}
+.crumb a:hover{text-decoration:underline}
+.crumb .sep{margin:0 7px;color:var(--faint)}
+.sresults{display:flex;flex-direction:column;gap:2px;margin:10px 0 0}
+.sresults[hidden]{display:none}
+.sr-item{padding:9px 12px;border-radius:9px;font-size:var(--fs-row);line-height:1.4;color:var(--muted);text-decoration:none}
+.sr-item:hover,.sr-item.on{background:var(--imp-bg);color:var(--accent);text-decoration:none}
+.sr-all{color:var(--accent);font-weight:600}
+.leaf-hub{margin-top:38px;padding-top:26px;border-top:1px solid var(--line)}
+.lh-title{margin:0 0 6px;font-size:var(--fs-display);font-weight:800;letter-spacing:-.02em;color:var(--fg)}
+.leaf-hub .sub{margin:0;font-size:var(--fs-body);color:var(--muted)}
+.leaf-hub .search{margin-top:14px}
+/* The generic single-column collapse (and the rail-row-to-pill switch) is
+   in CHROME_CSS; these are the per-view area maps only. */
+@media(max-width:860px){
+/* Hub: topics + guides stay one block between the head and the FAQ list.
+   The un-sticking and the separator are in CHROME_CSS now - every page's
+   rail needs them, not just this one. */
+body[data-static-page="help"] .rail-guides{margin-top:12px}
+body[data-static-page="help"] .rail-sources{margin-top:12px}
+/* Leaf & guide: topics under the breadcrumb, the documents and the guides below the article. The documents go under rather than over it, unlike on the desktop rail: a sticky column is scanned whole, and a phone reads top to bottom, so anything above the answer is something the reader has to get past. */
+body[data-static-page="help-leaf"] .pcols,
+body[data-static-page="help-guide"] .pcols{grid-template-areas:'crumb' 'topics' 'head' 'body' 'sources' 'guides'}
+body[data-static-page="help-leaf"] .rail-col,
+body[data-static-page="help-guide"] .rail-col{display:contents}
+.rail-topics{grid-area:topics}
+.rail-sources{grid-area:sources}
+.rail-guides{grid-area:guides}
+.rail-note{flex:1 1 100%;margin:2px 2px 0}
+body[data-static-page="help-leaf"] .rail-topics,
+body[data-static-page="help-guide"] .rail-topics{margin:0;padding-bottom:18px;border-bottom:1px solid var(--line)}
+body[data-static-page="help-leaf"] .col-head,
+body[data-static-page="help-guide"] .col-head{margin:26px 0 20px}
+body[data-static-page="help-leaf"] .rail-guides,
+body[data-static-page="help-guide"] .rail-guides,
+body[data-static-page="help-leaf"] .rail-sources,
+body[data-static-page="help-guide"] .rail-sources{margin-top:28px;padding-top:20px;border-top:1px solid var(--line)}
+.app-tile{width:72px;height:72px;border-radius:18px}
+.app-tile img{width:54px;height:54px}
+}`;
+
+// ---------------------------------------------------------------------------
+// Leaf showcases. Two FAQ leaves get a rendered demo section beneath their
+// answer: /help/markdown-syntax (live "markdown in, formatting out" cards)
+// and /help/keyboard-shortcuts (the hotkey list as keycaps, sourced from
+// src/hotkeysData.ts so the page can never drift from the in-app modal).
+// Pure static HTML/CSS - no scripts, themed via the shared CSS variables.
+// ---------------------------------------------------------------------------
+
+const MD_SHOWCASE_CSS = `
+.md-sec{margin-top:30px}
+.md-sec>.eyebrow{margin:0 0 10px}
+.md-cap{margin:16px 0 6px;font-size:var(--fs-small);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.md-sec>.eyebrow+.md-cap{margin-top:0}
+.md-demo{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:0 0 12px}
+.md-src{background:var(--chip);padding:14px 16px;display:flex;align-items:center}
+.md-src pre{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:var(--fs-compact);line-height:1.8;color:var(--muted);white-space:pre-wrap;word-break:break-word}
+.md-out{padding:14px 18px;min-width:0;border-left:1px solid var(--line)}
+.md-out>:first-child{margin-top:0}.md-out>:last-child{margin-bottom:0}
+.d-h1{font-size:var(--fs-display);font-weight:800;letter-spacing:-.02em;color:var(--fg);margin:0 0 4px}
+.d-h2{font-size:var(--fs-heading);font-weight:700;letter-spacing:-.01em;color:var(--fg);margin:0 0 4px}
+.d-h3{font-size:var(--fs-row);font-weight:700;color:var(--fg);margin:0}
+.d-p{margin:0 0 6px;font-size:var(--fs-row);color:var(--fg);line-height:1.7}
+.d-list{margin:0;padding-left:20px;font-size:var(--fs-row);color:var(--fg);line-height:1.8}
+.d-list ul{margin:0;padding-left:18px;list-style:disc}
+.d-hr{border:0;border-top:1px solid var(--line);margin:10px 0}
+.d-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:var(--fs-compact);background:var(--chip);border-radius:5px;padding:1px 5px}
+.d-mark{background:var(--imp-bg);color:var(--mark-fg);border-radius:3px;padding:0 2px}
+.d-task{display:flex;align-items:center;gap:9px;margin:4px 0;font-size:var(--fs-row);color:var(--fg)}
+.d-box{flex:0 0 auto;width:16px;height:16px;border:1.5px solid var(--faint);border-radius:4px;display:inline-flex;align-items:center;justify-content:center}
+.d-box.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.d-quote{border-left:3px solid var(--accent);padding:2px 0 2px 12px;margin:0;font-size:var(--fs-row);font-style:italic;color:var(--muted)}
+.d-call{display:flex;gap:10px;padding:11px 13px;border-radius:10px;border:1px solid;font-size:var(--fs-body);margin:0 0 8px}
+.d-call:last-child{margin-bottom:0}
+.d-call svg{flex:0 0 auto;margin-top:1px}
+.d-call strong{display:block;font-size:var(--fs-body);margin:0 0 2px;color:var(--fg)}
+.d-call p{margin:0;color:var(--muted)}
+.d-info{background:rgba(59,130,246,.09);border-color:rgba(59,130,246,.35)}
+.d-info svg,.d-info strong{color:#3b82f6}
+.d-warn{background:rgba(217,119,6,.09);border-color:rgba(217,119,6,.35)}
+.d-warn svg,.d-warn strong{color:#d97706}
+.d-table{border-collapse:collapse;width:100%;font-size:var(--fs-body);color:var(--fg)}
+.d-table th,.d-table td{border:1px solid var(--line);padding:7px 10px;text-align:left}
+.d-table th{background:var(--chip);font-weight:600}
+.d-cb{background:#0e1014;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:0}
+.d-cb code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:var(--fs-compact);line-height:1.7;color:#e7e9ec;white-space:pre-wrap}
+.t-k{color:#c678dd}.t-f{color:#61afef}.t-c{color:#7f848e}
+.d-math{margin:0;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:var(--fs-title);color:var(--fg)}
+.d-nl{color:var(--accent);font-weight:600;border-bottom:1px dashed var(--accent);cursor:pointer}
+@media(max-width:700px){.md-demo{grid-template-columns:minmax(0,1fr)}.md-out{border-left:0;border-top:1px solid var(--line)}}`;
+
+const PRINTER_ICON =
+  '<svg data-ic viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M214.67,68H204V40a12,12,0,0,0-12-12H64A12,12,0,0,0,52,40V68H41.33C25.16,68,12,80.56,12,96v80a12,12,0,0,0,12,12H52v28a12,12,0,0,0,12,12H192a12,12,0,0,0,12-12V188h28a12,12,0,0,0,12-12V96C244,80.56,230.84,68,214.67,68ZM76,52H180V68H76ZM180,204H76V172H180Zm40-40H204v-4a12,12,0,0,0-12-12H64a12,12,0,0,0-12,12v4H36V96c0-2.17,2.44-4,5.33-4H214.67c2.89,0,5.33,1.83,5.33,4Zm-16-44a16,16,0,1,1-16-16A16,16,0,0,1,204,120Z"/></svg>';
+
+/** The cheat sheet's switch icons (Phosphor, bold): the key each OS's
+ *  shortcuts start with, where the app runs, and which keys the sheet shows. */
+const PICK_ICONS: Record<string, string> = {
+  mac: '<svg data-ic viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M180,140H164V116h16a40,40,0,1,0-40-40V92H116V76a40,40,0,1,0-40,40H92v24H76a40,40,0,1,0,40,40V164h24v16a40,40,0,1,0,40-40ZM164,76a16,16,0,1,1,16,16H164ZM60,76a16,16,0,0,1,32,0V92H76A16,16,0,0,1,60,76ZM92,180a16,16,0,1,1-16-16H92Zm24-64h24v24H116Zm64,80a16,16,0,0,1-16-16V164h16a16,16,0,0,1,0,32Z"/></svg>',
+  pc: '<svg data-ic viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208.49,128.49a12,12,0,0,1-17,0L128,65,64.49,128.49a12,12,0,0,1-17-17l72-72a12,12,0,0,1,17,0l72,72A12,12,0,0,1,208.49,128.49Z"/></svg>',
+  web: '<svg data-ic viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M216,36H40A20,20,0,0,0,20,56V200a20,20,0,0,0,20,20H216a20,20,0,0,0,20-20V56A20,20,0,0,0,216,36Zm-4,24V84H44V60ZM44,196V108H212v88Z"/></svg>',
+  desktop: '<svg data-ic viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,36H48A28,28,0,0,0,20,64V172a28,28,0,0,0,28,28h68v12H96a12,12,0,0,0,0,24h64a12,12,0,0,0,0-24H140V200h68a28,28,0,0,0,28-28V64A28,28,0,0,0,208,36ZM48,60H208a4,4,0,0,1,4,4v72H44V64A4,4,0,0,1,48,60ZM208,176H48a4,4,0,0,1-4-4V160H212v12A4,4,0,0,1,208,176Z"/></svg>',
+  notes: '<svg data-ic viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M232.49,55.51l-32-32a12,12,0,0,0-17,0l-96,96A12,12,0,0,0,84,128v32a12,12,0,0,0,12,12h32a12,12,0,0,0,8.49-3.51l96-96A12,12,0,0,0,232.49,55.51ZM192,49l15,15L196,75,181,60Zm-69,99H108V133l56-56,15,15Zm105-7.43V208a20,20,0,0,1-20,20H48a20,20,0,0,1-20-20V48A20,20,0,0,1,48,28h67.43a12,12,0,0,1,0,24H52V204H204V140.57a12,12,0,0,1,24,0Z"/></svg>',
+  drawing: '<svg data-ic viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208.5,192.49a10.6,10.6,0,0,0,0,15,12,12,0,0,1-17,17,34.62,34.62,0,0,1,0-49l9.37-9.37a10.63,10.63,0,0,0-15-15l-66.76,66.75a34.63,34.63,0,0,1-49-49l98.76-98.75a10.63,10.63,0,0,0-15-15L87.11,121.86a34.63,34.63,0,0,1-49-49L79.51,31.51a12,12,0,1,1,17,17L55.1,89.86a10.63,10.63,0,0,0,15,15l66.76-66.75a34.63,34.63,0,1,1,49,49L87.11,185.86a10.63,10.63,0,0,0,15,15l66.75-66.75a34.63,34.63,0,0,1,49,49Z"/></svg>',
+};
+
+/** One of the cheat sheet's switch buttons, with its icon. */
+function hkPick(set: string, value: string, label: string, pressed = false): string {
+  return `<button type="button" class="hk-pick" data-hk-set="${set}" data-value="${value}" aria-pressed="${pressed}">${PICK_ICONS[value]}${label}</button>`;
+}
+
+const CALL_INFO_ICON =
+  '<svg data-ic viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg>';
+const CALL_WARN_ICON =
+  '<svg data-ic viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.7 18-8-14a2 2 0 0 0-3.5 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>';
+const TASK_CHECK_ICON =
+  '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+
+/** One captioned "markdown in, result out" card. `src` arrives pre-escaped. */
+function mdDemo(cap: string, src: string, out: string): string {
+  return `<p class="md-cap">${esc(cap)}</p>
+<div class="md-demo"><div class="md-src"><pre>${src}</pre></div><div class="md-out">${out}</div></div>`;
+}
+
+function renderMarkdownShowcase(label: string, p: Record<string, string>): string {
+  const demos = [
+    mdDemo(
+      p.mdDemoHeadings ?? 'Headings',
+      '# Planning\n## This week\n### Monday',
+      '<p class="d-h1">Planning</p><p class="d-h2">This week</p><p class="d-h3">Monday</p>'
+    ),
+    mdDemo(
+      p.mdDemoInline ?? 'Inline formatting',
+      '**bold**, *italic*, ~~done~~,\n==marked== and \`inline code\`',
+      '<p class="d-p"><strong>bold</strong>, <em>italic</em>, <s>done</s>, <span class="d-mark">marked</span> and <code class="d-code">inline code</code></p>'
+    ),
+    mdDemo(
+      p.mdDemoTasks ?? 'Task list',
+      '- [x] Derive keys on the device\n- [ ] Trust a server',
+      `<div class="d-task"><span class="d-box on">${TASK_CHECK_ICON}</span>Derive keys on the device</div><div class="d-task"><span class="d-box"></span>Trust a server</div>`
+    ),
+    mdDemo(
+      p.mdDemoLists ?? 'Nested lists',
+      '1. Write your phrase down\n2. Store it offline\n   - paper beats cloud\n   - two copies, two places',
+      '<ol class="d-list"><li>Write your phrase down</li><li>Store it offline<ul><li>paper beats cloud</li><li>two copies, two places</li></ul></li></ol>'
+    ),
+    mdDemo(
+      p.mdDemoCallouts ?? 'Callouts',
+      '&gt; [!info] Pinned\n&gt; Pinned notes stay at the top of the list.\n\n&gt; [!warning] Back it up\n&gt; Write your phrase on paper.',
+      `<div class="d-call d-info">${CALL_INFO_ICON}<div><strong>Pinned</strong><p>Pinned notes stay at the top of the list.</p></div></div><div class="d-call d-warn">${CALL_WARN_ICON}<div><strong>Back it up</strong><p>Write your phrase on paper.</p></div></div>`
+    ),
+    mdDemo(
+      p.mdDemoTable ?? 'Table',
+      '| Item | Count |\n| --- | --- |\n| Notes | 12 |\n| Tasks | 5 |',
+      '<table class="d-table"><thead><tr><th>Item</th><th>Count</th></tr></thead><tbody><tr><td>Notes</td><td>12</td></tr><tr><td>Tasks</td><td>5</td></tr></tbody></table>'
+    ),
+    mdDemo(
+      p.mdDemoCode ?? 'Code block',
+      '\`\`\`js\n// the same phrase makes the same keys\nconst keys = deriveKeys(phrase);\n\`\`\`',
+      '<pre class="d-cb"><code><span class="t-c">// the same phrase makes the same keys</span>\n<span class="t-k">const</span> keys = <span class="t-f">deriveKeys</span>(phrase);</code></pre>'
+    ),
+    mdDemo(
+      p.mdDemoScripts ?? 'Superscript, subscript, underline',
+      'H&lt;sub&gt;2&lt;/sub&gt;O and E = mc&lt;sup&gt;2&lt;/sup&gt;,\n&lt;u&gt;underline&lt;/u&gt; included',
+      '<p class="d-p">H<sub>2</sub>O and E = mc<sup>2</sup>, <u>underline</u> included</p>'
+    ),
+    mdDemo(
+      p.mdDemoMath ?? 'Math (KaTeX)',
+      '$e^{i\\pi} + 1 = 0$',
+      '<p class="d-math">e<sup>i&pi;</sup> + 1 = 0</p>'
+    ),
+    mdDemo(
+      p.mdDemoQuote ?? 'Quote and note-link',
+      '&gt; Privacy is a feature, not a setting.\n\nIdeas live in [[Second brain]]',
+      '<blockquote class="d-quote">Privacy is a feature, not a setting.</blockquote><p class="d-p" style="margin-top:8px">Ideas live in <span class="d-nl">Second brain</span></p>'
+    ),
+    mdDemo(
+      p.mdDemoDivider ?? 'Divider',
+      'Quick capture\n\n---\n\nPolished later',
+      '<p class="d-p">Quick capture</p><hr class="d-hr"><p class="d-p">Polished later</p>'
+    ),
+  ];
+  return `<section class="md-sec">
+<h2 class="eyebrow">// ${esc(label)}</h2>
+${demos.join('\n')}
+</section>`;
+}
+
+/** The CSS that shows one key set: the root carries data-hk-os and data-hk-app. */
+function keySetCss(root: string, rowClass: string): string {
+  return `${root}[data-hk-os="mac"] [data-os="pc"],${root}[data-hk-os="pc"] [data-os="mac"],${root}[data-hk-app="web"] [data-app="desktop"],${root}[data-hk-app="desktop"] [data-app="web"],${root}[data-hk-app="drawing"] [data-app="web"],${root}[data-hk-app="drawing"] [data-app="desktop"],${root}[data-hk-app="web"] [data-app="drawing"],${root}[data-hk-app="desktop"] [data-app="drawing"],${root}[data-hk-app="web"] .${rowClass}[data-desktop-only]{display:none}`;
+}
+
+/** The English typing note from common.json, the one hotkeys string the sheet shares with the app. */
+function readTypingNote(): string {
+  try {
+    const cat = JSON.parse(fs.readFileSync(path.join(LOCALES_DIR, 'en', 'common.json'), 'utf8')) as {
+      hotkeys?: { typingNote?: string };
+    };
+    return cat.hotkeys?.typingNote ?? '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * The printable cheat sheet page (see cheatSheetPath). A standalone page,
+ * NOT on the docs shell: on screen it shows the sheet as a paper card under
+ * a slim toolbar with a Print button (static-pages.js, initCheatSheet); in
+ * print it is the sheet alone, one A4 page, two columns. The sheet itself
+ * is always paper-white in both themes, so what you see is what prints.
+ * Sourced from src/hotkeysData.ts like the modal and the FAQ leaf, so the
+ * two can never drift. Links come here from the About modal's Hotkeys
+ * tab, the site footer, and the keyboard-shortcuts answer.
+ */
+function renderCheatSheetHtml(hotkeyGroups: HotkeyGroupData[]): string {
+  // English-only page: its chrome strings live here, not in the catalogs
+  // (the roadmap/brand pattern - a string in en/faq.json would oblige 16
+  // translations of a page that only exists in English).
+  const title = 'Keyboard shortcuts cheat sheet';
+  const desc = 'Every PrivacyNotes keyboard shortcut on one printable A4 page.';
+  const printLabel = 'Print';
+  const hint = 'Prints on one A4 page - or choose PDF in the print dialog to save it as a file.';
+  const legend = 'On Windows and Linux, ⌘ is Ctrl and ⌥ is Alt.';
+  const legendPc = 'On a Mac, Ctrl is ⌘ and Alt is ⌥.';
+  // The rule the app's key matcher follows (shortcutMatch.ts), said once for
+  // anybody whose keyboard is not a US one. It shares the legend's line: the
+  // footer is what tips the desktop sheet onto a second A4 page.
+  const layoutNote = 'Keys follow the characters your keyboard types, not US key positions.';
+  // Groups and rows render the English source labels straight from
+  // hotkeysData; only the typing note is shared with the app's catalog.
+  const typingNote = readTypingNote();
+  // One sheet per key set (Mac or Windows and Linux, browser or desktop
+  // app), each with its own two columns: the sets differ in rows and in key
+  // widths, so one balance cannot fit all four. The page shows one at a time.
+  const renderSet = (os: KeyOs, app: 'web' | 'desktop' | 'drawing') => {
+    const desktop = app === 'desktop';
+    const groups = (app === 'drawing' ? drawingHotkeyGroups : hotkeyGroups)
+      .map((g) => ({ g, rows: g.rows.filter((r) => rowCaps(r, os, desktop).length > 0) }))
+      .filter((x) => x.rows.length > 0);
+    const renderGroup = ({ g, rows }: (typeof groups)[number]) => {
+      const html = rows
+        .map((r) => {
+          // "Toggle this help" is the MODAL's self-reference; on paper there
+          // is no "this help", so the sheet points back at the app instead.
+          const label = r.i18nKey === 'toggleHelp' ? 'Show this list in the app' : r.label;
+          const caps = rowCaps(r, os, desktop, true)
+            .map((c) =>
+              typeof c === 'string'
+                ? `<span class="s-or">${c}</span>`
+                : c.map((k) => `<kbd class="s-cap">${esc(k)}</kbd>`).join('')
+            )
+            .join('');
+          return `<div class="s-row"><span class="s-lbl">${esc(label)}</span><span class="s-dots"></span><span class="s-keys">${caps}</span></div>`;
+        })
+        .join('\n');
+      return `<section class="s-g">
+<h2>// ${esc(g.title)}</h2>
+${html}
+</section>`;
+    };
+    // Two explicit columns, balanced by row count (a group header weighs
+    // about one row). CSS `columns` balanced by height alone and Formatting
+    // alone outweighs the other groups, so the first column came up far
+    // shorter. Brute force over the assignments (2^n): the smallest height
+    // difference wins, the first group stays in the first column (mask step
+    // 2 keeps bit 0 set), ties prefer the fuller first column, and data
+    // order is kept inside each column.
+    const weight = (x: (typeof groups)[number]) => x.rows.length + 1;
+    let bestMask = 1;
+    let bestDiff = Infinity;
+    let bestLeft = 0;
+    for (let mask = 1; mask < 1 << groups.length; mask += 2) {
+      let l = 0;
+      let r = 0;
+      groups.forEach((x, i) => (mask & (1 << i) ? (l += weight(x)) : (r += weight(x))));
+      const diff = Math.abs(l - r);
+      if (diff < bestDiff || (diff === bestDiff && l > bestLeft)) {
+        bestDiff = diff;
+        bestLeft = l;
+        bestMask = mask;
+      }
+    }
+    const col = (keep: boolean) =>
+      groups
+        .filter((_, i) => Boolean(bestMask & (1 << i)) === keep)
+        .map(renderGroup)
+        .join('\n');
+    return `<div class="s-cols" data-os="${os}" data-app="${app}">
+<div class="s-col">
+${col(true)}
+</div>
+<div class="s-col">
+${col(false)}
+</div>
+</div>`;
+  };
+  const sets = (['mac', 'pc'] as const).flatMap((os) => (['web', 'desktop', 'drawing'] as const).map((app) => renderSet(os, app))).join('\n');
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(title)} - PrivacyNotes</title>
+<meta name="description" content="${esc(desc)}">
+<link rel="canonical" href="${ORIGIN}${leafPath('en', 'keyboard-shortcuts')}">
+<meta property="og:title" content="${esc(title)} - PrivacyNotes">
+<meta property="og:description" content="${esc(desc)}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="${ORIGIN}${cheatSheetPath()}">
+<meta property="og:site_name" content="PrivacyNotes">
+${ogLocaleTag('en')}
+${OG_IMAGE_TAGS}
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+${THEME_SCRIPT_TAG}
+<script src="/static-pages.js" defer></script>
+<style>
+${themeVarsCss(
+  '--bg:#f2f3f5;--fg:#15171a;--muted:#5b6168;--line:#e7e9ec;--accent:#1E40AF;--on-accent:#fff',
+  '--bg:#0e1014;--fg:#e7e9ec;--muted:#9aa1aa;--line:#23262c;--accent:#4A90D9;--on-accent:#03203E'
+)}
+${TYPE_SCALE_CSS}
+${BRAND_CSS}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.5}
+.bar{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px;background:var(--bg);border-bottom:1px solid var(--line)}
+.bar-brand{display:inline-flex;align-items:center;gap:9px;font-size:var(--fs-row);color:var(--fg);text-decoration:none}
+.bar-brand img{width:26px;height:26px}
+.btn-print{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 16px;border:0;border-radius:9px;background:var(--accent);color:var(--on-accent);font-family:inherit;font-size:var(--fs-body);font-weight:600;line-height:1;white-space:nowrap;cursor:pointer}
+.btn-print:hover{filter:brightness(1.08)}
+.btn-print svg{flex:0 0 auto}
+.hint{max-width:210mm;margin:18px auto 0;padding:0 20px;font-size:var(--fs-compact);color:var(--muted);text-align:center}
+/* The sheet is paper: fixed light colors in both themes, so the preview on
+   screen is exactly what comes out of the printer. */
+.sheet{width:210mm;max-width:100%;margin:18px auto 48px;background:#fff;color:#15171a;border:1px solid var(--line);border-radius:4px;box-shadow:0 12px 40px rgba(0,0,0,.14);padding:13mm 12mm}
+.s-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:2px solid #15171a;padding-bottom:13px}
+.s-brand{display:inline-flex;align-items:center;gap:8px;font-size:var(--fs-title);letter-spacing:-.01em}
+.s-brand img{width:22px;height:22px}
+.s-head h1{margin:0;font-size:var(--fs-row);font-weight:700;color:#3d434a;letter-spacing:-.01em}
+.s-meta{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:var(--fs-meta);color:#8a9099}
+/* minmax(0,1fr), never bare 1fr: the dot leaders are one long nowrap glyph
+   run, and a bare 1fr track's auto minimum honors that intrinsic width,
+   pushing the second column off the sheet. */
+.s-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:10mm;align-items:start;margin-top:22px}
+.s-col{min-width:0}
+/* The row padding and the group gap are what keep the sheet on ONE A4
+   page; the longer column sets the height. Measure with a real print
+   (headless Chrome, --print-to-pdf) after a row is added. */
+.s-g{margin:0 0 20px}
+.s-g h2{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:var(--fs-meta);font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#1E40AF;margin:0 0 6px}
+.s-row{display:flex;align-items:center;gap:9px;padding:2px 0;border-top:1px solid #e7e9ec;font-size:var(--fs-small);color:#3d434a}
+.s-g h2+.s-row{border-top:0}
+.s-lbl{flex:0 1 auto}
+/* Dot leader between label and keys: REAL TEXT (a clipped run of middots),
+   not a gradient background. A gradient rasterizes in the macOS save-as-PDF
+   path and came out as broken dashes; glyphs are vectors in every print
+   engine. The row's align-items centers it. */
+.s-dots{flex:1 1 0;min-width:14px;overflow:hidden;white-space:nowrap;color:#c9ced4;font-size:var(--fs-meta);line-height:1;letter-spacing:5px;text-align:center}
+.s-dots::before{content:"································································································"}
+/* direction:ltr - a key sequence is a forced-LTR island under RTL, so a
+   combined cap like "1 – ⌥⌘6" cannot reorder. Spec: docs/internal/design/ui-patterns.md
+   (section 67, forced-LTR islands) */
+.s-keys{display:inline-flex;align-items:center;gap:3px;flex:0 0 auto;direction:ltr}
+.s-or{color:#8a9099;font-size:var(--fs-meta);padding:0 1px}
+${keySetCss('.sheet', 's-row')}
+.sheet[data-hk-os="mac"] [data-legend="pc"],.sheet[data-hk-os="pc"] [data-legend="mac"],.sheet[data-hk-app="web"] [data-set-name="desktop"],.sheet[data-hk-app="desktop"] [data-set-name="web"],.sheet[data-hk-app="drawing"] [data-set-name="web"],.sheet[data-hk-app="drawing"] [data-set-name="desktop"],.sheet[data-hk-app="web"] [data-set-name="drawing"],.sheet[data-hk-app="desktop"] [data-set-name="drawing"],.sheet[data-hk-os="mac"] [data-set-name="pc"],.sheet[data-hk-os="pc"] [data-set-name="mac"]{display:none}
+.bar-picks{display:flex;gap:8px;flex-wrap:wrap}
+.bar-pickset{display:inline-flex;border:1px solid var(--line);border-radius:99px;padding:2px}
+.hk-pick{display:inline-flex;align-items:center;gap:6px;border:0;background:none;font:inherit;font-size:var(--fs-compact);font-weight:600;color:var(--muted);padding:5px 11px;border-radius:99px;cursor:pointer}
+.hk-pick svg{flex:0 0 auto}
+.hk-pick:disabled{opacity:.45;cursor:default}
+.hk-pick[aria-pressed="true"]{background:var(--line);color:var(--fg)}
+kbd.s-cap{display:inline-flex;min-width:20px;height:20px;padding:0 5px;align-items:center;justify-content:center;border:1px solid #d5d9de;border-bottom-width:2px;border-radius:5px;background:#f5f6f8;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:var(--fs-meta);font-weight:600;color:#15171a}
+.s-foot{margin-top:6px;padding-top:14px;border-top:1px solid #e7e9ec}
+.s-foot p{margin:0 0 6px;font-size:var(--fs-meta);color:#5b6168}
+.s-foot p:last-child{margin-bottom:0}
+/* Zero page margin on purpose: the browser prints its own header/footer
+   (title, URL, date, page count) INSIDE the page margin, so a 0mm margin
+   leaves them no room and Chrome/Safari drop them. The sheet keeps the
+   optical margin as its own padding, well clear of printer hardware
+   margins. */
+@page{size:A4;margin:0}
+@media print{
+body{background:#fff}
+.bar,.hint{display:none}
+.sheet{width:auto;max-width:none;margin:0;border:0;border-radius:0;box-shadow:none;padding:12mm 13mm}
+kbd.s-cap,.s-g h2,.sheet .pn-mark-a{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+/* SCREEN-scoped on purpose: the macOS/WebKit print path measures the page
+   in points (A4 = 595), which is under this breakpoint, so an unscoped
+   query printed the PHONE layout - one stacked column across two pages.
+   Print must always keep the two-column sheet. */
+@media screen and (max-width:700px){
+.s-cols{grid-template-columns:1fr}
+.sheet{margin:16px auto 32px;padding:24px 20px}
+.hint{margin-top:14px}
+}
+</style>
+</head>
+<body data-static-page="cheatsheet">
+<div class="bar">
+<a class="bar-brand" href="${helpPath('en')}"><img src="/privacy-notes.webp" width="26" height="26" alt="" aria-hidden="true" draggable="false">${brandMark()}</a>
+<div class="bar-picks" hidden>
+<div class="bar-pickset">${hkPick('os', 'mac', 'Mac', true)}${hkPick('os', 'pc', 'Windows and Linux')}</div>
+<div class="bar-pickset" data-hk-apps>${hkPick('app', 'web', 'Browser', true)}${hkPick('app', 'desktop', 'Desktop app')}</div>
+<div class="bar-pickset">${hkPick('sheet', 'notes', 'Notes', true)}${hkPick('sheet', 'drawing', 'Drawing')}</div>
+</div>
+<button class="btn-print" id="cs-print" type="button">${PRINTER_ICON}${esc(printLabel)}</button>
+</div>
+<p class="hint">${esc(hint)}</p>
+<main class="sheet" data-hk-os="mac" data-hk-app="web">
+<header class="s-head">
+<div class="s-brand"><img src="/privacy-notes.webp" width="22" height="22" alt="" aria-hidden="true" draggable="false">${brandMark()}</div>
+<h1>${esc(title)}</h1>
+<span class="s-meta"><span data-set-name="mac">Mac</span><span data-set-name="pc">Windows and Linux</span>, <span data-set-name="web">browser</span><span data-set-name="desktop">desktop app</span><span data-set-name="drawing">drawing</span> · v${VERSION}</span>
+</header>
+${sets}
+<footer class="s-foot">
+<p data-legend="mac">${esc(legend)} ${esc(layoutNote)}</p>
+<p data-legend="pc">${esc(legendPc)} ${esc(layoutNote)}</p>
+${typingNote ? `<p>${esc(typingNote)}</p>` : ''}
+</footer>
+</main>
+</body>
+</html>`;
+}
+
+/** The rendered demo section for the showcase entry; '' otherwise. */
+function entryShowcase(id: string, p: Record<string, string>): string {
+  if (id === 'markdown-syntax') return renderMarkdownShowcase(p.mdShowcase ?? 'See it in action', p);
+  return '';
+}
+
+/**
+ * The Help search box - ONE source of truth for hub and leaves. The hub
+ * variant is the JS-enhanced live filter over the answers on the page
+ * (ships hidden; static-pages.js reveals it). The leaf variant stays a
+ * real GET form to the hub, so it works with no JS at all and
+ * static-pages.js reads ?q= on the hub to prefill + filter; with JS it is
+ * upgraded in place into a live title typeahead over `index`, whose last
+ * row always hands the query to the hub for the full-text search.
+ */
+function searchBox(
+  p: Record<string, string>,
+  mode: 'hub' | 'leaf',
+  locale: HelpLocale,
+  total = 0,
+  index = ''
+): string {
+  const input = (extra: string) =>
+    `<input ${extra} type="search" placeholder="${esc(p.searchPlaceholder)}" aria-label="${esc(p.searchLabel)}" autocomplete="off" spellcheck="false">`;
+  const clear = (id: string) =>
+    `<button type="button" class="sclear" id="${id}" aria-label="${esc(p.clearSearch)}" title="${esc(p.clearSearch)}">${CLEAR_ICON}</button>`;
+  if (mode === 'hub')
+    return `<div class="search" id="faq-search" hidden data-count-match="${esc(p.countMatch)}" data-no-matches="${esc(p.noMatches)}" data-copy="${esc(p.copyLink)}" data-copied="${esc(p.copied)}" data-total="${total}">
+${SEARCH_ICON}
+${input('id="faq-q"')}
+${clear('faq-clear')}
+<kbd>/</kbd>
+</div>`;
+  return `<form class="search" action="${helpPath(locale)}" method="get" role="search" id="faq-lform" data-index="${esc(index)}" data-full="${fullSearchPath(locale)}" data-search-all="${esc(p.searchAll)}">
+${SEARCH_ICON}
+${input('name="q" id="faq-lq"')}
+${clear('faq-lclear')}
+<kbd>/</kbd>
+</form>
+<div class="sresults" id="faq-sr" hidden></div>`;
+}
+
+/**
+ * Question titles + their leaf URLs, baked into the leaf search box so it
+ * can answer as you type before anything else loads. Titles only, which
+ * keeps every leaf small; the answer text comes from `fullSearchIndex`,
+ * fetched on the first keystroke.
+ */
+function leafSearchIndex(sections: Section[], locale: HelpLocale): string {
+  return JSON.stringify(
+    sections.flatMap((s) => s.entries.map((e) => [stripMd(e.q), leafPath(locale, e.id)]))
+  );
+}
+
+function fullSearchPath(locale: HelpLocale): string {
+  return `${helpPath(locale)}/search-index.json`;
+}
+
+/**
+ * The leaf search's full-text index, one file per locale: leaf URL and the
+ * same folded haystack the hub filters on, so a word that only appears in
+ * an answer is found from every leaf too.
+ */
+function fullSearchIndex(sections: Section[], locale: HelpLocale): string {
+  return JSON.stringify(
+    sections.flatMap((s) => s.entries.map((e) => [leafPath(locale, e.id), entryHaystack(e)]))
+  );
+}
+
+export function renderHubHtml(
+  locale: HelpLocale,
+  order: FaqGroupKey[],
+  rows: FaqStructureRow[],
+  cat: FaqCatalog,
+  guideOrder: string[],
+  guides: GuidesCatalog | null,
+  suggest: string
+): string {
+  const sections = buildSections(order, rows, cat);
+  const total = sections.reduce((n, s) => n + s.entries.length, 0);
+  const p = cat.page;
+  return `<!DOCTYPE html>
+<html lang="${locale}"${htmlDir(locale)}>
+<head>
+${headCommon(p.metaTitle, p.metaDescription, `${ORIGIN}${helpPath(locale)}`, hreflangCluster() + textAlternate(locale, '/llms-full.txt'), locale)}
+${faqJsonLd(sections.flatMap((s) => s.entries), newestContentDate())}
+<style>
+${PAGE_VARS}
+${THEME_TOGGLE_CSS}
+${CHROME_CSS}
+${HELP_SHARED_CSS}
+${MD_SHOWCASE_CSS}
+.gstrip{margin:8px 0 26px;padding:16px 18px;border:1px solid var(--line);border-radius:14px}
+.gstrip .eyebrow{margin:0 0 4px}
+.glead{margin:0 0 12px;font-size:var(--fs-body);color:var(--muted)}
+.fgroup .eyebrow{margin:34px 0 6px}
+.fgroup:first-of-type .eyebrow{margin-top:8px}
+.fgroup[hidden]{display:none}
+</style>
+</head>
+<body data-static-page="help" data-locale="${locale}" data-suggest="${esc(suggest)}">
+<div class="wrap">
+${siteNav({ active: 'faq', helpLocale: locale, language: helpLanguageMenu(locale, p.languageLabel, (l) => helpPath(l)) })}
+<div class="pcols">
+${renderSidebar({
+  topicsLabel: p.topics,
+  topics: topicRailItems(sections, (k) => `#g-${k}`),
+  guidesLabel: p.guides,
+  sourcesLabel: p.docsRail,
+  sourcesNote: p.sourcesNote,
+  guideItems: guideRailItems(locale, guideOrder, guides),
+  homeHref: helpPath(locale),
+  homeLabel: p.browseAll,
+  id: 'faq-rail',
+})}
+<div class="col-head">
+<h1>${esc(p.title)}</h1>
+<p class="sub">${esc(p.sub)}</p>
+${searchBox(p, 'hub', locale, total)}
+<p class="count" id="faq-count"></p>
+${askMiniBar(p)}
+</div>
+<div class="col-body" id="faq-list">
+${renderSections(sections, locale, cat)}
+<div class="noresults" id="faq-empty" hidden>
+<p id="faq-empty-lead"></p>
+<button type="button" class="btn btn-ghost" id="faq-empty-clear">${CLEAR_ICON}${esc(p.clearSearch)}</button>
+</div>
+${askAiBlock(p, locale, sections)}${feedbackBlock(p.feedbackPrompt)}
+</div>
+</div>
+</div>
+${helpFooter(locale, p.languageLabel, (l) => helpPath(l))}
+</body>
+</html>`;
+}
+
+export function renderLeafHtml(
+  locale: HelpLocale,
+  order: FaqGroupKey[],
+  rows: FaqStructureRow[],
+  cat: FaqCatalog,
+  guideOrder: string[],
+  guides: GuidesCatalog | null,
+  id: string,
+  suggest: string,
+  relatedIds: readonly string[]
+): string {
+  const p = cat.page;
+  const row = rows.find((r) => r.id === id)!;
+  const entry = cat.entries[id];
+  const groupLabel = cat.groups[row.group] ?? row.group;
+  const sections = buildSections(order, rows, cat);
+  // Scored from the English catalog, so every locale lists the same pages.
+  const related = relatedIds.filter((r) => cat.entries[r]?.q).map((r) => ({ id: r }));
+  const showcase = entryShowcase(id, p);
+  const showcaseCss = id === 'markdown-syntax' ? MD_SHOWCASE_CSS : '';
+  const paragraphs = entry.a.map((par) => renderParagraph(par, p, locale)).join('\n');
+  const relatedHtml = related.length
+    ? `<div class="related">
+<h2 class="eyebrow">// ${esc(p.related)}</h2>
+${related.map((r) => `<a class="rel-q" href="${leafPath(locale, r.id)}">${esc(cat.entries[r.id].q)}<span class="chev" aria-hidden="true"></span></a>`).join('\n')}
+</div>`
+    : '';
+  return `<!DOCTYPE html>
+<html lang="${locale}"${htmlDir(locale)}>
+<head>
+${headCommon(`${stripMd(entry.q)} - PrivacyNotes`, excerpt(entry.a[0]), `${ORIGIN}${leafPath(locale, id)}`, hreflangCluster(id) + textAlternate(locale, `${leafPath('en', id)}.md`), locale)}
+${faqJsonLd([entry], contentDate(id))}
+${breadcrumbJsonLd(p.title, `${ORIGIN}${helpPath(locale)}`, entry.q, `${ORIGIN}${leafPath(locale, id)}`)}
+<style>
+${PAGE_VARS}
+${THEME_TOGGLE_CSS}
+${CHROME_CSS}
+${HELP_SHARED_CSS}
+h1{font-size:var(--fs-display-2)}
+.leaf-body p{margin:0 0 14px;font-size:var(--fs-title);color:var(--muted);line-height:1.65}
+.leaf-body p:first-child{margin-top:2px}
+.leaf-body .lst li{font-size:var(--fs-title)}
+.related{margin-top:34px}
+.related .eyebrow{margin:0 0 4px}
+.rel-q{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 2px;border-top:1px solid var(--line);font-size:var(--fs-row);font-weight:600;color:var(--fg);text-decoration:none;letter-spacing:-.01em}
+.related .eyebrow + .rel-q{border-top:0}
+.rel-q:hover{color:var(--accent);text-decoration:none}
+.rel-q .chev{transform:rotate(-45deg);margin-top:0}
+.srcs{margin:26px 0 0;padding-top:18px;border-top:1px solid var(--line)}
+.srcs .eyebrow{margin:0 0 6px}
+.src-row{display:flex;align-items:center;gap:10px;padding:9px 2px;border-top:1px solid var(--line);color:var(--faint);text-decoration:none}
+.srcs .eyebrow + .src-row{border-top:0}
+.src-row:hover{text-decoration:none}
+.src-row:hover .src-file{color:var(--accent)}
+.src-lbl{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:1px 9px}
+.src-file{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:var(--fs-compact);font-weight:600;color:var(--fg)}
+.src-head{font-size:var(--fs-body);color:var(--muted)}
+.src-note{margin:10px 0 0;font-size:var(--fs-compact);color:var(--faint)}
+${showcaseCss}
+</style>
+</head>
+<body data-static-page="help-leaf" data-locale="${locale}" data-suggest="${esc(suggest)}">
+<div class="wrap">
+${siteNav({ active: 'faq', helpLocale: locale, language: helpLanguageMenu(locale, p.languageLabel, (l) => leafPath(l, id)) })}
+<div class="pcols">
+${renderSidebar({
+  topicsLabel: p.topics,
+  topics: topicRailItems(sections, (k) => `${helpPath(locale)}#g-${k}`, row.group),
+  guidesLabel: p.guides,
+  sourcesLabel: p.docsRail,
+  sourcesNote: p.sourcesNote,
+  guideItems: guideRailItems(locale, guideOrder, guides),
+  homeHref: helpPath(locale),
+  homeLabel: p.browseAll,
+})}
+<p class="crumb"><a href="${helpPath(locale)}">${esc(p.title)}</a><span class="sep">/</span><a href="${helpPath(locale)}#g-${esc(row.group)}">${esc(groupLabel)}</a></p>
+<div class="col-head">
+<h1>${esc(stripMd(entry.q))}</h1>
+${askMiniBar(p)}
+</div>
+<div class="col-body">
+<div class="leaf-body">
+${paragraphs}
+</div>
+${showcase}
+${sourcesBlock(p, id)}
+${relatedHtml}
+<div class="leaf-hub">
+<p class="lh-title">${esc(p.title)}</p>
+<p class="sub">${esc(p.sub)}</p>
+${searchBox(p, 'leaf', locale, 0, leafSearchIndex(sections, locale))}
+</div>
+${askAiBlock(p, locale, sections)}${feedbackBlock(p.feedbackPrompt)}
+</div>
+</div>
+</div>
+${helpFooter(locale, p.languageLabel, (l) => leafPath(l, id))}
+</body>
+</html>`;
+}
+
+export function renderGuideHtml(
+  locale: HelpLocale,
+  order: FaqGroupKey[],
+  rows: FaqStructureRow[],
+  guideOrder: string[],
+  guides: GuidesCatalog,
+  cat: FaqCatalog,
+  id: string,
+  suggest: string
+): string {
+  const g = guides.guides[id];
+  const gp = guides.page;
+  const p = cat.page;
+  const faqSections = buildSections(order, rows, cat);
+  const iconHref = guideIconHref(id);
+  const glyph = guideGlyph(id, 72);
+  const tile = iconHref
+    ? `<div class="app-tile"><img src="${iconHref}" width="72" height="72" alt="" loading="eager"></div>`
+    : glyph
+      ? `<div class="app-tile">${glyph}</div>`
+      : '';
+  const sections = g.sections
+    .map((s) => {
+      // The shot leads its section: a section with only an img renders
+      // between the lead and the first heading. Intrinsic width/height
+      // are always emitted so the reserved box kills the layout shift.
+      const shot = s.img?.src
+        ? `<figure class="guide-shot"><img src="${esc(s.img.src)}" alt="${esc(s.img.alt)}" width="${s.img.width}" height="${s.img.height}" loading="lazy" decoding="async"></figure>`
+        : '';
+      const head = s.h ? `<h2>${esc(s.h)}</h2>` : '';
+      const paras = (s.p ?? []).map((par) => `<p>${renderInline(par)}</p>`).join('\n');
+      const steps = s.steps?.length
+        ? `<ol>${s.steps.map((st) => `<li>${renderInline(st)}</li>`).join('\n')}</ol>`
+        : '';
+      return `${shot}\n${head}\n${paras}\n${steps}`;
+    })
+    .join('\n');
+  const importSteps = gp.importSteps
+    .map((st) => `<li>${renderInline(fill(st, { app: g.app }), locale)}</li>`)
+    .join('\n');
+  return `<!DOCTYPE html>
+<html lang="${locale}"${htmlDir(locale)}>
+<head>
+${headCommon(g.metaTitle, excerpt(g.lead), `${ORIGIN}${guidePath(locale, id)}`, guideHreflang(id) + textAlternate(locale, `${guidePath('en', id)}.md`), locale)}
+${breadcrumbJsonLd(p.title, `${ORIGIN}${helpPath(locale)}`, g.title, `${ORIGIN}${guidePath(locale, id)}`)}
+${guideJsonLd(g, `${ORIGIN}${guidePath(locale, id)}`, locale, contentDate(id))}
+<style>
+${PAGE_VARS}
+${THEME_TOGGLE_CSS}
+${CHROME_CSS}
+${HELP_SHARED_CSS}
+h1{font-size:var(--fs-display-2)}
+.lead{font-size:var(--fs-title);color:var(--muted);line-height:1.6;margin:0 0 4px}
+.guide-body h2{font-size:var(--fs-heading);font-weight:700;letter-spacing:-.01em;margin:26px 0 8px}
+.guide-body>h2:first-child{margin-top:14px}
+.guide-body>p:first-child{margin-top:14px}
+.guide-body>figure.guide-shot:first-child{margin-top:14px}
+.guide-shot{margin:0 0 18px}
+.guide-shot img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:10px}
+.guide-body p{margin:0 0 13px;font-size:var(--fs-title);color:var(--muted);line-height:1.65}
+.guide-body ol{margin:0 0 16px;padding-left:22px}
+.guide-body ol li{margin:0 0 9px;font-size:var(--fs-title);color:var(--muted);line-height:1.6}
+.guide-body ol li::marker{color:var(--accent);font-weight:600}
+</style>
+</head>
+<body data-static-page="help-guide" data-locale="${locale}" data-suggest="${esc(suggest)}">
+<div class="wrap">
+${siteNav({ active: 'faq', helpLocale: locale, language: helpLanguageMenu(locale, p.languageLabel, (l) => guidePath(l, id)) })}
+<div class="pcols">
+${renderSidebar({
+  topicsLabel: p.topics,
+  topics: topicRailItems(faqSections, (k) => `${helpPath(locale)}#g-${k}`),
+  guidesLabel: p.guides,
+  sourcesLabel: p.docsRail,
+  sourcesNote: p.sourcesNote,
+  guideItems: guideRailItems(locale, guideOrder, guides, id),
+  homeHref: helpPath(locale),
+  homeLabel: p.browseAll,
+})}
+<p class="crumb"><a href="${helpPath(locale)}">${esc(p.title)}</a><span class="sep">/</span>${esc(p.guides)}</p>
+<div class="col-head">
+<div class="head-row">
+${tile}
+<div class="head-txt">
+<h1>${esc(g.title)}</h1>
+<p class="lead">${esc(g.lead)}</p>
+</div>
+</div>
+${askMiniBar(p)}
+</div>
+<div class="col-body">
+<div class="guide-body">
+${sections}
+<h2>${esc(gp.importTitle)}</h2>
+<ol>
+${importSteps}
+</ol>
+</div>
+${askAiBlock(p, locale, faqSections)}${feedbackBlock(p.feedbackPrompt)}
+</div>
+</div>
+</div>
+${helpFooter(locale, p.languageLabel, (l) => guidePath(l, id))}
+</body>
+</html>`;
+}
+
+function urlset(urls: string[]): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map((u) => `<url><loc>${u}</loc></url>`).join('\n')}
+</urlset>`;
+}
+
+/** sitemap-help.xml: hubs, FAQ leaves, and guides across every locale. */
+function renderSitemap(rows: FaqStructureRow[], guideIds: string[]): string {
+  const urls: string[] = [];
+  for (const locale of HELP_LOCALES) {
+    urls.push(`${ORIGIN}${helpPath(locale)}`);
+    for (const r of rows) urls.push(`${ORIGIN}${leafPath(locale, r.id)}`);
+    for (const id of guideIds) urls.push(`${ORIGIN}${guidePath(locale, id)}`);
+  }
+  return urlset(urls);
+}
+
+/**
+ * sitemap-marketing.xml: the homepage, its per-locale slugs, and the two
+ * other pre-rendered standalone pages.
+ *
+ * These were in no sitemap at all - robots.txt advertised only the Help
+ * sitemap, so the homepage and every localized homepage were left to be
+ * found by crawling. "/en" is deliberately absent: it canonicalizes to the
+ * apex (see marketingPath() in src/seo.ts), and listing a URL that points
+ * its canonical elsewhere is a contradiction Google reports back as
+ * "Alternate page with proper canonical tag".
+ */
+function renderMarketingSitemap(): string {
+  const urls = [`${ORIGIN}/`];
+  for (const [locale, slug] of Object.entries(LOCALE_TO_SLUG)) {
+    if (locale === 'en') continue;
+    urls.push(`${ORIGIN}${slug}`);
+  }
+  urls.push(`${ORIGIN}/changelog`, `${ORIGIN}/roadmap`, `${ORIGIN}/themes`, `${ORIGIN}/brand`, `${ORIGIN}/licenses`);
+  return urlset(urls);
+}
+
+/**
+ * sitemap.xml: the index robots.txt points at. Adding a sitemap means
+ * adding a line here rather than editing robots.txt and resubmitting in
+ * Search Console.
+ */
+function renderSitemapIndex(): string {
+  const maps = [
+    `${ORIGIN}/sitemap-marketing.xml`,
+    `${ORIGIN}/sitemap-help.xml`,
+    // The landing sitemap only exists while the landing pages are published;
+    // listing it while landing-pages.ts emits nothing would advertise a 404.
+    ...(LANDING_PAGES_PUBLIC ? [`${ORIGIN}/sitemap-landing.xml`] : []),
+  ];
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${maps.map((m) => `<sitemap><loc>${m}</loc></sitemap>`).join('\n')}
+</sitemapindex>`;
+}
+
+// ── Plain-text layer, for AI agents ──────────────────────────
+//
+// The help center is already crawlable: static HTML, FAQPage JSON-LD,
+// a sitemap, and no bot blocked in robots.txt. What it was not is
+// CHEAP TO READ. The hub is 266 KB of markup and one FAQ leaf is 85 KB,
+// so an assistant answering "how much is Pro" paid for a stylesheet, a
+// sidebar and 59 collapsed <details> to reach two sentences. The whole
+// English help center as text is 72 KB - less than one leaf page.
+//
+// So every FAQ leaf and every guide also emits a .md twin at the page
+// URL plus `.md`, and the lot is concatenated into /llms-full.txt, the
+// companion the llms.txt convention names. Both come from the same
+// catalogs the pages come from, so neither can disagree with the page
+// it mirrors.
+//
+// Everything here says how the app WORKS. What CHANGED lives in the
+// fourth file of this layer, /changelog.md, which changelog-page.ts emits
+// from the same array the changelog page reads; both bundles point at it,
+// because an assistant asked "where did this move" finds nothing in a
+// catalog that only describes the app as it stands today.
+//
+// English only, on purpose: llms.txt is an English convention, and .md
+// twins for every locale would add well over a thousand files to serve
+// readers that do not exist yet. The .md files stay OUT of the sitemaps - a sitemap
+// lists pages to index, and listing a twin of an indexed page is the
+// duplicate-content shape the self-canonical stance exists to avoid.
+
+/**
+ * The hub URL for one FAQ group, spelled out under its heading in both
+ * text bundles.
+ *
+ * Why: a `## Security & privacy` heading with no URL under it looks to a
+ * model exactly like a markdown document heading, so an assistant asked to
+ * cite the section builds `/help#security--privacy` - the GitHub anchor
+ * slug for that text - and links a fragment this site has never had. Seen
+ * in the wild. The real id is `g-<groupKey>`, written by the hub, and the
+ * fix is to leave nothing to invent: every heading in those files now names
+ * its own URL, exactly like every entry already did.
+ *
+ * Keep in step with the `id="g-..."` the hub emits; check:llms proves the
+ * two agree against the built page.
+ */
+function groupUrl(key: FaqGroupKey): string {
+  return `${ORIGIN}${helpPath('en')}#g-${key}`;
+}
+
+/**
+ * Footer every .md twin carries. It is an instruction, not a description:
+ * "The page this came from" told a model where the text originated and left
+ * it free to cite whatever else looked safe, which is how one assistant
+ * ended up linking only the help center home. Naming the citation is the
+ * job of this line; the bundle link moved out because a second URL here
+ * competed with the one that matters.
+ *
+ * The label is "Source:" rather than "Cite as:" because models echo it
+ * verbatim into their reply. An instruction phrasing therefore surfaces as
+ * "Cite as: https://..." in front of a reader, while "Source:" is what a
+ * citation looks like anyway. Assume the label is user-facing.
+ */
+const MD_FOOTER = `\n---\nSource: `;
+
+/** One FAQ answer as markdown: the question, its URL, the answer. */
+function faqMd(id: string, entry: { q: string; a: string[] }): string {
+  const url = `${ORIGIN}${leafPath('en', id)}`;
+  return `# ${absoluteLinks(entry.q)}\n\n${entry.a.map(absoluteLinks).join('\n\n')}\n${sourcesMd(id)}${MD_FOOTER}${url}\n`;
+}
+
+/** One import guide as markdown, including the shared import steps. */
+function guideMd(id: string, guides: GuidesCatalog): string {
+  const g = guides.guides[id];
+  const url = `${ORIGIN}${guidePath('en', id)}`;
+  const body = g.sections
+    .map((sec) => {
+      const parts: string[] = [];
+      if (sec.h) parts.push(`## ${sec.h}`);
+      for (const par of sec.p ?? []) parts.push(absoluteLinks(par));
+      if (sec.steps?.length) {
+        parts.push(sec.steps.map((st, i) => `${i + 1}. ${absoluteLinks(st)}`).join('\n'));
+      }
+      return parts.join('\n\n');
+    })
+    .filter(Boolean)
+    .join('\n\n');
+  const steps = guides.page.importSteps
+    .map((st, i) => `${i + 1}. ${absoluteLinks(fill(st, { app: g.app }))}`)
+    .join('\n');
+  return `# ${g.title}\n\n${absoluteLinks(g.lead)}\n\n${body}\n\n## ${guides.page.importTitle}\n\n${steps}\n${MD_FOOTER}${url}\n`;
+}
+
+/**
+ * /llms-index.txt - the token-light tier.
+ *
+ * llms-full.txt is one fetch and about 17,700 tokens. That is free and
+ * invisible on a chat subscription, and it is real money on a metered API
+ * key and simply too large for a local model with an 8k window. So the
+ * index lists every question against the URL that answers it, and points
+ * at the .md twins rather than the pages: an answer costs about 230
+ * tokens that way instead of the 21,000 its HTML page costs.
+ *
+ * Read index, fetch one page: roughly 2,000 tokens instead of 17,700.
+ *
+ * The index links llms-full.txt back, and the copied prompt names it as
+ * the fallback, because an assistant that cannot chain two fetches has to
+ * land somewhere that still answers the question.
+ */
+function renderLlmsIndex(
+  order: FaqGroupKey[],
+  rows: FaqStructureRow[],
+  cat: FaqCatalog,
+  guideOrder: string[],
+  guides: GuidesCatalog | null
+): string {
+  const sections = buildSections(order, rows, cat);
+  const entryCount = sections.reduce((n, sec) => n + sec.entries.length, 0);
+  const guideIds = guides ? guideOrder.filter((id) => guides.guides[id]?.app) : [];
+  const faq = sections
+    .map(
+      (sec) =>
+        `## ${sec.label}\n${groupUrl(sec.key)}\n${sec.entries
+          .map((e) => `- ${stripMd(e.q)} -> ${ORIGIN}${leafPath('en', e.id)}.md (source: ${ORIGIN}${leafPath('en', e.id)})`)
+          .join('\n')}`
+    )
+    .join('\n\n');
+  const guideList = guides
+    ? `\n\n## Export and import guides\n${ORIGIN}${helpPath('en')}\n${guideIds
+        .map((id) => `- ${guides.guides[id].title} -> ${ORIGIN}${guidePath('en', id)}.md (source: ${ORIGIN}${guidePath('en', id)})`)
+        .join('\n')}`
+    : '';
+  // Named with a colon rather than the "->" the rows above use, on purpose:
+  // a document is not a twin of a page here, it is a file whose citable form
+  // lives on GitHub, and check:llms counts twins by that arrow.
+  const docList = `\n\nThe documents it lists, if one request is all there is:\n${PUBLISHED_DOCS.map(
+    (d) => `- ${d.published}: ${docUrl(d)} (${docSize(d)}) - ${d.about}`
+  ).join('\n')}`;
+  return `# PrivacyNotes Help Center - index
+
+> Every question in the PrivacyNotes help center, against the URL that answers it. ${entryCount} answers and ${guideIds.length} export and import guides. PrivacyNotes is an end-to-end encrypted notes, tasks, journal and vault app.
+
+Read this first, then fetch ONLY the one or two pages that match the question.
+Fetch the .md URL; end your reply with the "source" URL beside it. They
+differ by the extension on purpose: the .md is the cheap copy, the other is
+the page a reader can open.
+Every URL below is plain text and small: an answer averages 900 bytes, a guide
+about 2 KB. Drop the .md from any of them for the human-readable page.
+
+If you cannot make a second request, fetch ${ORIGIN}/llms-full.txt
+instead. It is the same content in one file, and costs about 17,700 tokens.
+
+Everything here describes how the app works today. If the question is about
+what CHANGED - a new feature, a version number, or where a menu path, a
+shortcut or a setting moved - fetch ${ORIGIN}/changelog.md instead.
+It is every release as plain text, newest first, and it cites its own page.
+
+If the question is about how the app is BUILT - the encryption, what the
+server can read, how to verify any of it, or how sync resolves a conflict -
+fetch ${ORIGIN}/docs/index.md instead. It lists the published
+security documents and the sections inside each one.${docList}
+
+The same answers exist in ${HELP_LOCALES.length} languages under ${ORIGIN}/<language-slug>/help,
+as pages rather than as plain text. Answer in the reader's language from these.
+
+${faq}${guideList}
+`;
+}
+
+/**
+ * /llms-full.txt - the whole English help center in one fetch.
+ *
+ * Structure matches the site: one `##` per FAQ group in render order,
+ * one `###` per entry, then the import guides. Every entry names its own
+ * page URL, because an assistant that cites this file cites a file
+ * nobody can open, while a leaf URL is a page the reader can read.
+ */
+function renderLlmsFull(
+  order: FaqGroupKey[],
+  rows: FaqStructureRow[],
+  cat: FaqCatalog,
+  guideOrder: string[],
+  guides: GuidesCatalog | null
+): string {
+  const sections = buildSections(order, rows, cat);
+  const entryCount = sections.reduce((n, sec) => n + sec.entries.length, 0);
+  const guideIds = guides ? guideOrder.filter((id) => guides.guides[id]?.app) : [];
+  const localeCount = HELP_LOCALES.length;
+  const faq = sections
+    .map((sec) => {
+      const entries = sec.entries
+        .map(
+          (e) =>
+            `### ${absoluteLinks(e.q)}\nSource: ${ORIGIN}${leafPath('en', e.id)}\n\n${e.a.map(absoluteLinks).join('\n\n')}`
+        )
+        .join('\n\n');
+      return `## ${sec.label}\n${groupUrl(sec.key)}\n\n${entries}`;
+    })
+    .join('\n\n');
+  const guideBlocks = guides
+    ? guideIds
+        .map((id) => {
+          const g = guides.guides[id];
+          const body = g.sections
+            .map((sec) => {
+              const parts: string[] = [];
+              if (sec.h) parts.push(`**${sec.h}**`);
+              for (const par of sec.p ?? []) parts.push(absoluteLinks(par));
+              if (sec.steps?.length) {
+                parts.push(sec.steps.map((st, i) => `${i + 1}. ${absoluteLinks(st)}`).join('\n'));
+              }
+              return parts.join('\n\n');
+            })
+            .filter(Boolean)
+            .join('\n\n');
+          return `### ${g.title}\nSource: ${ORIGIN}${guidePath('en', id)}\n\n${absoluteLinks(g.lead)}\n\n${body}`;
+        })
+        .join('\n\n')
+    : '';
+  const importSteps = guides
+    ? `\nEvery guide ends with the same four steps inside PrivacyNotes:\n\n${guides.page.importSteps
+        .map((st, i) => `${i + 1}. ${absoluteLinks(fill(st, { app: 'the source app' }))}`)
+        .join('\n')}\n`
+    : '';
+  return `# PrivacyNotes Help Center
+
+> Every answer in the PrivacyNotes help center: ${entryCount} questions and ${guideIds.length} export and import guides, in full. PrivacyNotes is an end-to-end encrypted notes, tasks, journal and vault app. Everything is encrypted on the reader's own device before it is stored or synced.
+
+This file exists so an assistant can answer a question about PrivacyNotes from
+one fetch instead of crawling ${entryCount + guideIds.length} pages. It is generated from the same
+catalogs the pages are generated from, so it cannot disagree with them.
+Read ${ORIGIN}/llms.txt first for the rest of the site.
+This file says how the app WORKS. For what CHANGED and when, and for where a
+menu path or a shortcut moved, fetch ${ORIGIN}/changelog.md
+instead: every release as plain text, newest first.
+For how it is BUILT - the encryption, what the server can read, how to verify
+it, how sync resolves a conflict - fetch ${ORIGIN}/docs/index.md,
+which routes to the four published security documents. They are not repeated
+here: together they are longer than this whole file, and most questions never
+reach them.
+
+Every answer below carries a "Source:" line naming its own page. End your
+reply with that URL, never this file and never the help center home.
+The same pages exist in ${localeCount} languages at ${ORIGIN}/<language-slug>/help/.
+Single answers are also served as plain text at ${ORIGIN}/help/<slug>.md.
+
+${faq}
+
+## Export and import guides
+${ORIGIN}${helpPath('en')}
+
+How to export from another app, and what arrives here. Imports run entirely on the reader's own
+device, and imported notes are encrypted there like any other note.
+${importSteps}
+${guideBlocks}
+`;
+}
+
+type Rendered = { fileName: string; source: string };
+
+async function renderAll(): Promise<Rendered[]> {
+  resetPathVocab();
+  const { order, rows, guideOrder, hotkeyGroups } = await loadStructure();
+  const en = readCatalog('en');
+  if (!en) throw new Error('help-page: src/locales/en/faq.json is missing');
+  const guidesEn = readGuides('en');
+  const suggest = JSON.stringify(suggestStrings());
+  const guideIds = guidesEn ? guideOrder.filter((id) => guidesEn.guides[id]?.app) : [];
+  const related = relatedFaq(rows, en.entries);
+  const out: Rendered[] = [];
+  for (const locale of HELP_LOCALES) {
+    const cat = loadCatalog(locale, en);
+    const guidesCat = loadGuides(locale, guidesEn);
+    const prefix = localePrefix(locale);
+    const base = prefix ? `${prefix.slice(1)}/help` : 'help';
+    out.push({
+      fileName: `${base}/index.html`,
+      source: renderHubHtml(locale, order, rows, cat, guideOrder, guidesCat, suggest),
+    });
+    out.push({
+      fileName: `${base}/search-index.json`,
+      source: fullSearchIndex(buildSections(order, rows, cat), locale),
+    });
+    for (const r of rows) {
+      if (!cat.entries[r.id]?.q) continue;
+      out.push({
+        fileName: `${base}/${r.id}/index.html`,
+        source: renderLeafHtml(locale, order, rows, cat, guideOrder, guidesCat, r.id, suggest, related.get(r.id) ?? []),
+      });
+    }
+    // The printable cheat sheet: ENGLISH ONLY (see cheatSheetPath), so it
+    // is emitted for the apex /help tree alone. Canonicalizes at the
+    // English leaf, so it stays out of sitemap-help.xml.
+    if (locale === 'en') {
+      out.push({
+        fileName: `${base}/keyboard-shortcuts/cheat-sheet/index.html`,
+        source: renderCheatSheetHtml(hotkeyGroups),
+      });
+    }
+    if (guidesCat) {
+      for (const id of guideIds) {
+        out.push({
+          fileName: `${base}/import/${id}/index.html`,
+          source: renderGuideHtml(locale, order, rows, guideOrder, guidesCat, cat, id, suggest),
+        });
+      }
+    }
+  }
+  // The plain-text layer: one .md per English FAQ leaf and guide, plus
+  // the whole thing concatenated. Deliberately absent from the sitemaps.
+  for (const r of rows) {
+    if (!en.entries[r.id]?.q) continue;
+    out.push({ fileName: `help/${r.id}.md`, source: faqMd(r.id, en.entries[r.id]) });
+  }
+  if (guidesEn) {
+    for (const id of guideIds) {
+      out.push({ fileName: `help/import/${id}.md`, source: guideMd(id, guidesEn) });
+    }
+  }
+  out.push({
+    fileName: 'llms-full.txt',
+    source: renderLlmsFull(order, rows, en, guideOrder, guidesEn),
+  });
+  out.push({
+    fileName: 'llms-index.txt',
+    source: renderLlmsIndex(order, rows, en, guideOrder, guidesEn),
+  });
+  // The published security documents, verbatim, plus the map that routes to
+  // them. Out of the sitemaps for the same reason the twins are: they mirror
+  // a document that lives on GitHub, and listing both invites a duplicate.
+  for (const file of docFiles()) out.push(file);
+  out.push({ fileName: 'sitemap-help.xml', source: renderSitemap(rows, guideIds) });
+  out.push({ fileName: 'sitemap-marketing.xml', source: renderMarketingSitemap() });
+  out.push({ fileName: 'sitemap.xml', source: renderSitemapIndex() });
+  return out;
+}
+
+export function helpPagePlugin(): Plugin {
+  return {
+    name: 'emit-help-page',
+    async generateBundle() {
+      for (const page of await renderAll()) {
+        this.emitFile({ type: 'asset', fileName: page.fileName, source: page.source });
+      }
+    },
+    configureServer(server) {
+      // Serve every locale's hub, the FAQ leaves, the guides, and the
+      // sitemap in dev so the whole tree can be verified locally without
+      // a production build.
+      const xml = (
+        res: { setHeader: (k: string, v: string) => void; end: (b: string) => void },
+        body: string
+      ) => {
+        res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+        res.end(body);
+      };
+      server.middlewares.use('/sitemap-help.xml', async (_req, res, next) => {
+        try {
+          const { rows, guideOrder } = await loadStructure();
+          const guidesEn = readGuides('en');
+          const guideIds = guidesEn ? guideOrder.filter((id) => guidesEn.guides[id]?.app) : [];
+          xml(res, renderSitemap(rows, guideIds));
+        } catch (err) {
+          next(err);
+        }
+      });
+      server.middlewares.use('/sitemap-marketing.xml', (_req, res) => xml(res, renderMarketingSitemap()));
+      for (const [route, render] of [
+        ['/llms-full.txt', renderLlmsFull],
+        ['/llms-index.txt', renderLlmsIndex],
+      ] as const) {
+        server.middlewares.use(route, async (_req, res, next) => {
+          try {
+            const { order, rows, guideOrder } = await loadStructure();
+            const en = readCatalog('en');
+            if (!en) throw new Error('help-page: src/locales/en/faq.json is missing');
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+            res.end(render(order, rows, en, guideOrder, readGuides('en')));
+          } catch (err) {
+            next(err);
+          }
+        });
+      }
+      server.middlewares.use('/sitemap.xml', (_req, res) => xml(res, renderSitemapIndex()));
+      // /docs/<slug>.md and /docs/index.md, read off disk on every request so
+      // an edit to a published document shows up without a restart.
+      server.middlewares.use('/docs', (req, res, next) => {
+        const seg = (req.url ?? '/').split('?')[0].replace(/^\/+|\/+$/g, '');
+        if (!seg.endsWith('.md')) {
+          next();
+          return;
+        }
+        const slug = seg.slice(0, -'.md'.length);
+        const body = slug === 'index' ? docsIndexMd() : docMd(slug);
+        if (body === null) {
+          next();
+          return;
+        }
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.end(body);
+      });
+      for (const locale of HELP_LOCALES) {
+        const route = `${localePrefix(locale)}/help`;
+        server.middlewares.use(route, async (req, res, next) => {
+          try {
+            const { order, rows, guideOrder, hotkeyGroups } = await loadStructure();
+            const en = readCatalog('en');
+            if (!en) throw new Error('help-page: src/locales/en/faq.json is missing');
+            const cat = loadCatalog(locale, en);
+            const guidesCat = loadGuides(locale, readGuides('en'));
+            const suggest = JSON.stringify(suggestStrings());
+            resetPathVocab();
+            const seg = (req.url ?? '/').split('?')[0].replace(/^\/+|\/+$/g, '');
+            // Only set the HTML content type on responses this middleware
+            // actually renders: /help/icons/*.svg also flows through this
+            // mount, and a leaked text/html header makes browsers refuse
+            // to render the SVGs (raster formats survive by byte-sniffing).
+            const html = (body: string) => {
+              res.setHeader('Content-Type', 'text/html; charset=utf-8');
+              res.end(body);
+            };
+            // The .md twins sit at the page URL plus `.md`, English only.
+            // text/plain so a browser shows them; see public/_headers.
+            if (locale === 'en' && seg.endsWith('.md')) {
+              const base = seg.slice(0, -'.md'.length);
+              let body: string | null = null;
+              if (base.startsWith('import/')) {
+                const gid = base.slice('import/'.length);
+                if (guidesCat?.guides[gid]?.app) body = guideMd(gid, guidesCat);
+              } else if (cat.entries[base]?.q) {
+                body = faqMd(base, cat.entries[base]);
+              }
+              if (body === null) {
+                next();
+                return;
+              }
+              res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+              res.end(body);
+            } else if (!seg) {
+              html(renderHubHtml(locale, order, rows, cat, guideOrder, guidesCat, suggest));
+            } else if (locale === 'en' && seg === 'keyboard-shortcuts/cheat-sheet') {
+              html(renderCheatSheetHtml(hotkeyGroups));
+            } else if (seg.startsWith('import/')) {
+              const id = seg.slice('import/'.length);
+              if (guidesCat?.guides[id]?.app) {
+                html(renderGuideHtml(locale, order, rows, guideOrder, guidesCat, cat, id, suggest));
+              } else {
+                next();
+              }
+            } else if (rows.some((r) => r.id === seg) && cat.entries[seg]?.q) {
+              html(renderLeafHtml(locale, order, rows, cat, guideOrder, guidesCat, seg, suggest, relatedFaq(rows, en.entries).get(seg) ?? []));
+            } else {
+              next();
+            }
+          } catch (err) {
+            next(err);
+          }
+        });
+      }
+    },
+  };
+}

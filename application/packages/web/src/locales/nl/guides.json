@@ -1,0 +1,1296 @@
+{
+  "page": {
+    "importTitle": "Importeren in PrivacyNotes",
+    "importSteps": [
+      "Open PrivacyNotes en ga naar Instellingen > Overzetten.",
+      "Kies **{{app}}** als bron.",
+      "Sleep het bestand dat je net geëxporteerd hebt erin, of klik om te bladeren.",
+      "Kijk wat het voorbeeld aankondigt en start dan de import."
+    ],
+    "otherGuides": "Andere importgidsen"
+  },
+  "guides": {
+    "1password": {
+      "app": "1Password",
+      "title": "Je 1Password-kluis exporteren",
+      "metaTitle": "Een 1Password-kluis exporteren - PrivacyNotes",
+      "lead": "De 1Password-app exporteert je account als één .1pux-bestand, en PrivacyNotes maakt van de logins, kaarten, notities en identiteiten Kluis-items en notities.",
+      "sections": [
+        {
+          "h": "Exporteren uit 1Password",
+          "steps": [
+            "Open de 1Password-app op je computer en ontgrendel hem.",
+            "Kies File > Export en selecteer je account.",
+            "Voer je accountwachtwoord in, laat het 1PUX-formaat staan en bewaar het bestand."
+          ]
+        },
+        {
+          "h": "1PUX of CSV",
+          "p": [
+            "Kies 1PUX. De CSV-export bevat alleen logins: geen kaarten, notities of identiteiten, en geen aangepaste velden."
+          ]
+        },
+        {
+          "h": "Waar alles belandt",
+          "p": [
+            "Elke login wordt een [login in de Kluis](/nl/help/vault) met zijn 2FA-sleutel, dus [je codes blijven werken](/nl/help/vault-totp), en de extra websites en aangepaste velden komen mee. Een kaart wordt een kaart, en een beveiligde notitie of een identiteit wordt een notitie. Tags blijven tags, geneste ook, favorieten komen vastgezet binnen en gearchiveerde items gaan naar het Archief. Bijgevoegde bestanden blijven achter: bewaar ze vanuit 1Password en voeg ze hier als bijlage toe.",
+            "De export bevat je wachtwoorden in leesbare tekst. Importeer hem, controleer of alles is aangekomen en verwijder het bestand daarna."
+          ]
+        }
+      ]
+    },
+    "google-calendar": {
+      "app": "Google Calendar",
+      "title": "Je Google Calendar exporteren",
+      "metaTitle": "Google Calendar exporteren - PrivacyNotes",
+      "lead": "Google Calendar exporteert alle agenda's die je beheert als één .zip, vanuit de instellingen op een computer. PrivacyNotes leest die .zip zoals hij is, uitpakken hoeft niet.",
+      "sections": [
+        {
+          "h": "Al je agenda's in één keer exporteren",
+          "steps": [
+            "Open [Google Calendar](https://calendar.google.com) in een browser op een computer. De app op je telefoon kan niet exporteren.",
+            "Klik rechtsboven op het tandwiel en dan op \"Settings\" (instellingen).",
+            "Klik in de lijst links op \"Import & export\".",
+            "Klik onder \"Export\" op \"Export\". Je browser downloadt een .zip met voor elke agenda één .ics-bestand.",
+            "Laat de .zip zoals hij is."
+          ],
+          "p": [
+            "De .zip bevat elke agenda waarvoor je de rechten \"Make changes and manage sharing\" hebt, je eigen agenda's inbegrepen. Agenda's die je alleen kunt bekijken, zoals feestdagen of de agenda van een collega, zitten er niet in. Bij een werk- of schoolaccount kan je beheerder het exporteren beperken."
+          ]
+        },
+        {
+          "h": "Of exporteer één agenda",
+          "steps": [
+            "Wijs in de lijst links, onder \"My calendars\", de naam van de agenda aan, klik op \"More\" (de drie puntjes) en dan op \"Settings and sharing\".",
+            "Klik onder \"Calendar settings\" op \"Export calendar\". Je browser downloadt een .zip met het .ics-bestand van die agenda. Laat het bestand zoals het is."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "Elke afspraak komt binnen met zijn dag, zijn tijd en zijn duur, ook afspraken die meerdere dagen duren. Herhalende afspraken behouden hun regel, en een keer die je in Google hebt verplaatst of verwijderd, blijft verplaatst of verwijderd. Elke agenda wordt een map.",
+            "Herinneringen die je bij een afspraak hebt ingesteld komen ook mee, e-mailherinneringen inbegrepen: [ze worden herinneringen in de app, en die hebben PrivacyNotes Pro nodig om af te gaan](/nl/help/reminders). Een afspraak die de standaardherinneringen van je agenda gebruikte, komt zonder herinnering binnen, want Google schrijft standaardinstellingen niet in het bestand. De plaats, de link naar het videogesprek, de gasten en de beschrijving komen in de tekst van de afspraak. [Tijden staan zoals ze op dit apparaat stonden toen je importeerde](/nl/help/calendar-time-zones).",
+            "Een los .ics-bestand uit elke agenda-app werkt ook, Apple Agenda en Outlook inbegrepen.",
+            "Importeer later hetzelfde bestand nog eens en afspraken die er al zijn worden overgeslagen, zodat alleen nieuwe worden toegevoegd."
+          ]
+        }
+      ]
+    },
+    "google-keep": {
+      "app": "Google Keep",
+      "title": "Je Google Keep-notities exporteren",
+      "metaTitle": "Google Keep exporteren met Takeout - PrivacyNotes",
+      "lead": "Google Keep heeft geen exportknop in de app zelf; de officiële uitweg is Google Takeout. Het kost ongeveer vijf minuten, en PrivacyNotes leest het Takeout-bestand rechtstreeks, uitpakken hoeft niet.",
+      "sections": [
+        {
+          "h": "Je notities exporteren uit Google Keep",
+          "steps": [
+            "Ga naar [takeout.google.com](https://takeout.google.com) en meld je aan met het Google-account waar je notities onder vallen.",
+            "Klik op \"Deselect all\" (alles deselecteren), scrol dan door de productlijst en vink alleen \"Keep\" aan.",
+            "Klik op \"Next step\" en houd de standaardinstellingen aan: één keer exporteren, .zip-bestand.",
+            "Klik op \"Create export\". Google zet het archief klaar en mailt je een downloadlink; met alleen Keep duurt dat meestal minuten, geen uren.",
+            "Download de .zip. Je kunt het bestand precies laten zoals het is."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "Titels, notitietekst en opmaak komen intact binnen. Checklists uit Keep worden [echte takenlijsten in PrivacyNotes](/nl/help/tasks), en je Keep-labels komen binnen als tags.",
+            "Sleep de hele Takeout-.zip in de importer. Heb je hem al uitgepakt, dan werkt een los .json-notitiebestand uit de map Takeout/Keep ook."
+          ]
+        }
+      ]
+    },
+    "apple-notes": {
+      "app": "Apple Notes",
+      "title": "Je Apple Notes exporteren",
+      "metaTitle": "Apple Notes naar Markdown exporteren - PrivacyNotes",
+      "lead": "Apple Notes heeft zelf geen bulkexport, dus de praktische route op een Mac is de gratis Exporter-app, die je notities als Markdown wegschrijft. PrivacyNotes leest die export rechtstreeks, inclusief afbeeldingen.",
+      "sections": [
+        {
+          "h": "Je notities exporteren op een Mac",
+          "steps": [
+            "Installeer de gratis app \"Exporter\" uit de Mac App Store.",
+            "Open hem en exporteer je notities. Je krijgt een map met Markdown-bestanden, geordend per account en map, met de afbeeldingen ernaast.",
+            "Klik in Finder met de rechtermuisknop op die map en kies \"Comprimeer\" om er een .zip van te maken."
+          ]
+        },
+        {
+          "h": "Kom je van een iPhone of iPad?",
+          "p": [
+            "Zips per notitie die je vanaf iOS deelt (een kleine .zip met de Markdown van de notitie plus een map Attachments) worden ook geaccepteerd: sleep ze er één voor één in. Voor een hele bibliotheek is de Mac-route hierboven veel sneller."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "Mapstructuur, notitietekst en ingesloten afbeeldingen overleven de overstap. Notities behouden hun titel, en bijlagen belanden in [de versleutelde bestandsopslag](/nl/help/attachment-limits) naast hun notitie."
+          ]
+        }
+      ]
+    },
+    "bear": {
+      "app": "Bear",
+      "title": "Je Bear-notities exporteren",
+      "metaTitle": "Je Bear-notities exporteren - PrivacyNotes",
+      "lead": "Bear exporteert je hele bibliotheek als één back-upbestand, en dat is het bestand dat je meebrengt: het bevat elke notitie, inclusief het archief en de prullenbak.",
+      "sections": [
+        {
+          "h": "Een back-up van Bear maken",
+          "steps": [
+            "Open Bear op je Mac.",
+            "Kies File > Backup Notes...",
+            "Sla het bestand op. Je krijgt één .bear2bk-bestand dat je hele bibliotheek bevat.",
+            "Sleep dat .bear2bk-bestand erin zoals het is."
+          ]
+        },
+        {
+          "h": "De back-up bevat meer dan een export",
+          "p": [
+            "File > Export Notes... schrijft alleen de notities weg van de weergave die je open hebt, dus gearchiveerde notities en notities in de prullenbak ontbreken. De back-up bevat ze allemaal, en onthoudt welke notities vastgezet, gearchiveerd, in de prullenbak of alleen-lezen waren.",
+            "Heb je alleen een Markdown- of Text Bundle-export, zip die dan en sleep de zip erin. Je tekst, tags en bijlagen komen mee, maar het archief, de prullenbak en de vastgezette notities niet, omdat die exports ze nooit wegschrijven.",
+            "Exporteer je in Bear met de hand? Selecteer minstens twee notities. Bij één notitie opent een opslagvenster dat het bestand de verkeerde extensie kan geven."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "Je tags komen mee als tags. Geneste tags zoals #work/projects worden ook opnieuw opgebouwd als mappen, en elke notitie belandt in de map van haar diepste tag. [Links tussen notities worden notitielinks](/nl/help/note-links), en een link naar een kop wijst naar die kop.",
+            "De opmaak blijft behouden: koppen, vet, cursief, onderstreept, doorgehaald, markeringen in hun Bear-kleuren, takenlijsten, tabellen, codeblokken, citaten, aandachtsblokken, wiskunde en voetnoten. Afbeeldingen openen op volle breedte, en ingeklapte koppen komen uitgeklapt binnen.",
+            "Vastgezette notities blijven vastgezet, [gearchiveerde notities komen in het archief](/nl/help/archive), notities uit de prullenbak komen in de prullenbak, alleen-lezen notities blijven alleen-lezen, en elke notitie houdt haar oorspronkelijke datums.",
+            "Afbeeldingen en bestanden die aan je notities hangen worden geïmporteerd in je opslag. Een notitie die naar een bestand verwijst dat de back-up niet bevat, wordt toch geïmporteerd, en het importvoorbeeld vertelt je hoeveel links dat betreft."
+          ]
+        }
+      ]
+    },
+    "obsidian": {
+      "app": "Obsidian",
+      "title": "Je Obsidian-vault exporteren",
+      "metaTitle": "Een Obsidian-vault exporteren - PrivacyNotes",
+      "lead": "Obsidian heeft geen exportstap en heeft er ook geen nodig: een vault is al een map met Markdown-bestanden. Dit is de makkelijkste migratie van allemaal. Zip de vault, sleep hem erin.",
+      "sections": [
+        {
+          "h": "Je vault exporteren",
+          "steps": [
+            "Zoek de map van je vault op je schijf. Weet je niet waar hij staat, dan toont Obsidian het pad als je in de vault-switcher op de naam van de vault klikt.",
+            "Comprimeer de map tot een .zip: rechtsklik > Comprimeer op macOS, of Verzenden naar > Gecomprimeerde (gezipte) map op Windows.",
+            "Die zip is je importbestand. Geen plug-ins of exports nodig."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "Je mapstructuur wordt opnieuw opgebouwd als echte mappen, niet platgeslagen tot tags, hoe diep hij ook genest is. Een notitie in Werk/Projecten belandt in een map Werk > Projecten. Importeer je dezelfde vault opnieuw, dan worden de eerder aangemaakte mappen hergebruikt in plaats van gedupliceerd.",
+            "Op het gratis plan kun je meteen door deze mappen bladeren; [mappen aanmaken, hernoemen en verplaatsen is een Pro-functie](/nl/help/folders), dus een Obsidian-import is een mooie manier om het uit te proberen voordat je upgradet.",
+            "YAML-frontmatter wordt begrepen: tags, aliassen en aanmaakdata worden overgenomen, en #tags in de tekst worden samengevoegd met het tagveld. Je kunt tijdens het importeren ook \"Notities ook taggen per map\" aanvinken om elke mapnaam ook als tag toe te voegen, handig als je graag op tag filtert.",
+            "Je [[...]]-links blijven werken: [PrivacyNotes toont ze als notitielinks](/nl/help/note-links), dus de verbindingen tussen je notities overleven de verhuizing. De configuratiemap .obsidian en .trash worden automatisch overgeslagen."
+          ]
+        }
+      ]
+    },
+    "siyuan": {
+      "app": "SiYuan",
+      "title": "Je SiYuan-notities exporteren",
+      "metaTitle": "Je SiYuan-notities exporteren als Data.zip - PrivacyNotes",
+      "lead": "SiYuan exporteert je hele workspace als één Data.zip. Dat bestand neemt elk notitieboek mee, met geneste documenten, tags, blokverwijzingen, assets en datums.",
+      "sections": [
+        {
+          "img": {
+            "src": "/help/img/siyuan-export.webp",
+            "alt": "Het venster Data migration van SiYuan met de rij Data.zip geselecteerd en de knop Export gemarkeerd.",
+            "width": 1576,
+            "height": 1076
+          },
+          "h": "De workspace exporteren als Data.zip",
+          "steps": [
+            "Open SiYuan op je computer.",
+            "Klik linksboven op het SiYuan-menu en kies \"Data migration\".",
+            "Wijs onder SiYuan naar \"Data.zip\" en klik op Export.",
+            "Kies een map. SiYuan schrijft één .zip met elk notitieboek uit de workspace.",
+            "Sleep die .zip er zo in."
+          ],
+          "p": [
+            "Wil je maar één notitieboek verplaatsen, klik dan met de rechtermuisknop in het paneel Documents op het notitieboek en kies Export > \"SiYuan .sy.zip\". Dat bestand lezen we op dezelfde manier."
+          ]
+        },
+        {
+          "h": "Versleutelde notitieboeken ontgrendelen en los exporteren",
+          "p": [
+            "Data.zip houdt een versleuteld notitieboek versleuteld, dus we kunnen het niet lezen. We slaan het over en het importoverzicht noemt het. Ontgrendel het notitieboek in SiYuan, exporteer het als \"SiYuan .sy.zip\" en sleep dat bestand er ook in: die export is wel leesbaar."
+          ]
+        },
+        {
+          "h": "Kies Data.zip, geen Markdown",
+          "p": [
+            "De Markdown-.zip-export bewaart de tekst, maar laat je documenttags en datums weg en schrijft blokverwijzingen als gewone tekst of voetnoten. We lezen hem als dat alles is wat je hebt, en elke notitie krijgt de datum van de import."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "Elk notitieboek wordt een map en geneste documenten worden geneste mappen. Een document met subdocumenten en een eigen tekst wordt een notitie in de map met dezelfde naam. Elke notitie houdt haar tags en de aanmaak- en wijzigingsdatum die SiYuan bewaarde.",
+            "Koppen, lijsten, checklists, citaten, code met de taal erbij, tabellen met hun uitlijning, wiskunde, aandachtsblokken, markeringen en tekstkleuren komen mee zoals ze waren. [Blokverwijzingen worden notitielinks](/nl/help/note-links), afbeeldingen en bestanden worden in je opslag geïmporteerd en documenten met een bladwijzer komen vastgezet binnen.",
+            "Een database wordt een tabel met de zichtbare kolommen, tabbladen worden invouwbare blokken en een mindmap wordt een geneste lijst. Flashcards blijven gewone tekst en een embed-query blijft behouden als code. SiYuan heeft geen prullenbak in zijn exports, dus verwijderde documenten blijven achter in de geschiedenis van SiYuan."
+          ]
+        }
+      ]
+    },
+    "standard-notes": {
+      "app": "Standard Notes",
+      "title": "Je Standard Notes exporteren",
+      "metaTitle": "Een Standard Notes-back-up exporteren - PrivacyNotes",
+      "lead": "Standard Notes exporteert je account als één ontsleutelde back-up. Super-notities komen mee met hun opmaak, plus checklists, tags en 2FA-codes.",
+      "sections": [
+        {
+          "h": "Je notities exporteren uit Standard Notes",
+          "steps": [
+            "Open Standard Notes (op het web via app.standardnotes.com, of de desktop-app) en meld je aan.",
+            "Klik linksonder op het accountpictogram en dan op Account settings > Backups.",
+            "Kies onder Data backups voor Decrypted en klik dan op Download backup. Dat ene bestand bevat al je notities, ook de Super-notities.",
+            "Je krijgt een .zip met daarin een bestand \"Standard Notes Backup and Import File.txt\". Laat de zip zoals hij is."
+          ]
+        },
+        {
+          "h": "Super-notities, checklists en 2FA-codes houden hun vorm",
+          "p": [
+            "Super-notities houden hun opmaak: koppen, lijsten, checklists, tabellen, codeblokken, markeringen, kleuren, tekstuitlijning en inklapbare secties. [Een link naar een andere notitie wordt een notitielink](/nl/help/note-links) en een #hashtag in de tekst wordt een tag op de notitie. Checklists komen in Taken terecht, spreadsheets worden tabellen en authenticator-items worden [logins in de Kluis, met hun 2FA-sleutel](/nl/help/vault-totp). Geneste tags worden mappen, en elke notitie houdt ook haar tags.",
+            "Bestanden die je naar Standard Notes hebt geüpload blijven op hun server, dus de back-up bevat alleen hun namen. Elke geïmporteerde notitie geeft aan waar een bestand stond. Download die bestanden uit Standard Notes en voeg ze opnieuw toe aan de notitie."
+          ]
+        },
+        {
+          "h": "Versleutelde back-ups worden niet ondersteund",
+          "p": [
+            "Een versleutelde back-up van Standard Notes is cijfertekst die alleen je Standard Notes-wachtwoord kan openen, dus de importer kan hem niet lezen. Heb je de versleutelde variant geëxporteerd, exporteer dan opnieuw en kies ontsleuteld. Omdat het bestand je notities in leesbare tekst bevat, verwijder je het zodra de import klaar is.",
+            "Sleep de hele .zip in de importer, of alleen het .txt-bestand als je hem al hebt uitgepakt."
+          ]
+        }
+      ]
+    },
+    "simplenote": {
+      "app": "Simplenote",
+      "title": "Je Simplenote-notities exporteren",
+      "metaTitle": "Simplenote-notities exporteren - PrivacyNotes",
+      "lead": "Simplenote heeft een nette ingebouwde export die drie klikken kost, en PrivacyNotes leest de resulterende zip rechtstreeks.",
+      "sections": [
+        {
+          "h": "Je notities exporteren uit Simplenote",
+          "steps": [
+            "Meld je aan op [app.simplenote.com](https://app.simplenote.com) (of open de desktop-app).",
+            "Open het menu in de zijbalk en ga naar Settings.",
+            "Kies onder Account voor \"Export Notes\". Er wordt meteen een .zip gedownload."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "De zip bevat één centrale notes.json met al je notities en hun metagegevens: tags komen mee en aanmaakdata blijven behouden. Sleep de hele .zip ongewijzigd in de importer."
+          ]
+        }
+      ]
+    },
+    "samsung-notes": {
+      "app": "Samsung Notes",
+      "title": "Je Samsung Notes exporteren",
+      "metaTitle": "Samsung Notes naar Word exporteren - PrivacyNotes",
+      "lead": "Samsung Notes exporteert één bestand per notitie, in twee smaken. Kies bij voorkeur de Microsoft Word-export (.docx): die behoudt je opmaak, terwijl de export naar platte tekst hem kwijtraakt.",
+      "sections": [
+        {
+          "h": "Je notities exporteren uit Samsung Notes",
+          "steps": [
+            "Houd in Samsung Notes je vinger op een notitie om de notities te selecteren die je wilt (of kies Select all).",
+            "Tik op het menu met de drie puntjes en kies \"Save as file\".",
+            "Kies \"Microsoft Word file\" (.docx) voor opgemaakte notities, of \"Text file\" (.txt) voor platte tekst.",
+            "Samsung slaat één bestand per notitie op in de opslag van je apparaat. Verzamel ze in één .zip (selecteer ze in je bestandsbeheer en comprimeer ze) als je er meer dan een handjevol hebt geëxporteerd."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "Uit .docx-exports: vet, cursief, onderstreept, doorgehaald, opsommingen en genummerde lijsten, en selectievakjes (die [echte takenlijsten](/nl/help/tasks) worden) blijven allemaal behouden. Uit .txt-exports: de tekst, verder niets.",
+            "Afbeeldingen in een Samsung-notitie komen met de hand mee: de importer markeert elke notitie die er een had, zodat je precies weet waar je de afbeeldingen terugzet. Tekst, titels en datums arriveren in dezelfde ronde."
+          ]
+        }
+      ]
+    },
+    "bitwarden": {
+      "app": "Bitwarden",
+      "title": "Je Bitwarden-kluis exporteren",
+      "metaTitle": "Een Bitwarden-kluis exporteren - PrivacyNotes",
+      "lead": "Bitwarden exporteert je hele kluis als één onversleuteld .json-bestand, en PrivacyNotes zet elk item op zijn plek: logins, kaarten, SSH-sleutels en beveiligde notities.",
+      "sections": [
+        {
+          "h": "Je kluis exporteren uit Bitwarden",
+          "steps": [
+            "Open de Bitwarden-webkluis (of de desktop-app) en meld je aan.",
+            "Ga naar Tools en dan \"Export vault\".",
+            "Kies het bestandsformaat .json (de gewone, niet \".json (Encrypted)\").",
+            "Bevestig met je hoofdwachtwoord en download het bestand."
+          ]
+        },
+        {
+          "h": "Waar alles belandt",
+          "p": [
+            "Logins worden [login-items in de Kluis](/nl/help/vault) (met de icoontjes van hun site), kaarten worden kaartitems, SSH-sleutels worden SSH-sleutelitems, en beveiligde notities plus identiteiten komen binnen als leesbare notities. Bitwarden-mappen worden tags, en favorieten komen met een ster binnen. Authenticator-sleutels (TOTP) komen ook mee, dus [je 2FA-codes blijven werken](/nl/help/vault-totp).",
+            "Het exportbestand bevat je wachtwoorden in leesbare tekst, dus importeer het, controleer of alles goed is aangekomen en verwijder het bestand daarna netjes. Binnen PrivacyNotes is alles weer versleuteld, op je apparaat en onderweg naar de server."
+          ]
+        }
+      ]
+    },
+    "enpass": {
+      "app": "Enpass",
+      "title": "Je Enpass-kluis exporteren",
+      "metaTitle": "Een Enpass-kluis exporteren - PrivacyNotes",
+      "lead": "Enpass exporteert een kluis als één .json-bestand, en PrivacyNotes maakt van de logins, kaarten, notities en identiteiten Kluis-items en notities.",
+      "sections": [
+        {
+          "h": "Exporteren uit Enpass",
+          "steps": [
+            "Open Enpass op je computer en ontgrendel het.",
+            "Kies File > Export, selecteer de kluis en het .json-formaat.",
+            "Bewaar het bestand en voer dan je hoofdwachtwoord in. Exporteer elke kluis apart."
+          ]
+        },
+        {
+          "h": "Waar alles belandt",
+          "p": [
+            "Elke login wordt een [login in de Kluis](/nl/help/vault) met zijn 2FA-sleutel, dus [je codes blijven werken](/nl/help/vault-totp), en de extra websites en aangepaste velden komen mee. Een kaart wordt een kaart, en een beveiligde notitie of een identiteit wordt een notitie. Mappen worden tags, geneste ook, favorieten komen vastgezet binnen en gearchiveerde items gaan naar het Archief. Items in de prullenbak van Enpass en bijgevoegde bestanden blijven achter.",
+            "De export bevat je wachtwoorden in leesbare tekst. Importeer hem, controleer of alles is aangekomen en verwijder het bestand daarna."
+          ]
+        }
+      ]
+    },
+    "evernote": {
+      "app": "Evernote",
+      "title": "Je Evernote-notities exporteren",
+      "metaTitle": "Evernote-notities als ENEX exporteren - PrivacyNotes",
+      "lead": "Evernote exporteert één notitieboek tegelijk, en alleen vanuit de desktop-app. Kies het ENEX-formaat en je notities komen compleet binnen: opmaak, tags, bijlagen, webclips en de links ertussen.",
+      "sections": [
+        {
+          "img": {
+            "src": "/help/img/evernote-export-menu.webp",
+            "alt": "Het contextmenu van een notitieboek in de Evernote-desktop-app, met \"Export notebook...\" gemarkeerd.",
+            "width": 1576,
+            "height": 652
+          },
+          "h": "Een notitieboek exporteren",
+          "steps": [
+            "Open Evernote op Mac of Windows. De webversie en de telefoon-apps kunnen geen .enex-bestanden wegschrijven.",
+            "Klik in de zijbalk met de rechtermuisknop op het notitieboek en kies \"Export notebook...\".",
+            "Kies \"ENEX format (.enex)\" en laat elk vakje onder Export note attributes aangevinkt staan: daar zitten je tags, datums, herinneringen en de URL's van je webclips in.",
+            "Sla het bestand op. Evernote vernoemt het naar het notitieboek, en die naam wordt hier de map, dus houd hem zo.",
+            "Sleep die .enex er zo naar binnen. Heb je meer dan één notitieboek, herhaal dan de export voor elk, zip daarna de .enex-bestanden samen en sleep die zip er in één keer in."
+          ]
+        },
+        {
+          "img": {
+            "src": "/help/img/evernote-export-format.webp",
+            "alt": "Het exportvenster van Evernote met ENEX format (.enex) geselecteerd en elk vakje onder Export note attributes aangevinkt.",
+            "width": 1576,
+            "height": 1120
+          },
+          "h": "Kies ENEX, niet de HTML- of PDF-export",
+          "p": [
+            "De andere drie formaten overleven de overstap niet. Beide HTML-exports blazen elke notitie op met een kopie van dezelfde stylesheet en verliezen de bestandsnaam en de downloadlink van elke bijlage die geen afbeelding is, en de PDF-export smelt het notitieboek samen tot één document waarin geen grens tussen notities meer te vinden is. Sleep je er per ongeluk zo een naartoe, dan zeggen we dat, in plaats van een half notitieboek te importeren.",
+            "Laat \"Split file size by\" uitgeschakeld, tenzij het notitieboek gigabytes aan scans bevat."
+          ]
+        },
+        {
+          "h": "Eén notitieboek tegelijk",
+          "p": [
+            "Een export van je hele account bestaat niet, en een stack kun je niet als geheel exporteren. Notities stuk voor stuk aanvinken loopt vast op 100 per export, dus met de rechtermuisknop op het notitieboek klikken is sneller en meteen de enige manier om langs die grens te komen. Stacks worden ook niet in het bestand vastgelegd, dus je mappen komen plat binnen.",
+            "Ook op het gratis plan kun je exporteren, met één addertje: het gratis plan staat maar één gekoppeld apparaat toe, en hier heb je de desktop-app voor nodig."
+          ]
+        },
+        {
+          "h": "Wat er meekomt en wat niet",
+          "p": [
+            "Tabellen, codeblokken, markeringen, onderstreping, tekstkleur en formules blijven allemaal behouden. [Checklists worden takenlijsten](/nl/help/tasks), een herinnering bij een notitie wordt een taak bovenaan die notitie, bijlagen en afbeeldingen worden opnieuw versleuteld in je opslag gezet, webclips houden hun bron-URL, en spraaknotities houden hun transcript. [Interne links worden notitielinks](/nl/help/note-links), gekoppeld op de titel van de gelinkte notitie, omdat Evernote geen notitie-id's exporteert.",
+            "Taken komen niet mee: de export laat een plaatsaanduiding \"Content not supported\" achter waar elk taakblok stond, zonder titels, vervaldatums of afvinkstatus om nog uit te lezen. Versleutelde blokken blijven versleuteld, dus ontsleutel die eerst in Evernote. Eigen lettertypen, tekstuitlijning en geneste taghiërarchie vervallen."
+          ]
+        },
+        {
+          "h": "Als de export halverwege stukloopt",
+          "p": [
+            "Evernote bewaart je notities op zijn eigen servers en haalt ze binnen terwijl het de export wegschrijft, dus een groot notitieboek kan blijven steken op 13%, dan op 40%, en daarna alsnog aflopen. Start dezelfde export gewoon opnieuw: elke poging bewaart er lokaal meer van en komt verder dan de vorige."
+          ]
+        }
+      ]
+    },
+    "markdown": {
+      "app": "Markdown",
+      "title": "Markdown-bestanden importeren",
+      "metaTitle": "Markdown-bestanden importeren in PrivacyNotes",
+      "lead": "De algemene route voor al het andere: elke app die Markdown kan exporteren, kan naar PrivacyNotes verhuizen. Losse .md-bestanden werken, en een .zip van een hele map ook.",
+      "sections": [
+        {
+          "h": "Je bestanden klaarzetten",
+          "steps": [
+            "Exporteer of verzamel je .md-bestanden. Elke bron werkt: een andere notitie-app, een statische site, een map met README's.",
+            "Heb je meer dan een handjevol bestanden, stop de map dan in een .zip.",
+            "Sleep de zip (of losse .md-bestanden) in de importer."
+          ]
+        },
+        {
+          "h": "Hoe bestanden worden gelezen",
+          "p": [
+            "YAML-frontmatter wordt gerespecteerd als hij er is: title, created, updated en tags worden rechtstreeks gebruikt, waarmee dit ook [de weg terug is voor PrivacyNotes' eigen Markdown-exports](/nl/help/export). Tags die als #hashtags in de tekst staan worden ook gelezen. Gewone bestanden zonder frontmatter gebruiken de bestandsnaam als titel en de inhoud als tekst. De parser is bewust soepel: .md, .markdown, .mdown, .mkd en .txt worden allemaal geaccepteerd.",
+            "Zip de hele map en de structuur komt mee. Submappen worden opnieuw opgebouwd als echte mappen, hoe diep ook, en de afbeeldingen en bestanden waar je notities naar linken worden er meteen bij geïmporteerd. Waar niets naar linkt blijft achter en wordt geteld, zodat een map vol oude schermafbeeldingen je opslag niet opeet."
+          ]
+        }
+      ]
+    },
+    "notesnook": {
+      "app": "Notesnook",
+      "title": "Je Notesnook-notities exporteren",
+      "metaTitle": "Notesnook-notities exporteren - PrivacyNotes",
+      "lead": "Notesnook kan je hele account wegschrijven als een map met bestanden. Kies de HTML-export en er blijft niets achter: opmaak, notitieboeken, tags, bijlagen en de links tussen je notities overleven allemaal de overstap.",
+      "sections": [
+        {
+          "img": {
+            "src": "/help/img/notesnook-export.webp",
+            "alt": "Instellingen van Notesnook, de pagina Backup & export, met het uitklapmenu Export as open en HTML geselecteerd.",
+            "width": 1576,
+            "height": 963
+          }
+        },
+        {
+          "h": "Je notities exporteren",
+          "steps": [
+            "Open Notesnook en ga naar Settings > Backup & export.",
+            "Zoek \"Export all notes\" en open het uitklapmenu \"Export as\".",
+            "Kies HTML. Dat is belangrijk: het is het enige formaat dat Notesnook wegschrijft zonder eerst je opmaak weg te halen.",
+            "Notesnook slaat één .zip op met daarin één bestand per notitie plus een map met bijlagen. Die zip is je importbestand."
+          ]
+        },
+        {
+          "h": "Kies HTML, geen Markdown",
+          "p": [
+            "Het exportmenu van Notesnook biedt Text, Markdown, Markdown + Frontmatter en HTML. Alleen HTML behoudt alles.",
+            "Beide Markdown-opties slaan je notities plat voordat ze worden weggeschreven: onderstreping, lettergroottes en tekstuitlijning zijn al weg voordat het bestand ons ooit bereikt. De gewone Markdown-optie schrijft bovendien geen tags en geen oorspronkelijke datums weg, waardoor elke geïmporteerde notitie zonder tag en met de datum van vandaag zou binnenkomen. We accepteren ze allebei nog steeds, en we vertellen je wat er verloren is gegaan, maar HTML is de juiste keuze.",
+            "De Text-export heeft geen structuur om te lezen en wordt niet geaccepteerd."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "[Je notitieboeken worden opnieuw opgebouwd als echte mappen](/nl/help/folders), niet platgeslagen tot tags, precies zo diep als ze in Notesnook genest waren. Een notitie in Werk > Projecten belandt in een map Werk > Projecten.",
+            "Vastgezette notities en favorieten blijven gemarkeerd. Notesnook houdt Pin en Favorite als twee aparte eigenschappen bij; PrivacyNotes heeft één lijst Vastgezet, dus een notitie die een van beide was, belandt daar.",
+            "Markeringen, tekstkleuren, lettergroottes, superscript, subscript, formules en tekstuitlijning blijven behouden: elke kleur gaat naar de dichtstbijzijnde kleur in ons palet, een gekozen lettergrootte wordt Klein, Groot of Zeer groot, formules worden weer als wiskunde weergegeven, en gecentreerde of rechts uitgelijnde blokken behouden hun uitlijning. Eigen lettertypen hebben hier geen equivalent, dus het lettertype vervalt en de tekst blijft behouden."
+          ]
+        },
+        {
+          "h": "Een back-upbestand is geen export",
+          "p": [
+            "Notesnook kan ook een back-upbestand opslaan dat eindigt op .nnbackupz. Dat is iets anders: het bewaart elke bijlage in Notesnooks eigen versleutelde formaat, dat alleen Notesnook kan uitpakken. Sleep je er hier een naartoe, dan zeggen we dat, in plaats van de helft te importeren. Gebruik in plaats daarvan \"Export all notes\" als HTML."
+          ]
+        }
+      ]
+    },
+    "apple-journal": {
+      "app": "Apple Journal",
+      "title": "Je Apple Journal-items exporteren",
+      "metaTitle": "Apple Journal-items exporteren - PrivacyNotes",
+      "lead": "Apple Journal, in het Nederlands Dagboek, exporteert één HTML-bestand per item, plus een map met elke foto, video en spraakmemo. PrivacyNotes leest de hele export en bouwt elk item opnieuw op als dagboeknotitie, gedateerd op de dag waarop je het schreef.",
+      "sections": [
+        {
+          "h": "Exporteren vanaf een Mac",
+          "steps": [
+            "Open Dagboek en kies in de menubalk \"Archief\" > \"Exporteer\".",
+            "Kies een bestemming. Dagboek maakt een map met de naam AppleJournalEntries aan, met daarin een map Entries en een map Resources.",
+            "Klik met de rechtermuisknop op die map en kies \"Comprimeer\". Ernaast verschijnt AppleJournalEntries.zip, en dat is het bestand om te importeren."
+          ]
+        },
+        {
+          "h": "Exporteren vanaf een iPhone of iPad",
+          "steps": [
+            "Open Dagboek. Tik onder de kop \"Dagboeken\" op je dagboek om het te openen (het heet Dagboek tenzij je het hebt hernoemd, en toont hoeveel items het bevat).",
+            "Tik in de lijst met items rechtsboven op de knop \"…\", kies \"Exporteer\" en bevestig met de knop \"Exporteer\".",
+            "Sla het op je telefoon op.",
+            "Open de app Bestanden en zoek de map die is weggeschreven, met de naam AppleJournalEntries.",
+            "Houd je vinger op die map en kies \"Comprimeer\". De .zip die ernaast verschijnt, is het bestand om te importeren."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "[Elk item belandt in Dagboeken](/nl/help/journal) in plaats van Notities, gedateerd op de dag die Dagboek erboven toont, zodat je geschiedenis haar vorm behoudt.",
+            "Foto's en Live Photos worden geïmporteerd als afbeeldingen, video's en spraakmemo's als bijlagen. Apple levert foto's aan als HEIC, wat de meeste browsers niet kunnen tonen, dus [zet PrivacyNotes elke foto onderweg om naar JPEG](/nl/help/image-quality). Dat is het trage deel van een grote import: een paar honderd foto's kunnen enkele minuten duren, en de voortgangsregel telt ze voor je mee.",
+            "Vet, cursief, onderstreept, doorgehaald, tekstkleuren, opsommingen en genummerde lijsten, en blockquotes overleven allemaal."
+          ]
+        },
+        {
+          "h": "Foto's, video's en je opslag",
+          "p": [
+            "Een dagboek vol foto's is veel groter dan een dagboek vol tekst, en [het telt net zo mee voor je opslag als al het andere](/nl/help/storage-usage). Het importvoorbeeld telt dit vooraf op, en weigert te starten als het niet past."
+          ]
+        },
+        {
+          "h": "Waar je locaties belanden",
+          "p": [
+            "Dagboek legt vast waar een item plaatsvond. Een plek die het met coördinaten heeft vastgelegd, wordt een kaart in een onderdeel \"Places\" onderaan het item, en de eerste is ook de eigen locatie van het item, op de locatiechip.",
+            "Een plek die Dagboek alleen een naam gaf, heeft niets om vast te pinnen, dus wordt een link die op OpenStreetMap naar die naam zoekt. De kaarten laden van onze eigen server, maps.privacynotes.app, wanneer je het item opent. Een zoeklink verstuurt niets totdat je erop klikt."
+          ]
+        },
+        {
+          "h": "Gemoedstoestand",
+          "p": [
+            "Als je een gemoedstoestand hebt vastgelegd, [vult PrivacyNotes bij dat item de trackers voor stemming en emoties in](/nl/help/choose-trackers), overal waar Apples bewoordingen overeenkomen met die van ons. Alles wat niet overeenkomt, en de levensgebieden die je hebt getagd, blijven bewaard als een regel tekst, zodat er niets verloren gaat."
+          ]
+        },
+        {
+          "h": "Wat er niet meekomt",
+          "p": [
+            "De suggestiekaarten van Dagboek voor work-outs, contacten en afgespeelde media behouden hun tekst, maar niet hun beeldmateriaal. Spraakmemo's komen mee als opnames, maar niet met Apples transcriptie ervan: de exportfunctie haalt daar elke spatie uit, dus het resultaat is één aaneengesloten reeks tekens. Die laten we achterwege in plaats van haar onleesbaar te importeren.",
+            "Spraakmemo's uit een Mac-export zijn CAF-bestanden, die geen enkele browser kan afspelen. Ze worden probleemloos geïmporteerd en gedownload, maar je hoort ze niet in de app. Een iPhone-export schrijft dezelfde opnames weg als M4A, dat wel inline afspeelt, dus gebruik als je kunt kiezen de telefoon."
+          ]
+        }
+      ]
+    },
+    "upnote": {
+      "app": "UpNote",
+      "title": "Je UpNote-notities exporteren",
+      "metaTitle": "UpNote-notities exporteren - PrivacyNotes",
+      "lead": "Bij UpNote heet de export een back-up: hij schrijft je hele account naar een map op je schijf, ook op het gratis plan. Zip die map en alles verhuist mee: notities met hun volledige opmaak, notitieboeken, tags, vastgezette notities, notitielinks, afbeeldingen en bijlagen.",
+      "sections": [
+        {
+          "img": {
+            "src": "/help/img/upnote-backup.webp",
+            "alt": "Instellingen van UpNote, de pagina Backup, met Backup attachments, Backup now en View backup folder zichtbaar.",
+            "width": 1576,
+            "height": 1070
+          },
+          "h": "Een lokale back-up maken",
+          "steps": [
+            "Open UpNote op je computer en ga naar Settings > Backup.",
+            "Zet \"Backup attachments\" aan. Die optie staat standaard uit, en zonder die optie blijven je afbeeldingen en bestanden achter.",
+            "Klik op \"Backup now\" en wacht tot de regel \"Last backup at\" is bijgewerkt.",
+            "Klik op \"View backup folder\". UpNote opent de map die het zojuist heeft weggeschreven."
+          ]
+        },
+        {
+          "img": {
+            "src": "/help/img/upnote-folder.webp",
+            "alt": "De back-upmap van UpNote met de mappen data, files, Markdown en revisions geselecteerd en het rechtsklikmenu open op Comprimeer.",
+            "width": 1576,
+            "height": 642
+          },
+          "h": "Alles in die map zippen",
+          "steps": [
+            "Selecteer alles in de back-upmap: data, files en wat er verder naast staat.",
+            "Comprimeer de selectie: rechtsklik > Comprimeer op macOS, of Verzenden naar > Gecomprimeerde (gezipte) map op Windows.",
+            "Die .zip is je importbestand."
+          ],
+          "p": [
+            "Zip de hele map, niet alleen de map Markdown daarbinnen. Die markdown-kopieën zijn een platgeslagen weergave: onderstreping, kleuren, markeringen, inklapbare secties en tekstuitlijning zijn er al uit verdwenen. De volledige opmaak van je notities zit in de map data, en die lezen wij. Sleep je er een zip zonder die map naartoe, dan zeggen we dat, in plaats van de platgeslagen kopieën te importeren."
+          ]
+        },
+        {
+          "img": {
+            "src": "/help/img/upnote-export-menu.webp",
+            "alt": "Het Export-menu van UpNote op iOS, met de opties Export to Text, PDF, Markdown en HTML.",
+            "width": 1576,
+            "height": 1235
+          },
+          "h": "Op iPhone of Android: notities één voor één exporteren",
+          "steps": [
+            "De telefoon-apps van UpNote kunnen geen back-up wegschrijven. Open in plaats daarvan een notitie en tik op de drie puntjes in de bovenhoek.",
+            "Kies Export > \"Export to HTML\". Geen Markdown: UpNote slaat callouts, tekstkleuren, uitlijning en sub- en superscript plat voordat het zijn Markdown wegschrijft, terwijl de HTML alles behoudt.",
+            "Deel het resultaat naar de app Bestanden of stuur het naar jezelf, en sleep het daarna ongewijzigd hierheen.",
+            "Verhuis je meerdere notities? Bewaar de exports in de app Bestanden, selecteer ze allemaal en kies Comprimeer: die ene zip wordt in één keer geïmporteerd."
+          ],
+          "p": [
+            "De HTML-export neemt je opmaak volledig mee. Wat geen enkele export per notitie meeneemt, is de structuur van je bibliotheek: notitieboeken, vastgezette notities en datums zitten alleen in de back-up, dus zodra je bij een computer kunt, maakt de back-uproute hierboven de verhuizing compleet. Markdown-exports worden ook geaccepteerd, met de platgeslagen opmaak die ze meebrengen."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "Je notitieboeken worden opnieuw opgebouwd als echte mappen, zo diep genest als ze in UpNote stonden. Een notitie die in meerdere notitieboeken stond, belandt in het eerste en draagt de andere als tags mee.",
+            "Vastgezette notities en notities in Quick Access komen binnen als Vastgezet. Notities in de prullenbak belanden in de prullenbak, sjablonen worden geïmporteerd als notities met de tag #template, [links tussen notities worden notitielinks](/nl/help/note-links), en elke notitie behoudt haar oorspronkelijke datums.",
+            "Opmaak overleeft: checklists, tabellen, codeblokken, formules, onderstreping, sub- en superscript, tekstuitlijning en markeringen. Inklapbare secties worden invouwbare aandachtsblokken en behouden hun open of gesloten stand. Tekstkleuren en markeerkleuren worden allebei gematcht op het eigen palet van de editor, dus een gele markering blijft geel en een groene blijft groen. Elke notitie komt binnen zoals UpNote hem het laatst bewaarde."
+          ]
+        },
+        {
+          "h": "Als afbeeldingen of bestanden ontbreken",
+          "p": [
+            "Een back-up die is gemaakt voordat je \"Backup attachments\" aanzette, bevat geen bestanden, en het importvoorbeeld waarschuwt je dan dat notities verwijzen naar bijlagen die de back-up niet bevat. Gebeurt dat, annuleer dan, zet de optie aan in UpNote, klik opnieuw op \"Backup now\", zip de verse map en importeer die in plaats daarvan."
+          ]
+        }
+      ]
+    },
+    "joplin": {
+      "app": "Joplin",
+      "title": "Je Joplin-notities exporteren",
+      "metaTitle": "Je Joplin-notities exporteren als JEX - PrivacyNotes",
+      "lead": "Joplin exporteert alle notitieboeken tegelijk als één JEX-bestand. Je notities komen mee met hun notitieboeken, tags, to-do's, notitielinks en bijlagen.",
+      "sections": [
+        {
+          "h": "Alles exporteren als JEX",
+          "steps": [
+            "Open Joplin op je computer.",
+            "Kies File > Export all > \"JEX - Joplin Export File\".",
+            "Sla het bestand op. Je krijgt één .jex-bestand met elk notitieboek erin, dus er hoeft niets gezipt te worden.",
+            "Sleep dat .jex-bestand erin zoals het is."
+          ],
+          "p": [
+            "Tools > Create backup schrijft precies hetzelfde bestand weg, byte voor byte, als all_notebooks.jex in een map JoplinBackup in je thuismap. Maakt Joplin die back-ups al voor je, dan werkt de nieuwste net zo goed."
+          ]
+        },
+        {
+          "h": "Kies JEX, geen Markdown, HTML of PDF",
+          "p": [
+            "Export all biedt ook MD, MD + Front Matter, HTML directory en PDF. Dat zijn kopieën om in andere apps te lezen. Het JEX-bestand is Joplins eigen vastlegging van elke notitie, elk notitieboek, elke tag en elke bijlage, en het is het bestand dat wij lezen. Sleep je een van de andere exports erin, dan zeggen we dat in plaats van de helft te importeren.",
+            "Heb je al \"RAW - Joplin Export Directory\" geëxporteerd, zip die map dan en sleep de zip erin. Hij bevat dezelfde items als het JEX-bestand."
+          ]
+        },
+        {
+          "h": "Haal notities uit de prullenbak voordat je exporteert",
+          "p": [
+            "Joplin laat de prullenbak weg uit elke export en elke back-up. Haal elke notitie die je wilt houden uit de prullenbak voordat je exporteert, anders blijft ze achter in Joplin."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "Je notitieboeken worden opnieuw opgebouwd als echte mappen, zo diep genest als Joplin ze nestte, en elke notitie houdt haar tags en de aanmaak- en wijzigingsdatums die Joplin je liet zien.",
+            "[To-do's worden taaknotities](/nl/help/tasks) met een selectievakje dat je kunt afvinken, al afgevinkt als de to-do klaar was, en een vervaldatum blijft naast de titel staan. [Links tussen notities worden notitielinks](/nl/help/note-links). Afbeeldingen en bijlagen worden geïmporteerd in je opslag en blijven op hun plek in de notitie staan. Notities die als HTML zijn opgeslagen, zoals veel webclips, worden omgezet met hun opmaak.",
+            "Notities uit het notitieboek Conflicts van Joplin komen binnen met de tag \"conflict\", zodat je ze kunt vinden en sorteren. Gebruik je de versleuteling van Joplin, laat die dan klaar zijn met ontsleutelen voordat je exporteert: een item dat nog versleuteld is wordt overgeslagen, en het importvoorbeeld vertelt je hoeveel."
+          ]
+        }
+      ]
+    },
+    "browser-bookmarks": {
+      "app": "Browserbladwijzers",
+      "title": "Je browserbladwijzers exporteren",
+      "metaTitle": "Bladwijzers uit elke browser exporteren - PrivacyNotes",
+      "lead": "Elke desktopbrowser exporteert hetzelfde bladwijzerbestand (.html), en PrivacyNotes leest het met je mappen en je datums erbij. Safari verpakt dat bestand in een .zip, die je ongeopend kunt neerzetten. Geen enkele mobiele browser kan exporteren, zet daar dus de synchronisatie van je browser aan en exporteer vanaf een computer.",
+      "sections": [
+        {
+          "h": "Exporteren uit Chrome, Edge, Brave, Opera of Vivaldi",
+          "steps": [
+            "Open het bladwijzerbeheer met Ctrl+Shift+O, of Cmd+Option+B op een Mac. In Edge heet diezelfde pagina Favorites.",
+            "Klik rechtsboven in het beheer op de knop \"...\" en kies \"Export bookmarks\". In Edge staat er \"Export favorites\".",
+            "Bewaar het bestand. Het is een .html-bestand met de datum van vandaag in de naam."
+          ]
+        },
+        {
+          "h": "Exporteren uit Firefox",
+          "steps": [
+            "Druk op Ctrl+Shift+O, of Cmd+Shift+O op een Mac, om het Bibliotheek-venster te openen.",
+            "Klik in de werkbalk op \"Import and Backup\" en kies \"Export Bookmarks to HTML...\".",
+            "Bewaar het. Het bestand heet bookmarks.html."
+          ]
+        },
+        {
+          "h": "Exporteren uit Safari",
+          "img": {
+            "src": "/help/img/safari-export-menu.webp",
+            "alt": "Het menu File van Safari, met \"Export Browsing Data to File...\" onderaan gemarkeerd",
+            "width": 1576,
+            "height": 1226
+          },
+          "steps": [
+            "Kies File > \"Export Browsing Data to File...\" in de menubalk.",
+            "Zet alles uit behalve Bookmarks en klik dan op Export.",
+            "Safari bewaart een .zip. Zet die .zip hier neer zoals hij is, of het Bookmarks.html erin. Beide opties werken.",
+            "Oudere Safari-versies tonen in plaats daarvan File > Export > \"Bookmarks...\" en bewaren een gewoon .html-bestand."
+          ]
+        },
+        {
+          "h": "Laat alleen de schakelaar Bookmarks aan staan",
+          "img": {
+            "src": "/help/img/browser-bookmarks-safari-export.webp",
+            "alt": "Het venster Export Browsing Data van Safari, met Bookmarks aan en alle andere soorten uit",
+            "width": 1576,
+            "height": 1356
+          },
+          "p": [
+            "Hetzelfde venster biedt History, Extensions, Credit Cards en Passwords aan. Laat die uit. PrivacyNotes leest niets anders dan de bladwijzers uit het archief, maar een export die je daarna moet weggooien is nog een kopie van je wachtwoorden in platte tekst in je downloadmap."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "Elke map die je had komt mee, precies zo genest als je hem achterliet, in één nieuwe map die Bookmarks heet. De bladwijzerbalk is de uitzondering: de inhoud schuift een niveau omhoog in plaats van een map te worden, omdat elke browser die balk in elke taal anders noemt. Safari markeert helemaal niets, dus zijn Favorites komt wel als map binnen.",
+            "De dag waarop je een bladwijzer bewaarde komt mee. Safari is de enige browser die helemaal geen datums schrijft, dus een export uit Safari krijgt de datum van vandaag.",
+            "Firefox is ook de enige die tags en een adresbalk-trefwoord bij een bladwijzer bewaart. Staan ze in je bestand, dan biedt het voorbeeld een vinkje om ze te houden, en allebei komen ze hier als tag binnen.",
+            "Drie dingen blijven met opzet achter. Browsersnelkoppelingen als Most Visited zijn geen echte links, die worden geteld en overgeslagen. Website-iconen leest PrivacyNotes ook niet uit het bestand, want de kopie die daarin zit veroudert; [er wordt een verse opgehaald](/nl/help/bookmarks). En een map waar geen bladwijzer in zat wordt niet opnieuw aangemaakt.",
+            "Hetzelfde bestand twee keer importeren kan geen kwaad. Een bladwijzer waarvan je het adres al bewaard hebt wordt overgeslagen in plaats van opnieuw toegevoegd, en het voorbeeld vertelt je hoeveel."
+          ]
+        },
+        {
+          "h": "Ze er weer uit halen",
+          "p": [
+            "Ga naar Instellingen > Overzetten > Exporteren en kies \"Bladwijzerbestand (.html)\". Je krijgt hetzelfde standaardbestand, mappen en al, dat elke browser leest. Je bladwijzers zitten hier nooit vast."
+          ]
+        }
+      ]
+    },
+    "browser-passwords": {
+      "app": "Browserwachtwoorden",
+      "title": "Je browserwachtwoorden exporteren",
+      "metaTitle": "Opgeslagen browserwachtwoorden exporteren - PrivacyNotes",
+      "lead": "Chrome, Edge, Firefox en Safari exporteren hun bewaarde wachtwoorden allemaal als een gewoon .csv-bestand, en PrivacyNotes leest ze alle vier, één login per regel. Safari verpakt zijn .csv in een .zip, die je ongeopend kunt neerzetten.",
+      "sections": [
+        {
+          "h": "Exporteren uit Chrome, Edge, Brave, Opera of Vivaldi",
+          "steps": [
+            "Open de Settings van je browser en ga naar de wachtwoordpagina. In Chrome is dat \"Passwords and autofill\" > Google Password Manager > Settings, in Edge \"Profiles > Passwords\".",
+            "Zoek \"Export passwords\" en kies \"Download file\".",
+            "Bevestig met je apparaatwachtwoord of je vingerafdruk. Het bestand heet meestal passwords.csv."
+          ]
+        },
+        {
+          "h": "Exporteren uit Firefox",
+          "steps": [
+            "Typ about:logins in de adresbalk en druk op Enter.",
+            "Klik rechtsboven op de knop \"...\" en kies \"Export Logins...\".",
+            "Bevestig met je apparaatwachtwoord. Het bestand heet logins.csv."
+          ]
+        },
+        {
+          "h": "Exporteren uit Safari",
+          "img": {
+            "src": "/help/img/safari-export-menu.webp",
+            "alt": "Het menu File van Safari, met \"Export Browsing Data to File...\" onderaan gemarkeerd",
+            "width": 1576,
+            "height": 1226
+          },
+          "steps": [
+            "Kies File > \"Export Browsing Data to File...\" in de menubalk.",
+            "Zet alles uit behalve Passwords en klik dan op Export.",
+            "Bevestig met Touch ID of je Mac-wachtwoord. Safari bewaart een .zip met Passwords.csv erin, en die .zip zet je hier neer zoals hij is.",
+            "Vanaf macOS 15 exporteert de app Passwords dezelfde regels via File > \"Export All Passwords...\", als gewone .csv."
+          ]
+        },
+        {
+          "h": "Laat alleen de schakelaar Passwords aan staan",
+          "img": {
+            "src": "/help/img/browser-passwords-safari-export.webp",
+            "alt": "Het venster Export Browsing Data van Safari, met Passwords aan en alle andere soorten uit",
+            "width": 1576,
+            "height": 1358
+          },
+          "p": [
+            "Hetzelfde venster exporteert ook je bladwijzers, je geschiedenis en je bewaarde kaarten. Elke schakelaar die je aan laat staan schrijft nog een onversleuteld bestand in hetzelfde archief, zet ze dus uit. Eén uitzondering: wil je je bladwijzers hier ook, zet ze allebei aan en zet die ene .zip in beide importers neer, want elk leest er alleen zijn eigen bestand uit."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "Elke rij wordt een login met site, gebruikersnaam en wachtwoord, plus de notitie die de browser erbij bewaarde. Firefox is de enige van de drie die datums meeschrijft, dus zijn logins houden de dag waarop je ze opsloeg en de rest komt binnen met de datum van vandaag. Safari is de enige die een authenticatorsleutel exporteert, en alleen als je je codes in Safari bewaarde - [dan blijft de code hier gewoon werken](/nl/help/vault-totp).",
+            "Browsers bewaren per inlogpagina een aparte regel, dus een grote export bevat vaak meerdere rijen voor hetzelfde bedrijf. Ze komen allemaal mee, en je kunt ze daarna samenvoegen of verwijderen.",
+            "Een browser houdt wachtwoorden in één vlakke lijst, dus er valt geen mappenstructuur na te bouwen. Elke login komt in plaats daarvan getagd binnen, zodat je de hele lading met één klik voor je hebt."
+          ]
+        },
+        {
+          "h": "Verwijder het exportbestand als je klaar bent: het zijn je wachtwoorden in platte tekst",
+          "p": [
+            "In de geëxporteerde .csv is niets versleuteld, of hij nu in een .zip aankomt of niet. Wie hem opent leest elk wachtwoord dat je hebt bewaard, dus houd hem op je eigen machine, importeer hem, controleer of alles is aangekomen en gooi het bestand daarna weg en leeg de prullenbak. Binnen PrivacyNotes is alles weer versleuteld, op je apparaat en onderweg naar de server."
+          ]
+        }
+      ]
+    },
+    "typora": {
+      "app": "Typora",
+      "title": "Je Typora-notities exporteren",
+      "metaTitle": "Typora-notities exporteren - PrivacyNotes",
+      "lead": "Typora bewerkt gewone .md-bestanden die al in een map op je schijf staan, dus er is geen exportstap. Zip de map en sleep hem hierin.",
+      "sections": [
+        {
+          "h": "Zip de map waarin je schrijft",
+          "steps": [
+            "Zoek de map met je .md-bestanden. Typora heeft geen eigen bibliotheek, dus hij staat waar jij hem hebt opgeslagen.",
+            "Rechtsklik op de map en kies Comprimeer (macOS) of Kopiëren naar > Gecomprimeerde map (Windows).",
+            "Sleep de .zip in de importer."
+          ]
+        },
+        {
+          "h": "Bepaal waar je afbeeldingen staan voordat je zipt",
+          "p": [
+            "Typora kan een afbeelding naast de notitie zetten, in een assets-submap, of hem laten staan waar je hem vandaan sleepte. Alleen afbeeldingen binnen de map die je zipt kunnen mee. Open Preferences > Image, zet het op kopiëren naar de eigen assets-map van de notitie, en gebruik \"Format > Image > Copy image files to...\" bij oudere notities waarvan de afbeeldingen nog ergens anders staan."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "Submappen worden echte mappen, hoe diep ook. Koppen, tabellen, takenlijsten, codeblokken, voetnoten, formules en markeringen blijven staan, en kale URL's worden klikbare links. YAML-frontmatter wordt gelezen voor de titel, de datums en de tags.",
+            "Tags komen langs beide wegen mee: uit de YAML-frontmatter en als #hashtags in de lopende tekst. Een hashtag in een codeblok blijft code, en een kaal getal als #4711 blijft een ticketnummer."
+          ]
+        }
+      ]
+    },
+    "ia-writer": {
+      "app": "iA Writer",
+      "title": "Je iA Writer-bibliotheek exporteren",
+      "metaTitle": "De iA Writer-bibliotheek exporteren - PrivacyNotes",
+      "lead": "iA Writer bewaart je teksten als gewone .md-bestanden in zijn Library, dus die map is de export al. Het enige wat goed moet: iCloud eerst de echte bestanden laten afgeven.",
+      "sections": [
+        {
+          "h": "Haal de map uit iCloud en zip hem dan",
+          "steps": [
+            "Rechtsklik in iA Writer op de map in de Library-zijbalk en kies \"Toon in Finder\".",
+            "Rechtsklik in de Finder op diezelfde map en kies \"Download nu\", zodat iCloud elk bestand echt ophaalt in plaats van plaatshouders te laten staan.",
+            "Rechtsklik nog een keer en kies Comprimeer.",
+            "Sleep de .zip in de importer."
+          ]
+        },
+        {
+          "h": "Op iPhone of iPad",
+          "p": [
+            "Open de Bestanden-app, ga naar iCloud Drive > iA Writer, houd de map ingedrukt en kies Comprimeer. Deel de .zip met PrivacyNotes, of open PrivacyNotes en pak hem uit Bestanden."
+          ]
+        },
+        {
+          "h": "De plaatshouder-val",
+          "p": [
+            "Met \"Optimaliseer Mac-opslag\" aan vervangt iCloud bestanden die je een tijd niet opende door piepkleine plaatshouders. Zip je de map in die staat, dan krijg je een archief vol lege hulzen: de import loopt door, meldt succes en brengt bijna niets mee. Doe eerst \"Download nu\" en controleer daarna of de .zip ongeveer zo groot is als je teksten."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "Library-mappen worden echte mappen, hoe diep ook, en de afbeeldingen en bestanden waar je notities naar linken komen mee. Koppen, tabellen, takenlijsten, codeblokken en voetnoten blijven staan, en kale URL's worden klikbare links. Frontmatter wordt gelezen voor de titel, de datums en de tags.",
+            "Content blocks, die tijdens het schrijven het ene bestand in het andere trekken, komen aan als de link zoals hij geschreven staat, niet als de tekst die ze ophaalden."
+          ]
+        }
+      ]
+    },
+    "zettlr": {
+      "app": "Zettlr",
+      "title": "Je Zettlr-notities exporteren",
+      "metaTitle": "Zettlr-notities exporteren - PrivacyNotes",
+      "lead": "Zettlr werkt rechtstreeks op een map met .md-bestanden, dus de werkruimte die je al hebt is de export. Zip hem en sleep hem hierin.",
+      "sections": [
+        {
+          "h": "Zip de werkruimte",
+          "steps": [
+            "Rechtsklik in Zettlr op de werkruimte bovenaan de bestandsboom en kies \"Show in Finder\", of \"Show in Explorer\" op Windows.",
+            "Rechtsklik daar op de map en comprimeer hem.",
+            "Sleep de .zip in de importer."
+          ]
+        },
+        {
+          "h": "Zettelkasten-links houden hun tekst, niet hun doel",
+          "p": [
+            "Zettlr linkt notities op ID, dus een link leest als [[20260823120000]]. [Wij laten notitielinks precies staan zoals ze geschreven zijn](/nl/help/note-links), en dus vindt een ID-link hier alleen zijn notitie als een notitie echt die ID als titel draagt. Links met de bestandsnaam werken gewoon: zet je interne linkformaat op de bestandsnaam voordat je exporteert, als je op die links vertrouwt.",
+            "Citatiesleutels als [@doe2026] zijn tekst voor ons. Ze komen ongewijzigd mee en zijn daarna niet meer klikbaar."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "Submappen van de werkruimte worden echte mappen, hoe diep ook, en de afbeeldingen en bestanden waar je notities naar linken komen mee. Koppen, tabellen, takenlijsten, codeblokken, voetnoten, formules en markeringen blijven allemaal staan. Tags worden gelezen uit de YAML-frontmatter en uit #hashtags in de lopende tekst, dus een Zettelkasten die op hashtags draait houdt zijn ordening."
+          ]
+        }
+      ]
+    },
+    "nextcloud-notes": {
+      "app": "Nextcloud Notes",
+      "title": "Je Nextcloud Notes exporteren",
+      "metaTitle": "Nextcloud Notes exporteren - PrivacyNotes",
+      "lead": "Nextcloud Notes heeft geen exportstap nodig: elke notitie is al een gewoon bestand in één map op je eigen server, en Nextcloud geeft je die hele map als .zip. Allebei de extensies die het gebruikt worden hier gelezen, dus je hoeft vooraf niets om te zetten.",
+      "sections": [
+        {
+          "h": "Download de map Notes",
+          "steps": [
+            "Open Bestanden in je Nextcloud, in een browser.",
+            "Zoek de map Notes. Hij heet Notes, tenzij je beheerder hem hernoemd heeft.",
+            "Open het \"...\"-menu bij de map en kies Downloaden. Nextcloud pakt de hele map in een .zip.",
+            "Sleep de .zip in de importer."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "Categorieën staan als submappen opgeslagen en komen dus aan als echte mappen. De datums van de notities komen uit de bestanden zelf, niet uit het moment van importeren. Koppen, tabellen, takenlijsten, codeblokken, voetnoten en formules blijven staan, en kale URL's worden klikbare links.",
+            "Dit importeert een kopie. Er wordt niets uit je Nextcloud verwijderd en er synchroniseert niets terug, dus houd de server als archief tot je tevreden bent met wat hier geland is."
+          ]
+        },
+        {
+          "h": "Beide extensies werken",
+          "p": [
+            "Notes schrijft standaard .txt, en .md zodra jij of je beheerder de instelling omzet. Allebei worden ze hier gelezen, net als .markdown, .mdown en .mkd, dus je hoeft voor het exporteren niets te hernoemen en niets aan de server te doen."
+          ]
+        }
+      ]
+    },
+    "contacts": {
+      "app": "Contacten (vCard)",
+      "title": "Je contacten exporteren",
+      "metaTitle": "Je contacten exporteren als vCard - PrivacyNotes",
+      "lead": "Elke telefoon en elk adresboek kan je contacten exporteren als één .vcf-bestand, en PrivacyNotes leest dat bestand direct, foto's inbegrepen.",
+      "sections": [
+        {
+          "h": "Exporteren vanaf je iPhone",
+          "steps": [
+            "Open Contacten en tik linksboven op \"Lijsten\".",
+            "Houd \"Alle contacten\" ingedrukt en kies dan Exporteer.",
+            "Bewaar het .vcf-bestand in Bestanden, of stuur het met AirDrop naar het apparaat waarop je importeert."
+          ]
+        },
+        {
+          "h": "Exporteren vanaf je Mac of iCloud",
+          "steps": [
+            "Selecteer in Contacten \"Alle contacten\" en druk op Command-A.",
+            "Kies Archief > Exporteer > Exporteer vCard.",
+            "Selecteer op [icloud.com/contacts](https://www.icloud.com/contacts) alles, open dan het menu \"...\" en kies \"Exporteer vCard\"."
+          ]
+        },
+        {
+          "h": "Exporteren vanaf Android of Google Contacten",
+          "steps": [
+            "Tik in de app Google Contacten op \"Fix & manage\" (corrigeren en beheren) > \"Export to file\" (exporteren naar bestand).",
+            "Kies op [contacts.google.com](https://contacts.google.com) Export (exporteren) en dan \"vCard (for iOS Contacts)\".",
+            "Open op een Samsung-telefoon Contacten > Contacten beheren > Contacten importeren of exporteren > Exporteren."
+          ]
+        },
+        {
+          "h": "Kies vCard, niet CSV",
+          "p": [
+            "Google biedt naast vCard twee CSV-formaten aan. De importer leest alleen .vcf-bestanden, dus een CSV verschijnt niet in de bestandskiezer. Exporteer opnieuw en kies vCard."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "Elke kaart in het bestand komt mee: namen, telefoonnummers, e-mailadressen, postadressen, verjaardagen en andere datums, websites, sociale profielen en notities. Je eigen labels blijven zoals je ze hebt getypt, dus \"Werknummer mam\" blijft \"Werknummer mam\".",
+            "Een foto in het bestand komt mee. Een foto die alleen een weblink is, blijft een link, en er wordt niets gedownload. [Als de foto's niet in je opslag passen](/nl/help/storage-usage), worden de contacten toch geïmporteerd en blijven de foto's achterwege."
+          ]
+        },
+        {
+          "h": "Importeer hetzelfde bestand altijd opnieuw",
+          "p": [
+            "Een tweede import slaat de mensen over die je al hebt. Elke kaart wordt vergeleken op zijn ID, dan op naam plus een gedeeld telefoonnummer, dan op een gedeeld e-mailadres. Contacten die je al hebt opgeslagen worden niet gewijzigd, dus je bewerkingen hier blijven veilig."
+          ]
+        }
+      ]
+    },
+    "anytype": {
+      "app": "Anytype",
+      "title": "Je Anytype-space exporteren",
+      "metaTitle": "Je Anytype-space exporteren - PrivacyNotes",
+      "lead": "Anytype exporteert een hele space in één keer als één zip in het Any-Block JSON-formaat. Dat bestand neemt je pagina's mee, met hun tags, collecties, taken, links en bestanden.",
+      "sections": [
+        {
+          "img": {
+            "src": "/help/img/anytype-export.webp",
+            "alt": "De space-instellingen van Anytype, pagina Export, Any-Block v1 met File Format JSON en Zip archive, met Include files data en Include archived objects aangezet.",
+            "width": 1576,
+            "height": 800
+          },
+          "h": "De space exporteren als Any-Block JSON",
+          "steps": [
+            "Open Anytype op je computer en ga naar de space die je wilt verplaatsen.",
+            "Kies File > Export. Anytype opent de space-instellingen op de pagina Export. Nieuwere versies noemen een space een channel, dus daar heet de pagina \"Export Channel\".",
+            "Kies \"Any-Block v1\" en laat File Format op JSON staan.",
+            "Zet \"Zip archive\", \"Include files data\" en \"Include archived objects\" aan.",
+            "Klik op \"Export data\" en kies een map. Anytype schrijft één .zip die naar de space en de datum is genoemd.",
+            "Sleep die .zip er zo in."
+          ],
+          "p": [
+            "Eén export bevat één space. Bewaar je notities in meerdere spaces, exporteer er dan elk apart en sleep de zips na elkaar erin."
+          ]
+        },
+        {
+          "h": "Kies Any-Block JSON, geen Markdown of Protobuf",
+          "p": [
+            "De Markdown-export bewaart de tekst, maar laat onderstreping, kleuren, aandachtsblokken, uitlijning en codetalen weg, en laat collecties buiten beschouwing. We lezen hem als dat alles is wat je hebt, en het importoverzicht zegt wat er verloren ging.",
+            "Any-Block biedt ook een Protobuf-bestandsformaat. Dat bevat dezelfde gegevens in een binaire vorm die we niet lezen, dus vragen we in plaats daarvan om de JSON-export. Any-Block v2 is door Anytype als preview aangemerkt en is geen back-up."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "Pagina's, notities, taken en bladwijzers worden notities met hun tags en de aanmaak- en wijzigingsdatum die Anytype bewaarde. Anytype heeft geen mappen, dus een pagina in een collectie komt in een map met de naam van de collectie terecht en elke andere pagina komt op het hoogste niveau.",
+            "Koppen, lijsten, checklists, citaten, code met de taal erbij, tabellen, wiskunde en Mermaid-diagrammen komen mee zoals ze waren. Toggles worden invouwbare blokken en callouts worden aandachtsblokken. [Links en vermeldingen tussen pagina's worden notitielinks](/nl/help/note-links), en afbeeldingen en bestanden worden in je opslag geïmporteerd.",
+            "Een taak komt binnen als taaknotitie, afgevinkt als hij klaar was. Eigen eigenschappen worden bovenaan de notitie als korte lijst geschreven. Pagina's in de bin van Anytype gaan naar je prullenbak, zodat je ze daar kunt herstellen of verwijderen.",
+            "Pagina-iconen en covers blijven achter, en het importoverzicht zegt hoeveel. Favorieten zitten niet in de export, dus zet die notities na de import opnieuw vast."
+          ]
+        }
+      ]
+    },
+    "apple-calendar": {
+      "app": "Apple Agenda",
+      "title": "Je Apple Agenda exporteren",
+      "metaTitle": "Apple Agenda exporteren - PrivacyNotes",
+      "lead": "Agenda op een Mac exporteert één agenda tegelijk als .ics-bestand, en PrivacyNotes leest dat bestand zoals het is. Elke agenda wordt een map.",
+      "sections": [
+        {
+          "h": "Een agenda exporteren uit Agenda op een Mac",
+          "steps": [
+            "Open Agenda en toon de lijst met agenda's links (Weergave > Toon agendalijst).",
+            "Klik op de agenda die je wilt overzetten.",
+            "Kies Archief > Exporteer > \"Exporteer...\" en bewaar het .ics-bestand.",
+            "Doe hetzelfde voor elke andere agenda die je wilt. Elke agenda is een eigen bestand."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "Elke afspraak komt binnen met zijn dag, zijn tijd en zijn duur, ook afspraken die de hele dag of meerdere dagen duren. Terugkerende afspraken behouden hun herhalingsregel.",
+            "De standaardmeldingen van een agenda staan in de instellingen van Agenda, niet in de afspraken, dus de export laat ze weg. De controlestap vertelt je hoeveel komende afspraken zonder herinnering binnenkomen. Een melding die je bij één afspraak hebt ingesteld, komt wel mee. Als je hetzelfde bestand opnieuw importeert, worden afspraken die je al hebt overgeslagen."
+          ]
+        }
+      ]
+    },
+    "keepass": {
+      "app": "KeePass",
+      "title": "Je KeePass-database exporteren",
+      "metaTitle": "Een KeePass-database exporteren - PrivacyNotes",
+      "lead": "KeePass exporteert je hele database als één KeePass XML-bestand, en PrivacyNotes maakt van elk item een login of een notitie. De XML bewaart meer dan de CSV-export.",
+      "sections": [
+        {
+          "h": "Exporteren uit KeePass",
+          "steps": [
+            "Open je database in KeePass en ontgrendel hem.",
+            "Kies File > Export.",
+            "Kies \"KeePass XML (2.x)\" en bewaar het .xml-bestand."
+          ]
+        },
+        {
+          "h": "Kies de XML, niet de .kdbx",
+          "p": [
+            "Je .kdbx-databasebestand is vergrendeld met je hoofdsleutel, dus PrivacyNotes kan het niet lezen, en de import zegt dat als je het erin sleept. De CSV-export van KeePass werkt ook, maar bewaart alleen de titel, gebruikersnaam, het wachtwoord, de website en de notities."
+          ]
+        },
+        {
+          "h": "Waar alles belandt",
+          "p": [
+            "Een item met een gebruikersnaam, wachtwoord, website of 2FA-sleutel wordt een [login in de Kluis](/nl/help/vault), en elk ander item een beveiligde notitie. Extra websites en je eigen velden komen mee, een beschermd veld blijft verborgen en de vervaldatum wordt een veld. De 2FA-sleutel komt ook mee, dus [je codes blijven werken](/nl/help/vault-totp). Bijgevoegde bestanden komen ook mee, in het onderdeel Bestanden van de login of aan het eind van de notitie. Groepen en tags worden tags. Items in de Recycle Bin en oudere versies van een item blijven achter.",
+            "De export bevat je wachtwoorden in leesbare tekst. Importeer hem, controleer of alles is aangekomen en verwijder het bestand daarna."
+          ]
+        }
+      ]
+    },
+    "keepassxc": {
+      "app": "KeePassXC",
+      "title": "Je KeePassXC-database exporteren",
+      "metaTitle": "Een KeePassXC-database exporteren - PrivacyNotes",
+      "lead": "KeePassXC exporteert je database als XML-bestand of als CSV-bestand, en PrivacyNotes leest allebei. De XML-export bewaart alles wat de CSV weglaat.",
+      "sections": [
+        {
+          "h": "Exporteren uit KeePassXC",
+          "steps": [
+            "Open je database in KeePassXC en ontgrendel hem.",
+            "Kies Database > Export > \"XML File...\".",
+            "Bevestig de waarschuwing over het onversleutelde bestand en bewaar het."
+          ]
+        },
+        {
+          "h": "XML of CSV",
+          "p": [
+            "Kies de XML. De CSV bevat de titel, gebruikersnaam, wachtwoord, website, notities, 2FA-sleutel, datums en groep, maar geen tags, geen aangepaste velden, geen tweede website, geen vervaldatum en geen bijgevoegde bestanden. Je .kdbx-bestand zelf is vergrendeld, dus PrivacyNotes kan het niet lezen."
+          ]
+        },
+        {
+          "h": "Waar alles belandt",
+          "p": [
+            "Een item met een gebruikersnaam, wachtwoord, website of 2FA-sleutel wordt een [login in de Kluis](/nl/help/vault), en elk ander item een beveiligde notitie. Aangepaste velden komen mee als velden, een beschermd veld blijft verborgen, en de 2FA-sleutel komt ook mee, dus [je codes blijven werken](/nl/help/vault-totp). Bijgevoegde bestanden komen ook mee, in het onderdeel Bestanden van de login of aan het eind van de notitie. Groepen en tags worden tags. Items in de Recycle Bin en oudere versies van een item blijven achter.",
+            "De export bevat je wachtwoorden in leesbare tekst. Importeer hem, controleer of alles is aangekomen en verwijder het bestand daarna."
+          ]
+        }
+      ]
+    },
+    "lastpass": {
+      "app": "LastPass",
+      "title": "Je LastPass-kluis exporteren",
+      "metaTitle": "Een LastPass-kluis exporteren - PrivacyNotes",
+      "lead": "LastPass exporteert je kluis als één .csv-bestand, en PrivacyNotes maakt van de wachtwoorden logins en zet de beveiligde notities om in notities of kaarten.",
+      "sections": [
+        {
+          "h": "Exporteren uit LastPass",
+          "steps": [
+            "Meld je in een browser aan bij je LastPass-kluis.",
+            "Kies Advanced options > Export.",
+            "Kies \"Export data for use anywhere\" en bevestig met je hoofdwachtwoord. LastPass bewaart een .csv-bestand."
+          ]
+        },
+        {
+          "h": "Waar alles belandt",
+          "p": [
+            "Elk wachtwoord wordt een [login in de Kluis](/nl/help/vault) met zijn 2FA-sleutel, dus [je codes blijven werken](/nl/help/vault-totp). Een beveiligde notitie wordt een notitie en een notitie met een betaalkaart wordt een kaart. Mappen worden tags, geneste ook, en favorieten komen vastgezet binnen. Het bestand bevat geen datums, dus elk item krijgt de dag waarop je importeert.",
+            "De export bevat je wachtwoorden in leesbare tekst. Importeer hem, controleer of alles is aangekomen en verwijder het bestand daarna."
+          ]
+        }
+      ]
+    },
+    "nordpass": {
+      "app": "NordPass",
+      "title": "Je NordPass-kluis exporteren",
+      "metaTitle": "Een NordPass-kluis exporteren - PrivacyNotes",
+      "lead": "NordPass exporteert je kluis als één .csv-bestand, en PrivacyNotes maakt van de wachtwoorden, notities, kaarten en persoonlijke gegevens items in de Kluis.",
+      "sections": [
+        {
+          "h": "Exporteren uit NordPass",
+          "steps": [
+            "Open NordPass en ontgrendel het.",
+            "Ga naar Settings en kies \"Export Items\".",
+            "Bevestig met je hoofdwachtwoord en bewaar het .csv-bestand."
+          ]
+        },
+        {
+          "h": "Waar alles belandt",
+          "p": [
+            "Elk wachtwoord wordt een [login in de Kluis](/nl/help/vault) met zijn extra websites en aangepaste velden, een verborgen veld blijft verborgen. Notities komen binnen als notities, kaarten als kaarten en persoonlijke gegevens als een notitie met elk detail op een eigen regel. De map van elk item wordt een tag. Het bestand noemt alleen de map waarin een item staat, niet de mappen erboven.",
+            "In het gratis plan van NordPass worden geen 2FA-sleutels bewaard, dus het bestand bevat er geen. De export bevat je wachtwoorden in leesbare tekst. Importeer hem, controleer of alles is aangekomen en verwijder het bestand daarna."
+          ]
+        }
+      ]
+    },
+    "proton-pass": {
+      "app": "Proton Pass",
+      "title": "Je Proton Pass-kluis exporteren",
+      "metaTitle": "Een Proton Pass-kluis exporteren - PrivacyNotes",
+      "lead": "Proton Pass exporteert je kluizen als .zip, als .csv of als PGP-versleuteld bestand. PrivacyNotes leest de .zip en de .csv, en de .zip bewaart het meest.",
+      "sections": [
+        {
+          "h": "Exporteren uit Proton Pass",
+          "steps": [
+            "Open Proton Pass en ga naar Settings > Export.",
+            "Kies onder File format de optie ZIP.",
+            "Klik op Export en bevestig met je Proton-wachtwoord."
+          ]
+        },
+        {
+          "h": "Kies ZIP, niet PGP-versleuteld",
+          "p": [
+            "Het PGP-versleutelde bestand is vergrendeld met je wachtzin, dus PrivacyNotes kan het niet lezen, en de import zegt dat. De .csv werkt ook, maar bevat geen aangepaste velden."
+          ]
+        },
+        {
+          "h": "Waar alles belandt",
+          "p": [
+            "Elke login wordt een [login in de Kluis](/nl/help/vault) met zijn extra websites, aangepaste velden en datums. De 2FA-sleutel komt mee, dus [je codes blijven werken](/nl/help/vault-totp). Als een item zowel een e-mailadres als een gebruikersnaam heeft, vult de gebruikersnaam de login en wordt het e-mailadres een veld. Notities komen binnen als notities, kaarten als kaarten en identiteiten als notities met elk detail op een eigen regel. Elke hide-my-email-alias wordt een notitie met zijn adres, zodat je de lijst houdt van welk adres je aan welke site hebt gegeven; Proton blijft de mail doorsturen zolang je Proton-account actief is. Bij meer dan één kluis wordt elke kluis een tag. Items in de prullenbak blijven achter.",
+            "De export bevat je wachtwoorden in leesbare tekst. Importeer hem, controleer of alles is aangekomen en verwijder het bestand daarna."
+          ]
+        }
+      ]
+    },
+    "dashlane": {
+      "app": "Dashlane",
+      "title": "Je Dashlane-kluis exporteren",
+      "metaTitle": "Een Dashlane-kluis exporteren - PrivacyNotes",
+      "lead": "Dashlane exporteert je kluis als een .zip met CSV-bestanden, en PrivacyNotes maakt van de logins, beveiligde notities en betaalkaarten Kluis-items en notities.",
+      "sections": [
+        {
+          "h": "Exporteren uit Dashlane",
+          "steps": [
+            "Open je Dashlane-kluis in de browserextensie of de web-app.",
+            "Kies Settings > Export data.",
+            "Kies het CSV-formaat en bewaar het .zip-bestand."
+          ]
+        },
+        {
+          "h": "CSV, niet .dash",
+          "p": [
+            "Kies CSV. Een .dash-export is vergrendeld met een eigen wachtwoord, en PrivacyNotes meldt dat als je hem erin sleept."
+          ]
+        },
+        {
+          "h": "Waar alles belandt",
+          "p": [
+            "Elke login wordt een [login in de Kluis](/nl/help/vault) met zijn 2FA-sleutel, dus [je codes blijven werken](/nl/help/vault-totp). Een beveiligde notitie wordt een notitie en een betaalkaart een kaart. ID's en persoonlijke gegevens worden notities met hun details. Categorieën worden tags, geneste ook. Dashlane bewaart één website per login, dus een tweede website zit niet in het bestand.",
+            "De export bevat je wachtwoorden in leesbare tekst. Importeer hem, controleer of alles is aangekomen en verwijder het bestand daarna."
+          ]
+        }
+      ]
+    },
+    "daylio": {
+      "app": "Daylio",
+      "title": "Je Daylio-items exporteren",
+      "metaTitle": "Je Daylio-back-up exporteren - PrivacyNotes",
+      "lead": "Daylio exporteert een .daylio-back-up via More > Backup & Restore. PrivacyNotes leest dat bestand en bouwt elk item opnieuw op als dagboeknotitie, met stemming, activiteiten en foto's.",
+      "sections": [
+        {
+          "h": "De .daylio-back-up exporteren",
+          "steps": [
+            "Sluit Daylio helemaal af en open het opnieuw. Een back-up die direct na een nieuw item is gemaakt, kan dat item missen totdat de app opnieuw is gestart.",
+            "Kies More > Backup & Restore > Advanced Options > Export.",
+            "Daylio opent een deelmenu, geen opslagvenster. Sla het bestand op bij je bestanden of in een clouddrive die je op dit apparaat kunt openen.",
+            "Het .daylio-bestand dat je hebt opgeslagen, is het bestand om te importeren."
+          ]
+        },
+        {
+          "h": "Kies de back-up, niet de CSV",
+          "p": [
+            "More > Export Entries maakt een CSV, een Premium-functie in Daylio. PrivacyNotes leest die ook, maar de CSV bevat geen foto's, geen spraakmemo's en geen stemmingsgroepen, dus een stemming die je zelf een naam gaf of hernoemde, komt als tekst in het item terecht in plaats van in de stemmingstracker. Gebruik waar mogelijk de .daylio-back-up."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "[Elk item belandt in Dagboeken](/nl/help/journal), op de dag en het tijdstip die Daylio toont, en twee items op één dag blijven twee items. Elke stemming vult [de stemmingstracker](/nl/help/choose-trackers) in vanuit de stemmingsgroep in Daylio, zodat een hernoemde stemming zijn plek op de schaal behoudt, en een stemming die je zelf een naam gaf, staat ook aan het begin van het item.",
+            "Activiteiten worden [factoren](/nl/help/factors), en een nieuwe behoudt zijn Daylio-groep. Schalen zoals Energy of Stress komen als lijst onder aan het item. Notitietitels, vet, cursief, onderstreept, doorgehaald en lijsten overleven, foto's worden geïmporteerd als afbeeldingen, spraakmemo's als bijlagen, en een item met een ster houdt zijn ster. Doelen en belangrijke dagen blijven achter, en de importsamenvatting telt ze."
+          ]
+        }
+      ]
+    },
+    "diarium": {
+      "app": "Diarium",
+      "title": "Je Diarium-dagboek exporteren",
+      "metaTitle": "Je Diarium-dagboek exporteren - PrivacyNotes",
+      "lead": "Diarium exporteert je dagboek als JSON via het menu Export. PrivacyNotes leest die export en bouwt elk item opnieuw op als dagboeknotitie, met beoordeling, tags en bijlagen.",
+      "sections": [
+        {
+          "h": "JSON exporteren met bijlagen",
+          "steps": [
+            "Open Diarium en kies Export in het menu.",
+            "Kies JSON als formaat en zet Attachments aan.",
+            "Kies Save to local storage en kies een map. Diarium slaat een .zip op met de JSON en je foto's en bestanden.",
+            "Die .zip is het bestand om te importeren."
+          ]
+        },
+        {
+          "h": "Laat Attachments aan staan",
+          "p": [
+            "Met Attachments uit slaat Diarium alleen een kaal .json-bestand op. PrivacyNotes importeert de tekst, maar elke foto en elk bestand blijft achter, en de importsamenvatting telt ze. Exporteer opnieuw met Attachments aan en sleep in plaats daarvan de .zip.",
+            "Create separate file for each entry maakt geen verschil: PrivacyNotes leest elk JSON-bestand in de .zip. De exports naar DOCX, TXT, HTML en PDF en de .diary-back-up kunnen niet worden geïmporteerd, dus kies JSON."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "[Elk item belandt in Dagboeken](/nl/help/journal), op de dag en het tijdstip die Diarium toont. De sterrenbeoordeling vult [de stemmingstracker](/nl/help/choose-trackers) in. Tags worden notitietags en [factoren](/nl/help/factors), en personen worden factoren in een groep Personen.",
+            "Vet, cursief, onderstreept, doorgehaald, markeringen, tekstkleuren, lijsten en links overleven, en een link naar een ander item wordt een [notitielink](/nl/help/note-links) wanneer dat item in dezelfde export zit. Trackers komen als lijst onder aan het item, weer, zon en maan als één regel bovenaan, en een locatie wordt de eigen locatie van het item. Foto's worden geïmporteerd als afbeeldingen, en video's, audio en pdf's als bijlagen."
+          ]
+        }
+      ]
+    },
+    "google-journal": {
+      "app": "Google Journal",
+      "title": "Je Google Journal-items exporteren",
+      "metaTitle": "Je Google Journal-items exporteren - PrivacyNotes",
+      "lead": "Google Journal exporteert via Google Takeout zodra de back-up aanstaat. PrivacyNotes leest de Takeout-.zip en bouwt elk item opnieuw op als dagboeknotitie, met foto's en video's.",
+      "sections": [
+        {
+          "h": "Zet eerst de back-up aan",
+          "p": [
+            "Takeout toont geen Journal totdat Journal een back-up naar je Google-account maakt. Zet eerst de back-up aan, anders vind je Journal niet in de Takeout-lijst."
+          ],
+          "steps": [
+            "Open Journal op je Pixel en ga naar Settings.",
+            "Zet Back up your journal aan.",
+            "Wacht een paar minuten. Journal verschijnt pas in Takeout als de back-up aanstaat."
+          ]
+        },
+        {
+          "h": "Journal exporteren vanuit Google Takeout",
+          "steps": [
+            "Open takeout.google.com en meld je aan met hetzelfde Google-account.",
+            "Klik op Deselect all en vink alleen Journal aan (\"Your journal entries and attachments from Journal\").",
+            "Klik op Next step, laat het bestandstype .zip staan en klik op Create export.",
+            "Google stuurt je een link wanneer het archief klaar is. Download de .zip: dat is het bestand om te importeren."
+          ]
+        },
+        {
+          "h": "Wat er meekomt",
+          "p": [
+            "[Elk item belandt in Dagboeken](/nl/help/journal), op de dag die je er in Journal voor hebt gekozen. Elk item behoudt zijn titel en tekst, en foto's en video's worden geïmporteerd als afbeeldingen en bijlagen. Een kaart bij een item komt mee als afbeelding.",
+            "Takeout bevat geen plaatsnamen, schrijfsuggesties, bladwijzers of reflecties van Journal, dus die blijven in Journal. De importsamenvatting meldt dat."
+          ]
+        }
+      ]
+    }
+  }
+}

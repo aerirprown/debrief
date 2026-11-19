@@ -1,0 +1,282 @@
+import { useTranslation } from 'react-i18next';
+import { Check, CircleNotch, CloudArrowUp, CloudSlash, Pause, Warning } from './icons';
+import { exemptOpts } from './i18nExempt';
+import { useOnlineStatus } from './useOnlineStatus';
+import { usePendingUploads } from './usePendingUploads';
+import { useSyncing } from './syncingStore';
+import { HoverLabel } from './HoverLabel';
+import { isDemoMode } from './demo';
+import { useBelowVersionFloor } from './versionFloor';
+import { useSyncPaused } from './syncPause';
+import { useFilesWifiOnly } from './wifiOnly';
+import { usePushFailures, usePushHalt } from './pushFailures';
+import { pullStanding, useSyncLog } from './syncLog';
+
+interface SyncStatusProps {
+  /** Icon size in px - 14 for mobile header, 13 for footers. */
+  size?: number;
+  /**
+   * Opens ID & Sync, which is where the detail lives: what is still
+   * waiting to upload, and the check of this device against the server.
+   * Wired on every state, not just "Synced" - a stalled upload or an
+   * offline spell is exactly when you want that panel, and a control
+   * that only responds in one of three states reads as broken.
+   * Omitted where there is nowhere to navigate to (lock screen, demo).
+   */
+  onOpen?: () => void;
+  /**
+   * Where the tooltip opens. Start-aligned suits the desktop footer, where
+   * the status sits at the start of its zone; the phone footer centres it,
+   * so its tooltip centres too instead of hanging past the screen's edge.
+   */
+  tipPosition?: 'above-start' | 'above';
+  /**
+   * Classes for the hover box. The phone bar makes it as tall as its 44px
+   * buttons, so the tip opens above the bar like theirs instead of on its
+   * top edge.
+   */
+  tipHostClassName?: string;
+  /**
+   * The first read of this device's vault has finished. Until then the
+   * list is empty while the store opens, and a "Synced" check over it
+   * reads as lost notes (beta issue 3), so nothing shows.
+   */
+  ready?: boolean;
+}
+
+/**
+ * Sync status indicator with offline awareness.
+ * Offline (amber) > Syncing (accent spinner) > Not synced (amber, the
+ * last pass could not push a note, or its push stopped before it reached
+ * every note; the footer slot fits one short word, so the fuller "not
+ * backed up" lives in the tooltip and in ID & Sync) > Not synced (amber,
+ * no clean pull in the log yet, or the newest pull failed) > Uploading (accent
+ * spinner, blobs still queued) > Synced (green check).
+ *
+ * The green check is a promise that nothing is still on its way up, so
+ * it must not show while blobs wait in the upload queue - "Synced" next
+ * to ID & Sync's "58 files waiting to upload" is a contradiction, and a
+ * user who trusts the check closes the app before the files ever leave.
+ *
+ * Deliberately just an icon and one word. The footer slots this into a
+ * sidebar-width zone next to "Settings", so anything longer than a label
+ * overruns the zone and paints over the footer's next control - which is
+ * what an added "N files waiting to upload" line did. That count now
+ * lives in ID & Sync, one click away.
+ */
+export function SyncStatus({ size = 13, onOpen, tipPosition = 'above-start', tipHostClassName, ready = true }: SyncStatusProps) {
+  const { t } = useTranslation('settings');
+  const online = useOnlineStatus();
+  const pendingUploads = usePendingUploads();
+  // Subscribed here, at the leaf, so a sync-pass status flip renders only
+  // this pill instead of the whole NotesView tree (backlog #141).
+  const syncing = useSyncing();
+  const belowFloor = useBelowVersionFloor();
+  const paused = useSyncPaused();
+  const wifi = useFilesWifiOnly();
+  const failures = usePushFailures();
+  const halt = usePushHalt();
+  const standing = pullStanding(useSyncLog());
+
+  if (!ready) return null;
+
+  // Demo mode never saves anything - don't show a green "Synced" check
+  // that implies durability. Say so plainly instead.
+  if (isDemoMode()) {
+    return (
+      <HoverLabel label={t('syncStatus.demoTooltip')} position={tipPosition} multiline className={tipHostClassName}>
+        <span
+          className="inline-flex items-center gap-1.5"
+          aria-live="polite"
+          aria-label={t('syncStatus.demoAria')}
+        >
+          <CloudSlash size={size} className="text-warning" />
+          <span className="text-warning">{t('syncStatus.notSaved', exemptOpts('settings:syncStatus.notSaved'))}</span>
+        </span>
+      </HoverLabel>
+    );
+  }
+
+  // "Synced" is a claim this component cannot actually substantiate: it
+  // only knows whether a pass is running, not whether this device holds
+  // what the server holds. Clicking it opens ID & Sync and runs the
+  // verification, so the claim is at least one click from being tested.
+  // Below the release floor sync is PAUSED (versionFloor.ts gates every
+  // server write), so this outranks every other state: a green check or a
+  // spinner would claim work that is deliberately not happening. The pill is
+  // the permanent carrier of that truth, same job it does for demo's "Not
+  // saved" - the required update toast can cover content, this cannot.
+  const state = belowFloor
+    ? {
+        body: (
+          <>
+            <Warning size={size} className="text-warning" />
+            <span className="text-warning">{t('common:updateToast.required')}</span>
+          </>
+        ),
+        tip: t('syncStatus.updateRequiredTooltip'),
+        aria: t('syncStatus.updateRequiredAria'),
+        needsOpenHint: true,
+      }
+    : paused
+    ? {
+        // The user's own pause (syncPause.ts). Outranks everything below:
+        // offline, spinners and the green check all describe work that is
+        // deliberately not happening. Never auto-clears, so the pill is
+        // the permanent carrier of the paused state.
+        body: (
+          <>
+            <Pause size={size} weight="bold" className="text-warning" />
+            <span className="text-warning">{t('syncStatus.paused')}</span>
+          </>
+        ),
+        tip: t('syncStatus.pausedTooltip'),
+        aria: t('syncStatus.pausedAria'),
+        needsOpenHint: true,
+      }
+    : !online
+    ? {
+        body: (
+          <>
+            <CloudSlash size={size} className="text-warning" />
+            <span className="text-warning">{t('syncStatus.offline', exemptOpts('settings:syncStatus.offline'))}</span>
+          </>
+        ),
+        tip: t('syncStatus.offlineTooltip'),
+        aria: t('syncStatus.offline'),
+        /** The synced tooltip spells out its own click target; these two don't. */
+        needsOpenHint: true,
+      }
+    : syncing
+      ? {
+          body: (
+            <>
+              <CircleNotch size={size} className="text-accent animate-spin [animation-duration:1.2s]" />
+              <span>{t('syncStatus.syncing', exemptOpts('settings:syncStatus.syncing'))}</span>
+            </>
+          ),
+          tip: t('syncStatus.syncing'),
+          aria: t('syncStatus.syncingAria'),
+          needsOpenHint: true,
+        }
+      : failures.size > 0 || halt
+        ? {
+            // The last pass could not push these notes (pushFailures.ts),
+            // or its push stopped with notes still waiting. Outranks every
+            // upload state below: a green check or an "Uploading" spinner
+            // would claim the notes are on their way while the server has
+            // refused them or was never reached. The stop speaks for the
+            // pass; the count and the reason per note live in ID & Sync,
+            // one click away.
+            body: (
+              <>
+                <Warning size={size} className="text-warning" />
+                <span className="text-warning">{t('syncStatus.notSynced', exemptOpts('settings:syncStatus.notSynced'))}</span>
+              </>
+            ),
+            tip: halt
+              ? t('syncStatus.haltedTooltip', { count: halt.unreached })
+              : t('syncStatus.notBackedUpTooltip', { count: failures.size }),
+            aria: halt
+              ? t('syncStatus.haltedAria', { count: halt.unreached })
+              : t('syncStatus.notBackedUpAria', { count: failures.size }),
+            needsOpenHint: true,
+          }
+      : standing !== 'ok'
+        ? {
+            // No pass on this device has finished a clean pull, or the
+            // newest one could not read the server. The check would claim
+            // this device holds what the server holds while a fresh
+            // browser can still be thousands of notes short of it, which
+            // reads as lost notes.
+            body: (
+              <>
+                <Warning size={size} className="text-warning" />
+                <span className="text-warning">{t('syncStatus.notSynced', exemptOpts('settings:syncStatus.notSynced'))}</span>
+              </>
+            ),
+            tip: standing === 'never' ? t('syncStatus.firstSyncPending') : t('syncStatus.pullFailed'),
+            aria: standing === 'never' ? t('syncStatus.firstSyncPending') : t('syncStatus.pullFailed'),
+            needsOpenHint: true,
+          }
+      : pendingUploads.count > 0 && wifi.held
+        ? {
+            // "Files on wifi only" is holding the queue on cellular. Not an
+            // error: say what is waited for, not that something is wrong.
+            body: (
+              <>
+                <CloudArrowUp size={size} className="text-warning" />
+                <span className="text-warning">{t('syncStatus.wifiHold')}</span>
+              </>
+            ),
+            tip: t('syncStatus.wifiHoldTooltip'),
+            aria: t('syncStatus.wifiHold'),
+            needsOpenHint: true,
+          }
+      : pendingUploads.count > 0 && pendingUploads.blocked >= pendingUploads.count
+        ? {
+            // Every pending blob is quota-blocked: nothing is actually
+            // uploading, so a spinner + "Uploading..." would be a lie
+            // (backlog #143). Amber warning instead.
+            body: (
+              <>
+                <Warning size={size} className="text-warning" />
+                <span>{t('syncStatus.storageFull', exemptOpts('settings:syncStatus.storageFull'))}</span>
+              </>
+            ),
+            tip: t('syncStatus.pendingBlobsBlocked', { count: pendingUploads.blocked }),
+            aria: t('syncStatus.pendingBlobsBlocked', { count: pendingUploads.blocked }),
+            needsOpenHint: true,
+          }
+      : pendingUploads.count > 0
+        ? {
+            body: (
+              <>
+                <CircleNotch size={size} className="text-accent animate-spin [animation-duration:1.2s]" />
+                <span>{t('syncStatus.uploading', exemptOpts('settings:syncStatus.uploading'))}</span>
+              </>
+            ),
+            tip: t('syncStatus.pendingBlobs', { count: pendingUploads.count }),
+            aria: t('syncStatus.pendingBlobs', { count: pendingUploads.count }),
+            needsOpenHint: true,
+          }
+        : {
+            body: (
+              <>
+                <Check size={size} className="text-success" />
+                <span>{t('syncStatus.synced', exemptOpts('settings:syncStatus.synced'))}</span>
+              </>
+            ),
+            tip: onOpen ? t('syncStatus.syncedVerifyTooltip') : t('syncStatus.syncedTooltip'),
+            aria: onOpen ? t('syncStatus.syncedVerifyAria') : t('syncStatus.synced'),
+            needsOpenHint: false,
+          };
+
+  const tip = onOpen && state.needsOpenHint
+    ? `${state.tip} ${t('syncStatus.openHint')}`
+    : state.tip;
+
+  return (
+    <HoverLabel label={tip} position={tipPosition} multiline={!!onOpen} className={tipHostClassName}>
+      {onOpen ? (
+        <button
+          type="button"
+          onClick={onOpen}
+          className="inline-flex items-center gap-1.5 rounded hover:opacity-80 transition"
+          aria-live="polite"
+          aria-label={state.aria}
+        >
+          {state.body}
+        </button>
+      ) : (
+        <span
+          className="inline-flex items-center gap-1.5"
+          aria-live="polite"
+          aria-label={state.aria}
+        >
+          {state.body}
+        </span>
+      )}
+    </HoverLabel>
+  );
+}

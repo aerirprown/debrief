@@ -1,0 +1,14 @@
+"AppState"
+{
+	"appid"		"424242"
+	"Universe"		"1"
+	"LauncherPath"		"C:\\Program Files (x86)\\Steam\\steam.exe"
+	"name"		"Fixture Quest"
+	"StateFlags"		"4"
+	"installdir"		"Fixture Quest"
+	"LastUpdated"		"1700000000"
+	"SizeOnDisk"		"1024"
+	"buildid"		"1"
+	"LastOwner"		"0"
+	"AutoUpdateBehavior"		"0"
+}

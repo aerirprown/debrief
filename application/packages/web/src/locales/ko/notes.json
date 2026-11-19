@@ -1,0 +1,405 @@
+{
+  "noteRow": {
+    "created": "생성",
+    "modified": "수정",
+    "select": "노트 선택",
+    "deselect": "노트 선택 해제",
+    "pinProtected": "PIN 보호됨",
+    "readOnly": "읽기 전용",
+    "empty": "비어 있음",
+    "noContent": "내용 없음",
+    "notBackedUp": "백업 안 됨",
+    "archived": "아카이브됨",
+    "date": "날짜",
+    "dayOf": "{{total}}일 중 {{n}}일째",
+    "reminders_other": "미리 알림 {{count}}개"
+  },
+  "header": {
+    "new": "추가",
+    "newNote": "새 노트",
+    "newEvent": "새 일정"
+  },
+  "folderChip": {
+    "clear": "폴더 필터 해제: {{folder}}",
+    "subfolders": "하위 폴더",
+    "subfoldersLabel": "하위 폴더 포함"
+  },
+  "tagChip": {
+    "clear": "태그 필터 해제: {{tag}}"
+  },
+  "vaultNew": {
+    "ariaLabel": "새 보관함 항목",
+    "card": "신용카드",
+    "sshKey": "SSH 키",
+    "generator": "비밀번호"
+  },
+  "newMenu": {
+    "note": "노트",
+    "task": "할 일",
+    "kanban": "칸반",
+    "drawing": "드로잉",
+    "journal": "저널",
+    "login": "로그인",
+    "bookmark": "북마크",
+    "clipPage": "페이지 스크랩",
+    "contact": "연락처",
+    "event": "일정"
+  },
+  "vaultFilter": {
+    "all": "전체",
+    "logins": "로그인",
+    "cards": "신용카드",
+    "keys": "키"
+  },
+  "journal": {
+    "newEntry": "새 저널 항목"
+  },
+  "tasks": {
+    "newTitle": "{{date}} 할 일"
+  },
+  "trash": {
+    "empty": "비우기",
+    "emptyHover": "휴지통의 모든 노트 삭제",
+    "autoDelete": "30일 후 자동 삭제"
+  },
+  "search": {
+    "sortOptions": "정렬 및 보기 옵션",
+    "placeholderVault": "보관함 검색…",
+    "placeholderNotes": "노트 검색…",
+    "placeholderEvents": "일정 검색…",
+    "placeholderDrawings": "드로잉 검색…"
+  },
+  "selection": {
+    "countOf": "{{total}}개 중 {{selected}}개 선택됨",
+    "selectAll": "전체 선택",
+    "deselectAll": "전체 선택 해제"
+  },
+  "empty": {
+    "noMatches": "일치하는 항목이 없어요.",
+    "vault": "보관함이 비어 있어요.",
+    "notes": "아직 노트가 없어요.",
+    "journal": "아직 저널 항목이 없어요.",
+    "drawings": "아직 드로잉이 없어요.",
+    "drawingsLine": "아이디어를 스케치하고, 계획하고, 정리해 보세요. 드로잉은 노트에 링크할 수 있지만 노트의 내용은 보여 주지 않아요.",
+    "archive": "아카이브된 항목이 없어요.",
+    "trash": "휴지통이 비어 있어요.",
+    "filtered": "필터와 일치하는 항목이 없어요.",
+    "filteredAfter": "그러면 다시 보여요.",
+    "hiddenInAll_other": "항목 {{count}}개가 전체에 표시 필터로 숨겨져 있어요. 전체 옆의 필터를 열어 표시하세요.",
+    "inOtherSpace_other": "항목 {{count}}개가 {{space}} 공간에 있어요. 사이드바에서 {{space}} 공간으로 전환하면 볼 수 있어요."
+  },
+  "listGroups": {
+    "previous7Days": "지난 7일",
+    "previous30Days": "지난 30일",
+    "other": "기타",
+    "collapseAll": "모든 그룹 접기",
+    "expandAll": "모든 그룹 펼치기"
+  },
+  "footerStats": {
+    "journals_other": "저널",
+    "items_other": "항목",
+    "trashed_other": "휴지통",
+    "notes_other": "노트",
+    "bookmarks_other": "북마크",
+    "contacts_other": "연락처",
+    "drawings_other": "드로잉",
+    "files_other": "파일",
+    "lists_other": "목록",
+    "tasks_other": "할 일",
+    "today": "오늘"
+  },
+  "toast": {
+    "imageUploadFailed": "이미지 업로드 실패: {{error}}",
+    "imageError": "이미지 오류: {{error}}",
+    "uploadFailedFor": "\"{{filename}}\" 업로드 실패: {{error}}",
+    "importedSyncing_other": "노트 {{count}}개를 가져왔어요. 동기화 중…",
+    "addedTag_other": "항목 {{count}}개에 #{{tag}} 추가됨",
+    "restoreSummary": "복원했어요. {{added}}개 추가, {{updated}}개 업데이트, {{unchanged}}개는 이미 최신이에요."
+  },
+  "burn": {
+    "mediaOnly": "이 노트에는 미디어만 있어서 burn 링크로 공유할 수 없어요.",
+    "shareTitle": "암호화된 노트"
+  },
+  "loadError": {
+    "message": "노트를 불러오지 못했어요. 로컬 데이터베이스 연결이 끊겼어요. 앱이 한동안 백그라운드에 있었다면 이럴 수 있어요.",
+    "reload": "새로고침"
+  },
+  "banner": {
+    "proActivationPending": "결제는 받았지만 Pro 활성화가 평소보다 오래 걸리고 있어요. 1분 뒤에 새로고침하고, 그래도 안 켜지면 지원팀에 문의하세요.",
+    "crypto": {
+      "waiting": "암호화폐 결제를 기다리는 중이에요. 확인되면 Pro가 켜져요.",
+      "seen": "암호화폐 결제가 감지됐어요. 네트워크에서 확인되면 Pro가 켜져요. Bitcoin은 보통 1시간 이내예요.",
+      "partial": "암호화폐 결제 금액 중 일부가 도착했어요. 링크가 만료되기 전에 결제 페이지에서 나머지를 보내세요.",
+      "ended": "전체 금액이 도착하기 전에 암호화폐 결제 링크가 만료됐어요.",
+      "paid": "암호화폐 결제가 확인됐어요. Pro가 켜졌어요.",
+      "openPayment": "결제 페이지"
+    },
+    "snapshotPaused": "노트 히스토리가 일시 중지됐어요. Pro 플랜이 비활성 상태로 보여요. Pro가 복구될 때까지 새 수정 내용은 스냅샷되지 않아요.",
+    "restorePro": "Pro 복구",
+    "storagePastDue": "저장 공간 구독 결제에 실패했어요. 추가 용량을 잃지 않으려면 Paddle에서 카드를 업데이트하세요.",
+    "updateCard": "카드 업데이트"
+  },
+  "sidebar": {
+    "collapse": "사이드바 접기"
+  },
+  "notesList": {
+    "collapse": "노트 목록 접기",
+    "expand": "노트 목록 펼치기"
+  },
+  "split": {
+    "action": "노트 나누기",
+    "done": "“{{title}}”(으)로 나눴어요",
+    "overLimit": "“{{title}}” 노트는 1MB를 넘어 이 기기에만 남아요",
+    "cannot": "이 노트는 여기서 나눌 수 없어요. 새 노트가 시작될 위치에 커서를 두세요.",
+    "continuedTitle": "{{title}} (계속)",
+    "continuedIn": "{{link}}에서 이어져요"
+  },
+  "paneResize": {
+    "hintCollapse": "클릭해 접기 · 끌어서 크기 조절",
+    "hintExpand": "클릭해 펼치기 · 끌어서 크기 조절"
+  },
+  "emptyEditor": {
+    "selectFile": "미리 볼 파일을 선택하세요",
+    "uploadFiles": "또는 암호화 보관함에 새 파일을 업로드하세요.",
+    "selectNote": "노트를 선택하거나 새로 만드세요.",
+    "selectMarkdown": "Markdown 파일을 열면 여기서 읽을 수 있어요."
+  },
+  "zen": {
+    "exit": "Zen 종료",
+    "exitHover": "Zen 모드 종료",
+    "enterHover": "Zen 모드 시작",
+    "proHover": "Zen 모드 (Pro)",
+    "enterAriaShortcut": "Zen 모드 시작 ({{keys}})"
+  },
+  "editor": {
+    "backToList": "노트 목록으로 돌아가기",
+    "backToGrid": "그리드로 돌아가기",
+    "titlePlaceholder": "제목 없음 (클릭해서 편집하거나 자동 생성)",
+    "titlePlaceholderLogin": "예: GitHub",
+    "titlePlaceholderCard": "예: 4242로 끝나는 Visa",
+    "unlocked": "잠금 해제됨",
+    "lock": "잠금",
+    "lockNow": "지금 잠금",
+    "lockNowHint": "지금 내용 숨기기",
+    "turnOffHint": "다시 편집할 수 있게 하기",
+    "unarchiveHint": "목록에 다시 표시하기",
+    "showFormatted": "서식 보기",
+    "invisiblesShow": "서식 기호 보기",
+    "invisiblesHide": "서식 기호 숨기기",
+    "undo": "실행 취소",
+    "redo": "다시 실행",
+    "hide": "숨기기",
+    "show": "표시",
+    "hideToolbar": "서식 도구 모음 숨기기",
+    "showToolbar": "서식 도구 모음 표시",
+    "widthDefault": "기본 너비",
+    "widthWide": "더 넓게",
+    "widthFull": "전체 너비",
+    "titlePlaceholderLink": "북마크 이름",
+    "notBackedUpTooLarge": "1 MB 제한을 넘어 백업되지 않았어요. 사진을 첨부 파일로 옮기거나 노트를 나눠 주세요.",
+    "notBackedUpFailed": "백업되지 않았어요. 마지막 오류: {{message}}. 다시 시도하는 중이에요.",
+    "unknownType": "이 항목은 더 새로운 버전의 PrivacyNotes에서 만들어졌어요. 열려면 앱을 업데이트하세요."
+  },
+  "share": {
+    "hover": "공유 / 내보내기",
+    "ariaLabel": "공유 또는 내보내기",
+    "currentMdTitle": "현재 노트 (.md)",
+    "currentMdDesc": "front-matter가 포함된 raw markdown.",
+    "currentHtmlTitle": "현재 노트 (.html)",
+    "currentHtmlDesc": "인쇄하기 좋게, 흰 페이지에 markdown을 렌더링.",
+    "printTitle": "인쇄 / PDF로 저장",
+    "printDesc": "인쇄 대화 상자를 열어요. PDF로 저장하거나 프린터로 보내세요.",
+    "printTextTitle": "본문만 인쇄",
+    "printTextDesc": "제목은 남기고 날짜, 폴더, 태그는 빼요.",
+    "burnTitle": "공유 & Burn After Reading",
+    "burnDesc": "이 노트를 한 번만 볼 수 있는 링크로 게시해요. 링크는 읽히면 스스로 파기돼요. 원본 노트는 계정에 안전하게 남아요.",
+    "drawingFileTitle": "드로잉 (.excalidraw)",
+    "drawingFileDesc": "Excalidraw와 Obsidian에서 이미지와 함께 열려요.",
+    "drawingPngTitle": "이미지 (.png)",
+    "drawingPngDesc": "드로잉 전체를 한 장의 이미지로 저장해요."
+  },
+  "weekReview": {
+    "title": "주간 리뷰",
+    "daysLogged": "7일 중 {{count}}일 기록",
+    "mood": "기분",
+    "meds": "복약"
+  },
+  "footer": {
+    "settings": "설정",
+    "viewShortcuts": "모든 키보드 단축키 보기",
+    "newNote": "추가",
+    "newNoteHintMac": "Option + Shift + N",
+    "newNoteHintOther": "Alt + Shift + N",
+    "newNoteHintMacDesktop": "Command + N",
+    "newNoteHintOtherDesktop": "Ctrl + N",
+    "openStats": "통계 열기",
+    "journalCalendar": "저널 캘린더",
+    "words_other": "단어",
+    "zen": "Zen 모드",
+    "lockApp": "앱 잠그기",
+    "lockAppSetUp": "먼저 보안에서 PIN을 설정하세요",
+    "goToTop": "맨 위로 이동",
+    "goToEnd": "맨 끝으로 이동",
+    "signingOut": "로그아웃 중…",
+    "switchToLight": "라이트 모드로 전환",
+    "switchToDark": "다크 모드로 전환"
+  },
+  "settings": {
+    "groupYourNotes": "내 데이터",
+    "groupPreferences": "환경설정",
+    "groupBrand": "PrivacyNotes",
+    "statsLabel": "통계",
+    "importLabel": "옮기기",
+    "backupLabel": "백업",
+    "planLabel": "계정",
+    "storageLabel": "저장 공간",
+    "imagesLabel": "이미지",
+    "securityLabel": "보안",
+    "accountLabel": "ID·동기화",
+    "appearanceLabel": "디자인",
+    "editorLabel": "편집기",
+    "formatBarLabel": "도구 모음",
+    "listsLabel": "목록",
+    "trackersLabel": "트래커",
+    "helpLabel": "도움말",
+    "aboutLabel": "소개",
+    "languageLabel": "언어",
+    "dateLabel": "날짜 및 시간",
+    "dateTabFormat": "형식",
+    "languageDesc": "PrivacyNotes 표시 언어를 선택하세요.",
+    "calendarLabel": "캘린더"
+  },
+  "importStore": {
+    "title": "가져올까요, 보관할까요?",
+    "confirm": "노트로 가져오기",
+    "cancel": "파일로 보관",
+    "bodySingle": "<strong>{{filename}}</strong> 파일은 markdown으로 보여요. 읽고 편집할 수 있게 노트로 가져올까요, 아니면 암호화된 첨부 파일로 보관할까요?",
+    "bodyMulti": "이 파일 {{count}}개는 markdown으로 보여요. 읽고 편집할 수 있게 노트로 가져올까요, 아니면 암호화된 첨부 파일로 보관할까요?"
+  },
+  "archiveConfirm": {
+    "body_other": "<highlight>항목 {{count}}개</highlight>를 아카이브할까요? 목록에서 빠지고 아카이브 보기에 모여요. 아카이브 해제하면 다시 돌아와요."
+  },
+  "bulkTrash": {
+    "body_other": "<highlight>항목 {{count}}개</highlight>를 삭제할까요? 휴지통으로 옮겨 나중에 복원하거나 영구 삭제할 수 있어요.",
+    "confirm": "휴지통으로 이동",
+    "keys": "이 창 밖에서 <kbd>{{trash}}</kbd> 키를 누르면 항목이 바로 휴지통으로 이동하고, <kbd>{{ask}}</kbd> 키를 누르면 '다시 묻지 않기'를 켠 뒤에도 이 창이 열려요.",
+    "dontAskAgain": "다시 묻지 않기",
+    "readOnlyAcknowledge": "알겠어요",
+    "readOnlyBlocked_other": "<highlight>항목 {{count}}개</highlight>가 읽기 전용이라 휴지통으로 옮길 수 없어요. 먼저 노트 옵션에서 읽기 전용을 꺼 주세요.",
+    "readOnlySkipped_other": "<highlight>항목 {{count}}개</highlight>는 읽기 전용이라 그대로 남아요."
+  },
+  "deleteCheckedTasks": {
+    "title": "체크된 항목을 삭제할까요?",
+    "body_other": "이 노트에서 <highlight>항목 {{count}}개</highlight>가 삭제돼요. 하위 항목도 포함돼요. 이 작업은 되돌릴 수 없어요."
+  },
+  "tagConfirm": {
+    "mergeTitle": "태그 병합",
+    "mergeConfirm": "병합",
+    "mergeBody_other": "<highlight>“{{targetTag}}”</highlight> 태그가 이미 있어요. 현재 “{{tag}}” 태그가 달린 <highlight>노트 {{count}}개</highlight>를 그쪽으로 병합할까요?",
+    "deleteBody_other": "<highlight>노트 {{count}}개</highlight>에서 <highlight>“{{tag}}”</highlight> 태그를 제거할까요? 노트 자체는 삭제되지 않아요.",
+    "deleteWithNotesBody_other": "<highlight>“{{tag}}”</highlight> 태그를 삭제하고 <highlight>노트 {{count}}개</highlight>를 휴지통으로 옮길까요? 휴지통에서 복원할 수 있어요."
+  },
+  "createNote": {
+    "title": "노트를 만들까요?",
+    "confirm": "노트 만들기",
+    "body": "<highlight>“{{title}}”</highlight> 제목의 노트가 없어요. 연결된 노트의 이름이 바뀌었을 때 이럴 수 있어요. 이 제목으로 새 노트를 만들까요?"
+  },
+  "freshVault": {
+    "title": "새 보관함 생성됨",
+    "confirm": "확인했어요",
+    "body": "입력한 문구와 일치하는 보관함이 없어서 비어 있는 새 보관함이 만들어졌어요. 원래 노트가 보일 거라 기대했다면, 로그아웃한 뒤 문구를 신중하게 다시 입력하세요. 단어 하나만 달라도 다른 보관함이 열려요."
+  },
+  "ambiguousLink": {
+    "title": "같은 제목의 노트가 두 개 있어요",
+    "body": "<highlight>“{{title}}”</highlight> 제목의 노트가 여러 개라서, 이 링크가 어느 쪽을 가리키는지 알 수 없어요. 하나의 이름을 바꾸면 링크는 나머지를 가리켜요."
+  },
+  "connections": {
+    "title": "연결",
+    "hide": "연결 숨기기",
+    "linkedFrom": "이 노트를 링크한 곳",
+    "linksTo": "이 노트의 링크",
+    "missing": "아직 만들지 않음",
+    "protectedHidden_other": "PIN 보호 항목 {{count}}개는 표시되지 않아요",
+    "related": "연결 제안",
+    "relatedWords": "둘 다 {{words}}을(를) 언급해요",
+    "relatedLinksTo": "둘 다 {{title}}에 링크해요",
+    "relatedLinkedFrom": "둘 다 {{title}}에서 링크돼요",
+    "relatedTag": "둘 다 {{tag}} 태그가 있어요",
+    "relatedMeaning": "같은 의미",
+    "meaningDoor": "스마트 연결: 오프라인 AI로 같은 의미의 노트 찾기",
+    "meaningDoorNo": "다시 표시하지 않기",
+    "meaningDoorHidden": "모든 노트에서 숨겼어요. 스마트 연결은 설정 > 편집기 > 동작에 그대로 있어요.",
+    "hideSuggestions": "연결 제안 숨기기",
+    "notRelated": "관련 없음",
+    "notRelatedDone": "더 이상 제안하지 않아요",
+    "notRelatedCount": "관련 없음 ({{n}})",
+    "restoreSuggestion": "다시 제안",
+    "linkAtCursor": "커서 위치에 링크",
+    "linkNeedsCursor": "먼저 노트 안을 클릭하세요",
+    "linkAsFootnote": "각주로 링크"
+  },
+  "drawing": {
+    "fullScreen": "전체 화면",
+    "frame": "프레임",
+    "laser": "레이저 포인터",
+    "bar": {
+      "hiddenNote": "단축키로는 계속 쓸 수 있어요."
+    },
+    "resetTitle": "캔버스를 초기화할까요?",
+    "resetBody": "캔버스의 모든 내용이 제거돼요. 실행 취소로 되돌릴 수 있어요.",
+    "hotkeysTitle": "드로잉 단축키",
+    "tools": {
+      "label": "드로잉 도구",
+      "keepTool": "그린 뒤에도 도구 유지",
+      "hand": "캔버스 이동",
+      "rectangle": "사각형",
+      "diamond": "마름모",
+      "ellipse": "타원",
+      "arrow": "화살표",
+      "line": "선",
+      "pen": "펜",
+      "text": "텍스트 상자",
+      "steps": "번호 단계",
+      "eraser": "지우개",
+      "resetZoom": "확대/축소 초기화",
+      "open": "드로잉 파일 열기",
+      "reset": "캔버스 초기화",
+      "style": "스타일",
+      "more": "도구 더 보기",
+      "fewer": "도구 줄이기"
+    }
+  },
+  "location": {
+    "add": "위치 추가",
+    "title": "위치",
+    "chipLabel": "위치: {{place}}",
+    "useCurrent": "현재 위치 사용",
+    "locating": "위치를 확인하는 중",
+    "inputLabel": "장소, 좌표 또는 지도 링크",
+    "nameLabel": "이름(선택)",
+    "openOsm": "OpenStreetMap에서 열기",
+    "copyCoordinates": "좌표 복사",
+    "remove": "위치 제거",
+    "errorUnreadable": "장소를 찾지 못했어요. 장소를 입력하거나 좌표 또는 지도 링크를 붙여 넣어 주세요.",
+    "errorShortLink": "단축 링크는 인터넷에 연결되어 있어야 열려요. 링크를 연 다음 전체 주소를 복사해 주세요.",
+    "errorRange": "지도 범위를 벗어난 숫자예요.",
+    "errorDenied": "PrivacyNotes의 위치 접근이 꺼져 있어요. 설정에서 켜거나 좌표를 붙여 넣어 주세요.",
+    "errorOff": "이 휴대폰의 위치 서비스가 꺼져 있어요. 설정에서 켜거나 좌표를 붙여 넣어 주세요.",
+    "errorTimeout": "위치를 가져오지 못했어요. 실외에서 다시 시도하거나 좌표를 붙여 넣어 주세요.",
+    "saveFailed": "위치를 저장하지 못했어요. 다시 시도해 주세요.",
+    "mapNotice": "개인정보 보호를 위해 저희 서버에서 제공하는 지도예요: maps.privacynotes.app",
+    "mapLoading": "지도를 불러오는 중",
+    "mapLabel": "{{place}} 지도",
+    "mapFailed": "여기서는 지도를 표시할 수 없어요. 대신 OpenStreetMap에서 열어 보세요.",
+    "inputPlaceholder": "후지산 또는 35.36, 138.72",
+    "townsLoading": "장소 목록을 불러오는 중",
+    "insertMap": "지도 삽입",
+    "gestureCtrl": "Ctrl 키를 누른 채 스크롤하면 지도를 확대/축소해요",
+    "gestureMac": "⌘ 키를 누른 채 스크롤하면 지도를 확대/축소해요",
+    "gestureTouch": "두 손가락으로 지도를 움직이세요",
+    "autoNote": "새 노트마다 내 위치 추가",
+    "autoJournal": "새 저널 항목마다 내 위치 추가",
+    "autoDenied": "PrivacyNotes의 위치 접근이 꺼져 있어요. 먼저 휴대폰 설정에서 켜 주세요.",
+    "autoOff": "이 휴대폰의 위치 서비스가 꺼져 있어요. 먼저 켜 주세요."
+  }
+}

@@ -1,0 +1,4984 @@
+@import 'tailwindcss';
+@import './typeScale.css';
+
+@plugin '@tailwindcss/typography';
+
+@source '../../shared/src/**/*.{ts,tsx}';
+
+@custom-variant dark (&:is(.dark *));
+
+/* Editor-content styles live in a dedicated cascade layer declared AFTER
+   `utilities` so they beat both Tailwind utilities and the typography
+   plugin's `.prose` defaults (which compile into the `utilities` layer).
+   Under v3 this worked by source order; v4's native cascade layers made
+   `utilities` win over `components` regardless of specificity, which
+   silently disabled every editor override (task-list checkboxes, table
+   borders, list spacing). Editor content (TipTap-generated DOM) carries
+   no utility classes, so utilities never need to win inside it. App
+   chrome styled with utilities in JSX must NOT go in this layer. */
+@layer editor;
+
+@theme {
+  --color-accent: rgb(var(--pn-accent));
+  --color-accent-hover: rgb(var(--pn-accent-hover));
+  --color-accent-strong: rgb(var(--pn-accent-hover));
+  --color-accent-fill: rgb(var(--pn-accent-fill));
+  --color-danger: rgb(var(--pn-danger));
+  --color-warning: rgb(var(--pn-warning));
+  --color-success: rgb(var(--pn-success));
+  --color-accent-fill-hover: rgb(var(--pn-accent-fill-hover));
+
+  /* The Pro mark (the rocket). Keyed to MODE: burnt amber on every light
+     theme, gold on every dark one - see the :root and :root.dark blocks. */
+  --color-pro: rgb(var(--pn-pro));
+  --color-label: rgb(var(--pn-label));
+
+  --color-warm: rgb(var(--pn-surface-2));
+
+  --color-surface-0: rgb(var(--pn-surface-0));
+  --color-surface-1: rgb(var(--pn-surface-1));
+  --color-surface-2: rgb(var(--pn-surface-2));
+
+  --color-divider: rgb(var(--pn-divider));
+
+  --color-track: rgb(var(--pn-track));
+
+  --color-pn-soft: rgb(var(--pn-text-soft));
+
+  --color-pn: rgb(var(--pn-text));
+  --color-pn-muted: rgb(var(--pn-text-muted));
+}
+
+/*
+  The type roles. Each sets a text size from typeScale.css and the icon size
+  for icons inside it (--icon-size, read by the svg rule below). A role with a
+  line height yields to a leading-* utility, as Tailwind's own sizes do.
+  Spec: docs/contrib/design/type-scale.md
+*/
+
+@utility text-meta {
+  font-size: var(--fs-meta);
+  --icon-size: var(--ic-meta);
+}
+
+@utility text-small {
+  font-size: var(--fs-small);
+  line-height: var(--tw-leading, var(--lh-small));
+  --icon-size: var(--ic-small);
+}
+
+@utility text-help {
+  font-size: var(--fs-help);
+  line-height: var(--tw-leading, var(--lh-help));
+  --icon-size: var(--ic-help);
+}
+
+@utility text-compact {
+  font-size: var(--fs-compact);
+  --icon-size: var(--ic-compact);
+}
+
+@utility text-body {
+  font-size: var(--fs-body);
+  line-height: var(--tw-leading, var(--lh-body));
+  --icon-size: var(--ic-body);
+}
+
+@utility text-row {
+  font-size: var(--fs-row);
+  --icon-size: var(--ic-row);
+}
+
+@utility text-title {
+  font-size: var(--fs-title);
+  line-height: var(--tw-leading, var(--lh-title));
+  --icon-size: var(--ic-title);
+}
+
+@utility text-heading {
+  font-size: var(--fs-heading);
+  line-height: var(--tw-leading, var(--lh-heading));
+  --icon-size: var(--ic-heading);
+}
+
+@utility text-display {
+  font-size: var(--fs-display);
+  line-height: var(--tw-leading, var(--lh-display));
+  --icon-size: var(--ic-display);
+}
+
+@utility text-display-2 {
+  font-size: var(--fs-display-2);
+  line-height: var(--tw-leading, var(--lh-display-2));
+  --icon-size: var(--ic-display-2);
+}
+
+@utility text-display-3 {
+  font-size: var(--fs-display-3);
+  line-height: var(--tw-leading, var(--lh-display-3));
+  --icon-size: var(--ic-display-3);
+}
+
+@utility text-display-4 {
+  font-size: var(--fs-display-4);
+  line-height: var(--tw-leading, var(--lh-display-4));
+  --icon-size: var(--ic-display-4);
+}
+
+@utility text-display-5 {
+  font-size: var(--fs-display-5);
+  line-height: var(--tw-leading, var(--lh-display-5));
+  --icon-size: var(--ic-display-5);
+}
+
+@utility text-display-6 {
+  font-size: var(--fs-display-6);
+  line-height: var(--tw-leading, var(--lh-display-6));
+  --icon-size: var(--ic-display-6);
+}
+
+@utility text-display-7 {
+  font-size: var(--fs-display-7);
+  line-height: var(--tw-leading, var(--lh-display-7));
+  --icon-size: var(--ic-display-7);
+}
+
+/*
+  An icon given no size of its own (no width attribute: IconDefaults in
+  icons.tsx sets none) takes the icon size of the nearest role around it.
+  Zero specificity, so a [&>svg]:size-* on a parent or a class on the icon
+  still wins.
+*/
+@layer base {
+  :where(svg[data-pn-icon]:not([width])) {
+    width: var(--icon-size);
+    height: var(--icon-size);
+  }
+}
+
+/*
+  A border with no color utility takes the theme's divider. Tailwind v4 would
+  otherwise draw it in currentcolor, the text color.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: rgb(var(--pn-divider));
+  }
+}
+
+/* ------------------------------------------------------------------
+   Editor type scale.
+
+   ONE knob: --pn-text-scale, set from the Text size control in the
+   Appearance pane (theme.ts writes data-text-size on <html>). Both
+   sizes below derive from it, so the em-base and the body copy can
+   never drift apart again:
+
+     --pn-editor-base  the .ProseMirror root size. NOT the visible body
+                       size - it is the em-BASE that prose-derived
+                       internals scale off (pre and table cells at
+                       0.875em, callout titles at 1em).
+     --pn-editor-body  the visible size of paragraphs, list items and
+                       blockquotes. Applied via the utilities on the
+                       editor wrapper in Editor.tsx.
+
+   Headings are sized off --pn-editor-body, one ladder of six in the
+   `.prose` block below, so they ride the same knob. A rem or px step
+   would stay put while body copy grew: that is exactly how H4-H6 came
+   to render SMALLER than a paragraph at the two largest sizes.
+
+   Adding a size means adding a data-text-size block here and an entry
+   to TEXT_SIZES in theme.ts, nothing else.
+   Spec: docs/internal/design-decisions.md (editor text size)
+   ------------------------------------------------------------------ */
+@layer base {
+  :root {
+    --pn-text-scale: 1;
+    --pn-editor-base: calc(18px * var(--pn-text-scale));
+    --pn-editor-body: calc(15px * var(--pn-text-scale));
+  }
+  :root[data-text-size='xs'] { --pn-text-scale: 0.75; }
+  :root[data-text-size='sm'] { --pn-text-scale: 0.875; }
+  :root[data-text-size='lg'] { --pn-text-scale: 1.125; }
+  :root[data-text-size='xl'] { --pn-text-scale: 1.25; }
+}
+
+/* ------------------------------------------------------------------
+   Note font. The Note font row in Settings > Editor writes data-note-font
+   on <html> (theme.ts); Sans is the default and paints nothing. The stacks
+   match FONT_FAMILIES in editorColors.ts, so a toolbar pick looks the same.
+   A font mark set in the toolbar is an inline style and still wins.
+   Spec: theme.ts (Note font axis)
+   ------------------------------------------------------------------ */
+:root[data-note-font='serif'] .ProseMirror { font-family: ui-serif, Georgia, Cambria, serif; }
+:root[data-note-font='mono'] .ProseMirror { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+/* A font from this device for the chosen note font (GitHub #716). theme.ts
+   writes the whole stack, the reader's font first and the stack above
+   behind it, so a font that is not installed falls back on its own. */
+:root[data-note-font-custom] .ProseMirror { font-family: var(--pn-note-font-custom); }
+
+/* ------------------------------------------------------------------
+   Nested numbers (GitHub #689). On 'outline' a numbered list inside a
+   numbered list counts the whole path, 1.1 and 1.1.1. The browser's own
+   list-item counter does the counting, so a list's start number holds;
+   ::marker keeps the number in the gutter where the plain one sits. A
+   numbered list inside a bullet or task list counts on its own (`ul ol`),
+   or a bullet's place would show up as a number. The gutter widens per
+   level so the longer number fits. NotesView paints the attribute from the
+   synced setting; every .prose surface follows it.
+   Spec: theme.ts (Nested numbers axis)
+   ------------------------------------------------------------------ */
+:root[data-nested-numbers='outline'] .prose ol:not(ul ol) > li::marker {
+  content: counters(list-item, '.') '. ';
+}
+:root[data-nested-numbers='outline'] .prose ol[data-numerals='persian']:not(ul ol) > li::marker {
+  content: counters(list-item, '.', persian) '. ';
+}
+:root[data-nested-numbers='outline'] .prose ol ol:not(ul ol) { --pn-list-pad: 2.925rem; }
+:root[data-nested-numbers='outline'] .prose ol ol ol:not(ul ol) { --pn-list-pad: 3.6rem; }
+:root[data-nested-numbers='outline'] .prose ol ol ol ol:not(ul ol) { --pn-list-pad: 4.275rem; }
+
+/* ------------------------------------------------------------------
+   The Ninja box (NinjaWindow.tsx, GitHub #694). The window is the box: the
+   copy of the main window's Ninja dialog fills it, with no frame of its own,
+   and the list takes the height the field and the footer leave.
+   Spec: docs/internal/plans/ninja-anywhere-694.md (section 3)
+   ------------------------------------------------------------------ */
+:root[data-ninja-window],
+:root[data-ninja-window] body,
+:root[data-ninja-window] #root { height: 100%; overflow: hidden; background: rgb(var(--pn-surface-2)); }
+:root[data-ninja-window] [role='dialog'] {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+:root[data-ninja-window] #pn-quick-switcher-list { flex: 1; max-height: none; }
+
+/* ------------------------------------------------------------------
+   Editor content width - the ONLY place the reading column's cap lives.
+
+   `.pn-content-col` is that column. The note editor and the markdown
+   file pane both wear it, for the title header row as well as the body,
+   so a wide body can never sit under a centred title. Each pane used to
+   carry its own `mx-auto w-full max-w-4xl` copy and the two drifted.
+   `pnpm check:house` now fails on a local re-declaration.
+
+   The step is a MULTIPLE of the 56rem default, not a percentage of the
+   pane: a percentage of the pane would reflow the text every time the
+   notes list collapsed, which is a control the reader did not touch.
+   'full' drops the cap entirely and the column takes the pane.
+
+   Adding a step means adding a data-content-width block here and an
+   entry to CONTENT_WIDTHS in theme.ts, nothing else.
+   Spec: docs/internal/design-decisions.md (editor content column max-width)
+   ------------------------------------------------------------------ */
+@layer base {
+  :root {
+    --pn-content-scale: 1;
+    --pn-content-max: calc(56rem * var(--pn-content-scale));
+  }
+  :root[data-content-width='wide'] { --pn-content-scale: 1.5; }
+  :root[data-content-width='full'] { --pn-content-max: none; }
+}
+
+/* ------------------------------------------------------------------
+   Paragraph gap - the whole of the Line spacing control.
+
+   Compact is the default and the absent state, so every surface that
+   renders `.prose` without an account behind it lands there: the burn
+   note viewer, and a page opened before the settings arrive.
+
+   The value is an em of the PARAGRAPH, not of the root, so one number
+   holds at all four text sizes and in the burn viewer's own body size.
+
+   Tight keeps Compact's gap and sets the lines closer, for people who
+   want more text on the screen (GitHub #255). The line height is a
+   variable for the same reason as the gap: the task checkbox is
+   centred on the first line and has to follow it.
+
+   Adding a step means adding a data-line-spacing block here, an
+   entry to LINE_SPACINGS in theme.ts and its lengths in paragraphGapCss
+   and lineHeightCss beside it, nothing else.
+   Spec: docs/internal/design-decisions.md (editor paragraph rhythm)
+   ------------------------------------------------------------------ */
+@layer base {
+  :root { --pn-para-gap: 0; --pn-line-height: 1.7; }
+  /* Both lengths are copied for markup that leaves the app:
+     paragraphGapCss and lineHeightCss in theme.ts. */
+  :root[data-line-spacing='tight'] { --pn-line-height: 1.4; }
+  :root[data-line-spacing='normal'] { --pn-para-gap: 0.75em; }
+}
+
+.pn-content-col {
+  margin-inline: auto;
+  width: 100%;
+  max-width: var(--pn-content-max);
+}
+
+@layer editor {
+  /* A colored note takes the color on the whole pane: the title bar, the tag
+     row, the toolbar and the body. The tint is translucent, so it is laid on
+     the pane and again on every opaque surface inside it: each such surface
+     covers the layer below before it adds its own, and the color comes out
+     the same everywhere. The sticky tag row and toolbar are nearly opaque, so
+     they take the layer too. Spec: docs/internal/specs/folder-tag-icons.md (section 4.5) */
+  /* The editor pane paints the paper. The color utilities read `--color-*`,
+     which <html> computes once from the `--pn-*` channels, so the pane
+     computes the surface ones again from its own.
+     Spec: docs/contrib/color-themes.md (section 8) */
+  .pn-editor-pane {
+    --pn-surface-2: var(--pn-paper);
+    --color-surface-2: rgb(var(--pn-surface-2));
+    --color-warm: rgb(var(--pn-surface-2));
+  }
+
+  .pn-editor-pane,
+  .pn-editor-pane .bg-surface-2,
+  .pn-editor-pane .pn-tagrow,
+  .pn-editor-pane .pn-editor-toolbar {
+    background-image: linear-gradient(var(--pn-note-tint, transparent), var(--pn-note-tint, transparent));
+  }
+
+  /* A note color sits on the item's icon at both strengths (an accent puts it
+     there and nowhere else, a background also tints the row): the boxed icon
+     takes the tint and the ink, and an icon drawn from a picture (a favicon,
+     a contact photo) keeps its own tile and takes a ring in the ink.
+     noteLookStyle sets the two variables. Spec: docs/internal/specs/note-color-style.md (section 3.1) */
+  [data-color-style] [data-slot='icon'] > :not(:has(img)) {
+    background-color: var(--pn-accent-tint);
+    color: var(--pn-accent-ink);
+  }
+  [data-color-style] [data-slot='icon'] > :has(img) {
+    box-shadow: 0 0 0 1.5px var(--pn-accent-ink);
+  }
+  [data-color-style] .pn-card-glyph {
+    color: var(--pn-accent-ink);
+  }
+
+  /* Find hits in the Markdown source view (MarkdownSourceEditor.tsx), painted
+     under the transparent textarea, whose own text stays on top. So the
+     active hit is a lighter amber than the rich editor's, which can switch
+     the ink to dark and this one cannot. */
+  .pn-source-marks .pn-search-hit {
+    background: rgb(250 204 21 / 0.45);
+    border-radius: 2px;
+    color: transparent;
+  }
+  .pn-source-marks .pn-search-hit-current {
+    background: rgb(245 158 11 / 0.65);
+  }
+  :root.dark .pn-source-marks .pn-search-hit {
+    background: rgb(250 204 21 / 0.3);
+  }
+  :root.dark .pn-source-marks .pn-search-hit-current {
+    background: rgb(245 158 11 / 0.55);
+  }
+
+  .ProseMirror {
+    /* Placeholder rendering for TipTap's Placeholder extension */
+    & p.is-editor-empty:first-child::before {
+      content: attr(data-placeholder);
+      float: inline-start;
+      color: rgb(var(--pn-text-muted));
+      pointer-events: none;
+      height: 0;
+    }
+    position: relative;
+    min-height: 60vh;
+    /* Uniform breathing room between the sticky toolbar and the first
+       block, whatever its type. Block top-margins are zeroed on the
+       first child (see the first-child rule in the rhythm block), so
+       this padding is the single source of the "start of note" gap. */
+    padding-top: 16px;
+    /* A note whose first block has no line above it (an image, a table, a
+       quote) holds the "Add a line at the top" zone in this gap, and its
+       label needs the extra room. Keep in step with h-8 in Editor.tsx.
+       Such a block is a box that cannot wrap beside the closed pills, so
+       the gap also clears them and the spacer below drops to zero height:
+       the box keeps the full width. */
+    .pn-top-line-pad & {
+      padding-top: max(32px, calc(var(--pn-pills-clear, 0px) + 8px));
+    }
+    .pn-top-line-pad &::before {
+      height: max(0px, calc(var(--pn-outline-fh, 0px) - var(--pn-pills-clear, 0px)));
+    }
+    /* With a notice line (Read-only, Archived #712) the line is the gap
+       between the toolbar and the note, and the pills sit beside it. The
+       body keeps a hairline of its own; a note that starts with a box keeps
+       12px, because the "Add a line at the top" zone (-top-3 h-6 in
+       Editor.tsx) also takes the line's empty lower edge. */
+    .pn-editor-noticed & {
+      padding-top: 4px;
+    }
+    .pn-editor-noticed.pn-top-line-pad & {
+      padding-top: 12px;
+    }
+    /* A vault item's Files section (VaultFiles.tsx) is a list of file chips,
+       not a page of writing: no tall minimum and no start-of-note gap. */
+    .pn-vault-files & {
+      min-height: 0;
+      padding-top: 0;
+    }
+    /* CAUTION: this is NOT the visible body size. The utilities in
+       Editor.tsx (text-[15px] + prose-p/li/blockquote:text-[15px]) pin
+       body copy to --pn-editor-body and win the cascade. This is the
+       em-BASE for prose-derived internals that scale off the root: pre
+       and table cells (0.875em) and callout titles (inherit). Both
+       vars derive from --pn-text-scale, so they move together - see the
+       type-scale block at the top of this file. */
+    font-size: var(--pn-editor-base);
+    line-height: var(--pn-line-height);
+    /* Wide content (tables, pre blocks) scrolls here, below the
+         sticky toolbar, instead of pushing the outer scroll container
+         and dragging the toolbar off-screen (GitHub #95). */
+    overflow-x: auto;
+    &:focus {
+      outline: none;
+    }
+  
+    /* Override Tailwind prose default underline on links - show on hover only. */
+    & a {
+      text-decoration: none;
+    }
+    & a:hover {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    & a:active {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+  
+    /* Inline favicon for external links via CSS custom property.
+       The --fav property is set by the FaviconChips plugin, as an inline
+       decoration over the link's first character - so the element carrying
+       it is a span INSIDE the <a>, and the ::before is part of the link
+       (clicks work, cursor isn't blocked). The plugin only sets it once the
+       icon has downloaded, which is what keeps this tile from rendering as
+       an empty white box on a domain that has no icon. */
+    /* Bare icon, no tile: it used to sit on a light chip (the vault rows'
+       treatment) so dark logos stay visible on dark themes, but inline in
+       prose the chip read as a button glued to the link text - the export
+       renders the bare icon and looks better for it (removed 2026-08-19).
+       The cost, accepted: a dark mark (GitHub, X) is fainter on a dark
+       page. Sized to match the export's 14px icon. */
+    /* The icon and the link's first character stay on one line together.
+       The icon below is its own box, and CSS offers a line break right
+       after a box like that. A pasted URL is one long word, so a column
+       too narrow to hold it takes that break and leaves the icon alone on
+       the line above - a phone hits this on most links, a desktop column
+       on almost none. Gluing the two removes the break point, so the icon
+       always sits beside the text it belongs to. Spec: GitHub #328. */
+    & a [style*='--fav'] {
+      white-space: nowrap;
+    }
+    & a [style*='--fav']::before {
+      content: '';
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      background-image: var(--fav);
+      background-size: contain;
+      background-position: center;
+      background-repeat: no-repeat;
+      border-radius: 2px;
+      vertical-align: -2px;
+      margin-inline-end: 5px;
+    }
+  
+    /* Outline jump-to: land headings just below the sticky toolbar, not under
+       it. The vars are the same ones the find/outline slot pins to. Callouts
+       get a larger offset on their node-view wrapper (see the callout block)
+       so the fold button also clears the collapsed outline pill. */
+    & :is(h1, h2, h3, h4, h5, h6) {
+      scroll-margin-top: calc(
+        var(--pn-tagrow-h, 0px) + var(--pn-editor-toolbar-h, 0px) + 12px
+      );
+    }
+    /* Outline reserve. The corner pills are floated as a top-right spacer
+       (width x height) so the first line wraps beside them. The open outline
+       panel reserves only that top row and overlays the note below it. The
+       visible pills and panel sit in their own sticky slot over this float
+       (useEditorPanels.ts sets the two vars from their measured footprint).
+       Callout boxes need display:flow-root to respect this float - see the
+       callout block below. */
+    &::before {
+      content: '';
+      float: right;
+      width: var(--pn-outline-fw, 0px);
+      height: var(--pn-outline-fh, 0px);
+      transition:
+        width 0.15s ease,
+        height 0.15s ease;
+    }
+    /* A note that opens with a picture drops the spacer, and the panel
+       overlays the picture as it overlays anything it scrolls over. The
+       picture's flex box may not overlap a float, so the spacer pushed it
+       down or squeezed it. */
+    &:has(> .node-image:first-child)::before {
+      display: none;
+    }
+    /* A notice line (the read-only hint) sits beside the pills already, so
+       the text under it needs no room kept for them. */
+    .pn-editor-noticed &::before {
+      display: none;
+    }
+
+    /* ---------------------------------------------------------------
+     * Table styling - clean, minimal, Apple Notes inspired.
+     * TipTap emits <table class="pn-table"> with <tr>, <td>, <th>.
+     * --------------------------------------------------------------- */
+    /* Wrapper emitted by TipTap's Table extension - make tables
+       horizontally scrollable on narrow viewports instead of
+       overflowing the editor. Fix: GitHub #100 */
+    & .tableWrapper {
+      overflow-x: auto;
+      margin: 1em 0;
+      -webkit-overflow-scrolling: touch;
+    }
+    & table.pn-table {
+      border-collapse: collapse;
+      width: 100%;
+      /* Every column gets an equal share of the width unless someone drags a
+         border, and text wraps inside its cell. Sizing from content instead
+         lets one long sentence swallow the table. A dragged width is a
+         percentage on the table's <col>, written by the node view in
+         tableColumnResize.ts, so the table always fills the note.
+         Spec: docs/internal/specs/table-column-widths.md */
+      table-layout: fixed;
+      overflow: hidden;
+      /* Prose gives <table> its own 2em top/bottom margin, and the table sits
+         inside .tableWrapper which already carries 1em - the two stacked to a
+         ~3em crater above every table. The wrapper owns the spacing; the table
+         itself gets none. */
+      margin: 0;
+    }
+    /* Header cells were inheriting the prose <th> padding-bottom on top of
+       their own, which read as the header row floating away from the body. */
+    & table.pn-table th > p,
+    & table.pn-table td > p {
+      margin: 0;
+    }
+    /* The border a drag would move: a line along the cell's end edge, drawn
+       in every cell of the column (widget decorations from
+       tableColumnResize.ts). The cursor shows on the whole editor while a
+       border is under the pointer, and on the whole page during a drag, so it
+       stays when the pointer leaves the note. */
+    & .pn-col-resize-handle {
+      position: absolute;
+      inset-block: -1px;
+      inset-inline-end: -2px;
+      width: 3px;
+      background: rgb(var(--pn-accent));
+      pointer-events: none;
+      z-index: 1;
+    }
+    /* The table's own end edge: inside the cell, because the table clips. */
+    & .pn-col-resize-handle.is-edge {
+      inset-inline-end: 0;
+    }
+    &.pn-col-resize-cursor {
+      cursor: col-resize;
+    }
+    /* The symmetry guide during a column drag (tableColumnResize.ts): dashed
+       where the border would mirror its partner, solid on both borders once
+       it does. Placed in px from the wrapper's own left, which is physical in
+       either direction. */
+    & .tableWrapper {
+      position: relative;
+    }
+    & .pn-col-guide {
+      position: absolute;
+      width: 0;
+      margin-left: -1px; /* rtl-ok: centres a line placed by a physical left */
+      border-left: 2px dashed rgb(var(--pn-accent) / 0.45); /* rtl-ok: a vertical line, same both ways */
+      pointer-events: none;
+      z-index: 2;
+    }
+    & .pn-col-guide-partner {
+      border-left-color: transparent; /* rtl-ok: see above */
+    }
+    & .pn-col-guide.is-matched {
+      border-left-style: solid; /* rtl-ok: see above */
+      border-left-color: rgb(var(--pn-accent)); /* rtl-ok: see above */
+    }
+    & table.pn-table td {
+      border: 1px solid rgb(var(--pn-divider));
+      padding: 0.4em 0.6em;
+      vertical-align: top;
+      min-width: 80px;
+      position: relative;
+    }
+    & table.pn-table th {
+      border: 1px solid rgb(var(--pn-divider));
+      padding: 0.4em 0.6em;
+      vertical-align: top;
+      min-width: 80px;
+      position: relative;
+    }
+    & table.pn-table th {
+      font-weight: 600;
+      background: rgb(var(--pn-text) / 0.05);
+    }
+    /* Table formulas (editorTableFormula.ts). The formula text is hidden and
+       a widget paints the number, so the cell shows `1,575` while the note on
+       disk still holds `=SUM(B2:B7)`. Neither rule may change the cell's
+       layout: the caret has to land in the same place it would without them,
+       because clicking is how the source comes back. The dotted underline is
+       the only mark that a number is computed rather than typed. */
+    & .pn-formula-src {
+      display: none;
+    }
+    & .pn-formula-value {
+      border-bottom: 1px dotted rgb(var(--pn-text) / 0.35);
+      cursor: default;
+    }
+
+    /* A colored cell (#616) draws its fill inline, which would hide the
+       selection wash, so a selected one gets an accent ring instead. Dark
+       yellow follows .pn-hl-default; the inline value is the light one. */
+    & table.pn-table :is(td, th)[data-fill].selectedCell {
+      box-shadow: inset 0 0 0 2px rgb(var(--pn-accent) / 0.6);
+    }
+    :root.dark & table.pn-table :is(td, th)[data-fill='yellow'] {
+      background-color: rgb(250 204 21 / 0.24) !important;
+    }
+    /* Sort arrows in a header cell (editorTableSort.ts, #636): faint, so a
+       full cell stays readable, and clear on hover. The cell keeps room for
+       the arrow at its end. */
+    & table.pn-table th.pn-sortable {
+      padding-inline-end: 1.7em;
+    }
+    & .pn-table-sort-host {
+      position: absolute;
+      inset-inline-end: 0.25em;
+      top: 0.45em;
+      display: inline-flex;
+      font-weight: 400;
+    }
+    & .pn-table-sort {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.3em;
+      height: 1.3em;
+      border-radius: 4px;
+      color: rgb(var(--pn-text));
+      opacity: 0.2;
+      cursor: pointer;
+      transition: opacity 0.12s;
+    }
+    & .pn-table-sort.is-sorted {
+      opacity: 0.45;
+    }
+    & th:hover .pn-table-sort {
+      opacity: 0.55;
+    }
+    & .pn-table-sort:hover {
+      opacity: 1;
+      background: rgb(var(--pn-text) / 0.08);
+    }
+    &[contenteditable='false'] .pn-table-sort-host {
+      display: none;
+    }
+
+    /* Selected cell highlight */
+    & table.pn-table td.selectedCell {
+      background: rgb(var(--pn-accent) / 0.1);
+    }
+    & table.pn-table th.selectedCell {
+      background: rgb(var(--pn-accent) / 0.1);
+    }
+    :root.dark & table.pn-table td.selectedCell {
+      background: rgb(var(--pn-accent) / 0.15);
+    }
+  
+    :root.dark & table.pn-table th.selectedCell {
+      background: rgb(var(--pn-accent) / 0.15);
+    }
+    /* Find-in-note highlights (editorSearch.ts inline decorations). Yellow for
+       every match, a stronger amber with dark ink for the active one so it
+       stands out while stepping through results. box-decoration-break keeps the
+       fill whole when a match wraps across lines. */
+    & .pn-search-hit {
+      background: rgb(250 204 21 / 0.45);
+      border-radius: 2px;
+      -webkit-box-decoration-break: clone;
+      box-decoration-break: clone;
+    }
+    & .pn-search-hit-current {
+      background: rgb(245 158 11 / 0.9);
+      color: #1a1207;
+    }
+    :root.dark & .pn-search-hit {
+      background: rgb(250 204 21 / 0.32);
+    }
+    :root.dark & .pn-search-hit-current {
+      background: rgb(245 158 11 / 0.95);
+      color: #1a1207;
+    }
+    /* Attachment chips matched by filename (node decorations) get a ring
+       instead of the inline text fill - a solid yellow wash over the whole
+       chip would drown its own styling. Dark selectors repeated so these
+       outrank the :root.dark background rules above. */
+    & .react-renderer.pn-search-hit {
+      background: transparent;
+      box-shadow: 0 0 0 2px rgb(250 204 21 / 0.45);
+      border-radius: 8px;
+    }
+  
+    :root.dark & .react-renderer.pn-search-hit {
+      background: transparent;
+      box-shadow: 0 0 0 2px rgb(250 204 21 / 0.45);
+      border-radius: 8px;
+    }
+    & .react-renderer.pn-search-hit-current {
+      background: transparent;
+      box-shadow: 0 0 0 3px rgb(245 158 11 / 0.9);
+      color: inherit;
+    }
+  
+    :root.dark & .react-renderer.pn-search-hit-current {
+      background: transparent;
+      box-shadow: 0 0 0 3px rgb(245 158 11 / 0.9);
+      color: inherit;
+    }
+    /* Jump-to-file flash (EditorHandle.scrollToFile): pulses the attachment
+       chip / image after opening its parent note from the Files pillar so
+       the eye lands on the right row in long file lists. */
+    & .pn-file-flash {
+      animation: pn-file-flash 1.6s ease-out;
+      border-radius: 8px;
+    }
+    /* Cell content reset - remove prose margins inside cells */
+    & table.pn-table td > p {
+      margin: 0;
+    }
+    & table.pn-table th > p {
+      margin: 0;
+    }
+  
+    /* ---------------------------------------------------------------
+     * Callouts (Callout.tsx). Colored, collapsible boxes. The node view
+     * sets --cc (space-separated rgb) and --cs (accent hex) per type, so
+     * the tinting here is generic; the hues live in calloutTypes.ts.
+     * Spec: docs/contrib/callouts.md
+     * --------------------------------------------------------------- */
+    /* The node-view wrapper establishes a BFC (flow-root) so the callout BOX
+       wraps beside the outline float like text does - a plain block's border
+       box ignores floats (only its line boxes are displaced), which slid the
+       box and its fold control underneath the outline. The wrapper takes over
+       the callout's vertical margins so sibling spacing keeps collapsing
+       exactly as before (a BFC contains its children's margins). It also
+       carries a larger scroll-margin than headings (further below) so an
+       outline jump parks the fold control clear of the collapsed outline pill,
+       not under it. Spec: docs/contrib/callouts.md */
+    & .react-renderer.node-callout {
+      display: flow-root;
+      margin: 1em 0;
+      scroll-margin-top: calc(
+        var(--pn-tagrow-h, 0px) + var(--pn-editor-toolbar-h, 0px) + 48px
+      );
+    }
+  }
+}
+
+@layer editor {
+  .dark {
+    &.dark .ProseMirror table.pn-table td.selectedCell {
+      background: rgb(var(--pn-accent) / 0.15);
+    }
+    &.dark .ProseMirror table.pn-table th.selectedCell {
+      background: rgb(var(--pn-accent) / 0.15);
+    }
+    &.dark .ProseMirror .pn-search-hit {
+      background: rgb(250 204 21 / 0.32);
+    }
+    &.dark .ProseMirror .pn-search-hit-current {
+      background: rgb(245 158 11 / 0.95);
+      color: #1a1207;
+    }
+    &.dark .ProseMirror .react-renderer.pn-search-hit {
+      background: transparent;
+      box-shadow: 0 0 0 2px rgb(250 204 21 / 0.45);
+      border-radius: 8px;
+    }
+    &.dark .ProseMirror .react-renderer.pn-search-hit-current {
+      background: transparent;
+      box-shadow: 0 0 0 3px rgb(245 158 11 / 0.9);
+      color: inherit;
+    }
+  }
+}
+
+@layer editor {
+  .prose {
+    /* Typographic rhythm. Prose defaults are tuned for published articles
+       and read roomy in an editor; this is a consistent scale for writing.
+       Margins are em-of-element (an h1 em is ~2.25x body), so gaps grow
+       with heading level automatically. Order matters: the `h* + *` attach
+       rules must come after the element rules - same specificity, later
+       wins - so content directly under a heading hugs it. */
+    /* The paragraph gap is the reader's to set, and it starts at nothing:
+       Enter and Shift+Enter then both cost exactly one line step, which is
+       what Apple Notes and Google Keep do. That default is the only rhythm a
+       phone can actually choose, because a phone keyboard has no Shift+Enter,
+       so the tight break is out of reach there and any gap becomes a spacing
+       its writer cannot opt out of (GitHub #255). Every other block keeps a
+       margin, so a heading, a list, an image, a table and a code block still
+       stand clear of the text around them; only paragraph against paragraph
+       closes up. The variable is declared near the top of this file.
+       Spec: docs/internal/design-decisions.md (editor paragraph rhythm) */
+    & :where(p):not(:where([class~='not-prose'] *)) {
+      margin-top: var(--pn-para-gap);
+      margin-bottom: var(--pn-para-gap);
+    }
+    & :where(h1):not(:where([class~='not-prose'] *)) {
+      margin-top: 1.6em;
+      margin-bottom: 0.5em;
+    }
+    & :where(h2):not(:where([class~='not-prose'] *)) {
+      margin-top: 1.4em;
+      margin-bottom: 0.4em;
+    }
+    & :where(h3):not(:where([class~='not-prose'] *)) {
+      margin-top: 1.2em;
+      margin-bottom: 0.3em;
+    }
+    & :where(h4, h5, h6):not(:where([class~='not-prose'] *)) {
+      margin-top: 1.1em;
+      margin-bottom: 0.25em;
+    }
+    /* The heading ladder, all six levels in one place. Every step is a
+       fixed MULTIPLE OF BODY COPY (--pn-editor-body), which is the only
+       anchor that keeps the hierarchy true: the step ratio is a near
+       constant 1.12 (28 / 25 / 22.4 / 20 / 18 / 16 px against 15px body at
+       the default text size), and H6 stays 1.067x body at every one of the
+       four text sizes instead of only at the middle one.
+
+       Do NOT size these in px, rem, or em-of-the-root:
+       - px and rem stay put while body copy grows. H4-H6 were pinned at
+         16/15/14px until v0.422.0, which put all three BELOW the 18.75px
+         body copy at the largest text size - the anti-hierarchy the pin
+         was added to fix, just at the other end of the knob.
+       - em resolves against the .ProseMirror em-base (18px), not against
+         body copy (15px), and that 0.833 ratio only holds in the editor.
+         The burn-note viewer shares this block with a 16px body.
+
+       All six keep the normal text color: a muted h6 (tried GitHub-style
+       in v0.407.x) read as broken next to its siblings. Weight is one
+       value for all six, because the typography plugin sets a different
+       one per level and the ladder then disagrees with itself. Line
+       height opens up as the size comes down.
+       Spec: docs/internal/design-decisions.md (editor heading scale) */
+    & :where(h1, h2, h3, h4, h5, h6):not(:where([class~='not-prose'] *)) {
+      font-weight: 700;
+    }
+    /* Bold, and the six headings above, are 700 rather than the
+       typography plugin's 600. 700 is the only weight a family is sure to
+       carry a real face for: on a device whose system font ships no
+       semibold, a 600 request lands back on the plain face, and bold then
+       differs from the paragraph around it by ink color alone. Issue #300
+       reported that from an Android phone, and its screenshot measured
+       out at identical letter positions, identical width and identical
+       glyph coverage on both runs. The plugin's darker color for strong
+       stays as it is. */
+    & :where(strong):not(:where([class~='not-prose'] *)) {
+      font-weight: 700;
+    }
+    & :where(h1):not(:where([class~='not-prose'] *)) {
+      font-size: calc(var(--pn-editor-body) * 1.867);
+      line-height: 1.2;
+    }
+    & :where(h2):not(:where([class~='not-prose'] *)) {
+      font-size: calc(var(--pn-editor-body) * 1.667);
+      line-height: 1.25;
+    }
+    & :where(h3):not(:where([class~='not-prose'] *)) {
+      font-size: calc(var(--pn-editor-body) * 1.493);
+      line-height: 1.3;
+    }
+    & :where(h4):not(:where([class~='not-prose'] *)) {
+      font-size: calc(var(--pn-editor-body) * 1.333);
+      line-height: 1.35;
+    }
+    & :where(h5):not(:where([class~='not-prose'] *)) {
+      font-size: calc(var(--pn-editor-body) * 1.2);
+      line-height: 1.4;
+    }
+    & :where(h6):not(:where([class~='not-prose'] *)) {
+      font-size: calc(var(--pn-editor-body) * 1.067);
+      line-height: 1.4;
+    }
+    /* The section gap lives above the heading, not below it - whatever
+       follows a heading attaches to it. */
+    & :where(h1 + *, h2 + *, h3 + *, h4 + *, h5 + *, h6 + *):not(:where([class~='not-prose'] *)) {
+      margin-top: 0;
+    }
+    /* A note that opens with a heading (or any block) starts flush at the
+       top. The section gap above a heading only earns its keep when there
+       is content above it to separate from. Important, because a block
+       with its own margin rule (a callout's node view) is more specific
+       than any selector this one could use. */
+    & > :first-child:not(:where([class~='not-prose'] *)) {
+      margin-top: 0 !important;
+    }
+    /* Per-block direction resolution for mixed-language notes: render-time
+       only, nothing stored. Each block reads its own text and resolves LTR
+       or RTL from it independent of the UI direction - an English note under
+       Arabic UI stays left-aligned LTR, an Arabic note under English UI
+       stays right-aligned RTL, and a mixed note resolves block by block.
+       Explicit user alignment (the [style*='text-align'] rules elsewhere in
+       this layer) is a visual override on top and keeps winning unchanged. */
+    & :where(p, h1, h2, h3, h4, h5, h6, li):not(:where([class~='not-prose'] *)) {
+      unicode-bidi: plaintext;
+    }
+    & :where(ul, ol):not(:where([class~='not-prose'] *)) {
+      margin-top: 0.5em;
+      margin-bottom: 0.5em;
+    }
+    & :where(li):not(:where([class~='not-prose'] *)) {
+      margin-top: 0.2em;
+      margin-bottom: 0.2em;
+    }
+    /* TipTap wraps every list item's text in a <p>, so a list item inherits
+       the gapless paragraph rule above. That is right between items, where
+       the li margins and the bullet do the separating, and wrong INSIDE a
+       multi-paragraph item, where a second paragraph would read as a wrapped
+       line. So an interior paragraph gets a gap back, and the item's first
+       and last paragraph give it up again at the item's own edges. */
+    & :where(li > p):not(:where([class~='not-prose'] *)) {
+      margin-top: 0.375em;
+      margin-bottom: 0.375em;
+    }
+    & :where(li > p:first-child):not(:where([class~='not-prose'] *)) {
+      margin-top: 0;
+    }
+    & :where(li > p:last-child):not(:where([class~='not-prose'] *)) {
+      margin-bottom: 0;
+    }
+    /* Prose gives hr 3em on both sides - a 100px hole in a note. */
+    & :where(hr):not(:where([class~='not-prose'] *)) {
+      margin-top: 1.5em;
+      margin-bottom: 1.5em;
+      /* Prose's own hr color is a fixed neutral picked for a white page, so it
+         all but vanished on the cream and slate surfaces and was weak even on
+         default light. Deriving it from the theme's muted TEXT color instead of
+         --pn-divider keeps the perceived contrast constant across every theme:
+         divider is tuned to separate two panels, which is a quieter job than a
+         rule that has to read as a deliberate break inside prose. */
+      border-color: rgb(var(--pn-text-muted) / 0.45);
+    }
+    /* Code stays LTR always, even inside an RTL/Arabic note: a code block or
+       inline code span is a distinct script (identifiers, punctuation,
+       syntax) that the bidi algorithm was never meant to reorder. isolate
+       keeps it from perturbing the bidi runs of surrounding RTL text too. */
+    & :where(pre, code):not(:where([class~='not-prose'] *)) {
+      direction: ltr;
+      unicode-bidi: isolate;
+    }
+    /* Inline code as a quiet chip, the HTML export's look: Typography's
+       default dresses it with literal backtick pseudo-elements and bold
+       weight, which read as raw syntax next to prose (removed 2026-08-19 -
+       the export never had them and looks better without). The wash is a
+       neutral overlay so it sits on every theme surface; fenced code is
+       excluded - the chip must never restyle a pre's contents. */
+    & :where(code):not(:where(pre code)):not(:where([class~='not-prose'] *))::before,
+    & :where(code):not(:where(pre code)):not(:where([class~='not-prose'] *))::after {
+      content: none;
+    }
+    & :where(code):not(:where(pre code)):not(:where([class~='not-prose'] *)) {
+      background: rgb(var(--pn-text) / 0.07);
+      padding: 0.1em 0.35em;
+      border-radius: 3px;
+      font-size: 0.92em;
+      font-weight: 400;
+    }
+    /* Code block (CodeBlockWithCopy in editorExtensions.ts). The pre keeps
+       typography's box - margins, colours, radius - and the span inside it
+       scrolls, carrying the padding the pre had, so the text sits where it
+       always did. The tools are absolute in the pre, outside the scroller,
+       which is what keeps them in the corner while a long line scrolls
+       (GitHub #340). The pre's own overflow and white-space are set by the
+       unlayered `.tiptap.ProseMirror pre` rule further down. */
+    & .pn-codeblock {
+      position: relative;
+      padding: 0;
+      /* 90% of a paragraph, from the same Text size knob. Typography's
+         0.875em reads off the editor root (--pn-editor-base, 18px), which
+         put code at 15.75px against a 15px body: larger than the text
+         around it, and a monospace face looks larger still. */
+      font-size: calc(var(--pn-editor-body) * 0.9);
+      /* The band above the first line that holds the language label and
+         the tools, so neither ever sits on code. Taller on touch, where the
+         buttons are. */
+      --pn-code-band: 2.25rem;
+    }
+    & .pn-codeblock-scroll {
+      display: block;
+      overflow-x: auto;
+      white-space: pre;
+      /* Typography's pre padding in its own units, so both sides of the
+         move measure the same at every text size. */
+      padding: var(--pn-code-band) 1.1428571em 0.8571429em;
+    }
+    /* Wrap is a device setting (codeWrap.ts), painted on <html>. */
+    :root.pn-wrap-code & .pn-codeblock-scroll {
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+    }
+    /* The head holds the tools on the right. The language label sits on the
+       left, its text in line with the code; on a block with a title the node
+       view moves it into the head, after the tools (GitHub #679: under a
+       title it read as a second title). The pre is an LTR island, so
+       physical sides are the right ones. */
+    & .pn-codeblock-head,
+    & .pn-codeblock > .pn-codeblock-lang,
+    & .pn-codeblock-title {
+      position: absolute;
+      top: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      /* App chrome, not code: without these the buttons and the wrap tip
+         inherit the pre's monospace and the editor's tall line height. */
+      font-family: var(--font-sans);
+      line-height: 1.5;
+    }
+    & .pn-codeblock-head {
+      right: 0.5rem; /* rtl-ok: the pre is an LTR island */
+      z-index: 1;
+    }
+    & .pn-codeblock > .pn-codeblock-lang {
+      left: calc(1.1428571em - 0.5rem); /* rtl-ok: the pre is an LTR island */
+    }
+    & .pn-codeblock-tools {
+      display: flex;
+      gap: 0.25rem;
+      opacity: 0;
+      transition: opacity 0.12s ease;
+    }
+    /* The title band (#679): the chevron lines up with the code's left
+       edge, the title field runs up to the head, and a rule closes the band
+       off from the code. The band grows by the field's own height. */
+    & .pn-codeblock-titled {
+      --pn-code-band: 3rem;
+    }
+    & .pn-codeblock-title {
+      top: 0;
+      left: 0; /* rtl-ok: the pre is an LTR island */
+      right: 0; /* rtl-ok: the pre is an LTR island */
+      height: calc(var(--pn-code-band) - 0.5rem);
+      padding: 0 11rem 0 calc(1.1428571em - 0.5rem);
+      border-bottom: 1px solid #3a3a3a; /* theme-ok: the code panel is dark in every theme */
+    }
+    & .pn-codeblock-title[hidden] {
+      display: none;
+    }
+    & .pn-codeblock-title input {
+      flex: 1;
+      min-width: 0;
+      background: transparent;
+      border: 0;
+      outline: none;
+      padding: 0 0.25rem;
+      color: #e6e6e6; /* theme-ok: the code panel is dark in every theme */
+      font-family: var(--font-mono);
+      font-size: 1em;
+      font-weight: 500;
+    }
+    & .pn-codeblock-title input::placeholder {
+      color: #8b949e; /* theme-ok: the code panel is dark in every theme */
+      font-family: var(--font-sans);
+      font-weight: 400;
+    }
+    & .pn-codeblock-titled .pn-codeblock-head {
+      top: calc((var(--pn-code-band) - 0.5rem - 1.25rem) / 2);
+    }
+    & .pn-codeblock-title svg {
+      transition: transform 0.12s ease;
+    }
+    /* Closed: only the band shows, the chevron points right. */
+    & .pn-codeblock-closed .pn-codeblock-title {
+      border-bottom-color: transparent;
+    }
+    & .pn-codeblock-closed .pn-codeblock-title svg {
+      transform: rotate(-90deg);
+    }
+    & .pn-codeblock-closed .pn-codeblock-scroll {
+      height: calc(var(--pn-code-band) - 0.5rem);
+      padding: 0;
+      overflow: hidden;
+    }
+    & .pn-codeblock-closed .pn-codeblock-scroll code,
+    & .pn-codeblock-closed .pn-codeblock-fold {
+      visibility: hidden;
+    }
+    & .pn-codeblock-closed .pn-codeblock-fold {
+      display: none;
+    }
+    & .pn-codeblock:hover .pn-codeblock-tools,
+    & .pn-codeblock-tools:focus-within {
+      opacity: 1;
+    }
+    /* No hover on touch: the tools stay visible. */
+    @media (hover: none) {
+      & .pn-codeblock {
+        --pn-code-band: 2.75rem;
+      }
+      & .pn-codeblock-tools {
+        opacity: 1;
+      }
+    }
+    /* Copy box: a code block with the `copy` language (COPY_BOX_LANGUAGE).
+       A light box in the note's own font and colours, with the code block's
+       own wrap and copy buttons in the same corner. It follows the
+       same wrap setting as every code block. */
+    & .pn-copybox {
+      --pn-code-band: 0.6rem;
+      background: rgb(var(--pn-text) / 0.04);
+      color: rgb(var(--pn-text));
+      border: 1px solid rgb(var(--pn-text) / 0.14);
+      border-radius: 10px;
+      font-family: inherit;
+      /* The size and leading of a paragraph, not of the prose pre. */
+      font-size: var(--pn-editor-body);
+      line-height: var(--pn-line-height);
+
+      & .pn-codeblock-scroll {
+        padding: 0.6rem 4.5rem 0.6rem 0.9rem;
+        line-height: inherit;
+      }
+      & code {
+        font-family: inherit;
+        color: inherit;
+      }
+      & .pn-codeblock-lang,
+      & .pn-codeblock-title {
+        display: none;
+      }
+      /* The code block's tools in the code block's corner, less the 1px
+         border. They stay shown: the copy button is what the box is for. */
+      & .pn-codeblock-head {
+        top: calc(0.5rem - 1px);
+        right: calc(0.5rem - 1px); /* rtl-ok: the pre is an LTR island */
+      }
+      & .pn-codeblock-tools {
+        opacity: 1;
+      }
+      &.is-empty::after {
+        top: 0.6rem;
+        left: 0.9rem; /* rtl-ok: the pre is an LTR island */
+        color: rgb(var(--pn-text) / 0.4);
+      }
+    }
+    /* An empty block with the cursor in it says how to get colours. The
+       class and the text come from TipTap's Placeholder, on the pre. */
+    & .pn-codeblock.is-empty::after {
+      content: attr(data-placeholder);
+      position: absolute;
+      top: var(--pn-code-band);
+      left: 1.1428571em; /* rtl-ok: the pre is an LTR island */
+      right: 1.1428571em; /* rtl-ok: the pre is an LTR island */
+      color: #8b949e; /* theme-ok: the code panel is dark in every theme */
+      font-family: var(--font-sans);
+      pointer-events: none;
+    }
+    /* A long block opens folded (FOLD_MIN_LINES in editorExtensions.ts):
+       the scroller stops after --pn-fold-lines lines plus its top padding
+       and fades out, and the button row under it opens the rest. The fade
+       is a mask, so it needs no colour that matches the panel. */
+    & .pn-codeblock-folded .pn-codeblock-scroll {
+      max-height: calc(var(--pn-fold-lines) * 1lh + var(--pn-code-band));
+      overflow-y: hidden;
+      -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 3lh), transparent);
+      mask-image: linear-gradient(to bottom, #000 calc(100% - 3lh), transparent);
+    }
+    & .pn-codeblock-fold {
+      display: flex;
+      justify-content: center;
+      padding-bottom: 0.75rem;
+      font-family: var(--font-sans);
+      line-height: 1.5;
+    }
+    & .pn-codeblock-fold[hidden] {
+      display: none;
+    }
+    /* Syntax highlighting token colors (CodeBlockLowlight emits hljs
+       classes). One hand-picked palette instead of a highlight.js theme
+       import: the code panel is dark in BOTH app themes, so a single
+       bright-on-dark set covers everything. Hues sit near the editor
+       color palette (editorColors.ts) rather than any IDE default.
+       Inert until the lowlight extension is registered. */
+    & pre .hljs-comment,
+    & pre .hljs-quote {
+      color: #8b949e;
+      font-style: italic;
+    }
+    & pre .hljs-keyword,
+    & pre .hljs-selector-tag,
+    & pre .hljs-meta {
+      color: #c297ff;
+    }
+    & pre .hljs-string,
+    & pre .hljs-regexp,
+    & pre .hljs-addition {
+      color: #7ee787;
+    }
+    & pre .hljs-number,
+    & pre .hljs-literal,
+    & pre .hljs-deletion {
+      color: #ffa657;
+    }
+    & pre .hljs-title,
+    & pre .hljs-section,
+    & pre .hljs-name {
+      color: #79c0ff;
+    }
+    & pre .hljs-title.class_,
+    & pre .hljs-type,
+    & pre .hljs-built_in {
+      color: #f2cc60;
+    }
+    & pre .hljs-attr,
+    & pre .hljs-attribute,
+    & pre .hljs-variable,
+    & pre .hljs-template-variable,
+    & pre .hljs-selector-class,
+    & pre .hljs-selector-id {
+      color: #6fd7e4;
+    }
+    & pre .hljs-symbol,
+    & pre .hljs-bullet {
+      color: #f1a5c0;
+    }
+    & pre .hljs-emphasis {
+      font-style: italic;
+    }
+    & pre .hljs-strong {
+      font-weight: 700;
+    }
+    /* ==Highlight== mark. Warm wash instead of browser default yellow;
+       text color stays inherited so it reads in both themes. clone keeps
+       the wash contiguous across line wraps. */
+    & :where(mark):not(:where([class~='not-prose'] *)) {
+      background: rgb(250 224 108 / 0.55);
+      color: inherit;
+      border-radius: 2px;
+      padding: 0 0.1em;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+    :root.dark & :where(mark):not(:where([class~='not-prose'] *)) {
+      background: rgb(250 204 21 / 0.24);
+    }
+    /* Every list declares its gutter as --pn-list-pad and feeds padding-inline-start
+       from it, so the aligned-item rule below can take exactly that much back
+       out of the centring space. Two declarations of the same number would
+       drift apart the first time one of them was tuned. */
+    & :where(ul):not(:where([class~='not-prose'] *)) {
+      /* prose's own 1.625em at the list's 18px, restated in rem because it
+         is now load-bearing twice. It has to be rem: the padding sits on the
+         LIST and the cancelling margin on the ITEM, and an em resolves
+         against whichever element carries it - 18px here, 15px there - so an
+         em-for-em cancel lands ~5px short and the item reads off-centre.
+         Both values must stay in the same font-size-independent unit. */
+      --pn-list-pad: 1.828rem;
+      padding-inline-start: var(--pn-list-pad);
+    }
+    /* Ordered lists need a wider gutter than prose's 1.625em: markers are
+       right-aligned against the text edge, and once the list passes item
+       9 the two-digit marker overflows the narrow gutter and shoves its
+       text out of column alignment. 2em fits "99." at the body size. */
+    & :where(ol):not(:where([class~='not-prose'] *)) {
+      /* 2em at the list's 18px, in rem for the reason above. */
+      --pn-list-pad: 2.25rem;
+      padding-inline-start: var(--pn-list-pad);
+    }
+    /* Past 99 the marker outgrows even that gutter and spills left of the
+       editor's own edge, where .ProseMirror's overflow-x: auto clips it -
+       issue #221 saw "100." render as "|00." with the 1 sheared off. A
+       digit costs ~0.6em at the body size, so the gutter steps up once per
+       decade; :has() reads the item count off the list itself, which keeps
+       short lists at the tight 2em and needs no JS. Ordered as ascending
+       overrides - identical (zeroed) specificity, so source order wins.
+       Browsers without :has() (Firefox < 121) keep 2em, the old behavior. */
+    & :where(ol:has(> li:nth-child(100))):not(:where([class~='not-prose'] *)) {
+      --pn-list-pad: 2.925rem;
+    }
+    & :where(ol:has(> li:nth-child(1000))):not(:where([class~='not-prose'] *)) {
+      --pn-list-pad: 3.6rem;
+    }
+    & :where(ol:has(> li:nth-child(10000))):not(:where([class~='not-prose'] *)) {
+      --pn-list-pad: 4.275rem;
+    }
+    /* A list's side comes from its own text: editorDirection.ts gives each
+       list, quote, callout and the footnotes a `dir` from its first letter,
+       and the gutter above is logical, so it follows. An Arabic-script
+       numbered list that writes Persian counts in Persian digits
+       (`listNumerals` in textDirection.ts, GitHub #725). Display only: the
+       markdown keeps 1. 2. 3.
+       Spec: docs/internal/design/patterns/061-070.md (section 67) */
+    & :where(ol[data-numerals='persian']):not(:where([class~='not-prose'] *)) {
+      list-style-type: persian;
+    }
+
+    /* Aligning a list item has to move its MARKER, not just its words.
+       text-align is stored on the item's paragraph, so on its own it slid the
+       text to the middle and left the bullet or number pinned to the left
+       margin - the item read as broken rather than centred.
+
+       Three things are needed, and each one alone looks nearly right:
+         1. `list-style-position: inside` puts the marker in the content box
+            instead of the gutter, so it can share a line with the text;
+         2. the paragraph has to go `display: inline` for that to happen at
+            all - against a BLOCK child the browser gives an inside marker a
+            line of its own ABOVE the text, doubling the item's height;
+         3. text-align moves to the item, because an inline paragraph's own
+            text-align means nothing - its containing block decides.
+       Then the marker and the text are one centred line.
+
+       The negative start margin is the last piece: with the marker no longer
+       in the gutter, that gutter is pure inset, and centring inside it puts
+       the item half a gutter to the right of a centred heading above it -
+       visible, and exactly what got this reported a second time. Taking
+       --pn-list-pad back makes the item's box the full text column.
+
+       Justify is deliberately absent: it only means anything on text that
+       fills the line, so it keeps the ordinary block layout. */
+    & :where(li:has(> p[style*='text-align: center'])):not(:where([class~='not-prose'] *)),
+    & :where(li:has(> p[style*='text-align: right'])):not(:where([class~='not-prose'] *)) {
+      list-style-position: inside;
+      margin-inline-start: calc(-1 * var(--pn-list-pad, 0px));
+    }
+    & :where(li:has(> p[style*='text-align: center'])) > p,
+    & :where(li:has(> p[style*='text-align: right'])) > p {
+      display: inline;
+    }
+    & :where(li:has(> p[style*='text-align: center'])):not(:where([class~='not-prose'] *)) {
+      text-align: center;
+    }
+    & :where(li:has(> p[style*='text-align: right'])):not(:where([class~='not-prose'] *)) {
+      text-align: right;
+    }
+
+    /* Task list rendering. The TaskList extension emits <ul data-type="taskList">
+       with <li data-type="taskItem"> children, each containing a <label> that
+       wraps a <input type="checkbox"> and a <div> for the text. We strip the
+       default bullet, align the checkbox with the first line of text, and use
+       a muted/strikethrough style when the item is checked. */
+    & ul[data-type='taskList'] {
+      list-style: none;
+      padding-inline-start: 0;
+      /* Flex column keeps the item margins from collapsing. A checked task
+         sinks by moving in the document (moveTaskToGroupEdge in
+         editorExtensions.ts), never through CSS `order`: a visual-only
+         reorder leaves the caret and a selection walking a hidden order. */
+      display: flex;
+      flex-direction: column;
+    }
+    & ul[data-type='taskList'] li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      margin-top: 0.15em;
+      margin-bottom: 0.15em;
+      /* Anchor for the dragged item's lift above its neighbours. */
+      position: relative;
+      /* A task off screen skips layout until it nears the viewport, so a
+         note with thousands of tasks opens without laying out all of them.
+         The size is a scrollbar estimate; `auto` keeps a task's real height
+         once it has been drawn. The browser decides that a task is on
+         screen only at its next frame, so a task the caret is in carries
+         `pn-task-caret` (editorTasks.ts) and is drawn at once; without it, a
+         key typed right after Enter went into the next block.
+         Spec: docs/internal/design-decisions.md (Opening a long checklist) */
+      content-visibility: auto;
+      contain-intrinsic-block-size: auto 1.75em;
+    }
+    /* `auto` also clips what an item draws outside its own box, on screen or
+       not, and a hover tip on a task's first line sits above the item. An
+       item under the pointer or holding focus is on screen anyway, so it
+       drops the containment; its ancestors are hovered too. */
+    & ul[data-type='taskList'] li:hover,
+    & ul[data-type='taskList'] li:focus-within,
+    & ul[data-type='taskList'] li.pn-task-caret {
+      content-visibility: visible;
+    }
+    /* The drag grip (dragBlock in editorTasks.ts), last in the row. The
+       gutter before the checkbox is not an option: the editor scrolls wide
+       content sideways, so it clips anything outside its own box. It shows on
+       the hovered task only, never on every ancestor of it, and faintly at all
+       times on a device with no hover. */
+    & ul[data-type='taskList'] li > .pn-task-grip {
+      flex-shrink: 0;
+      height: calc(var(--pn-line-height) * 1em);
+      width: 1.1em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+      color: rgb(var(--pn-text-muted));
+      opacity: 0;
+      transition: opacity 0.12s ease;
+    }
+    & ul[data-type='taskList'] li > .pn-task-grip svg {
+      width: 0.6em;
+      height: 0.95em;
+      fill: currentColor;
+    }
+    & ul[data-type='taskList'] li:hover:not(:has(li:hover)) > .pn-task-grip,
+    & ul[data-type='taskList'] li.pn-task-dragging > .pn-task-grip {
+      opacity: 1;
+    }
+    @media (hover: none) {
+      & ul[data-type='taskList'] li > .pn-task-grip {
+        opacity: 0.45;
+      }
+    }
+    &[contenteditable='false'] ul[data-type='taskList'] li > .pn-task-grip {
+      display: none;
+    }
+    & ul[data-type='taskList'] li.pn-task-dragging {
+      z-index: 10;
+      background: var(--color-surface-1, transparent);
+      border-radius: 0.33em;
+      box-shadow: 0 2px 10px rgb(0 0 0 / 0.12);
+    }
+    & ul[data-type='taskList'] li > label {
+      flex-shrink: 0;
+      /* Match the first line's line-height so we can center the checkbox
+         vertically inside it - this locks the box to the middle of the
+         first line regardless of font-size. */
+      height: calc(var(--pn-line-height) * 1em);
+      display: inline-flex;
+      align-items: center;
+      user-select: none;
+      /* Anchor for the .pn-check overlay below. */
+      position: relative;
+    }
+    & ul[data-type='taskList'] li > div {
+      flex: 1 1 auto;
+      min-width: 0;
+      /* No line until the task is actually checked. Blink repaints
+         selected text with the selection color and ignores
+         text-decoration-color while doing it, so an always-present
+         transparent strike renders as a REAL strike the moment the user
+         selects task text (Windows/WebView2 and Chrome; WKWebView is
+         unaffected, which is why macOS never showed it). The line still
+         FADES in on check: text-decoration-color transitions up from the
+         transparent value below (multi-line safe, unlike a background
+         sweep) alongside the fade. */
+      text-decoration-color: transparent;
+      transition: text-decoration-color 0.25s ease 0.05s;
+    }
+    & ul[data-type='taskList'] li > div > :not(ul):not(ol) {
+      transition: opacity 0.2s ease;
+    }
+    /* Alignment, one layout down from the bullet rule above: a task item is
+       a flex row (checkbox + text), so what has to move is the row's
+       justification, and the text div has to stop stretching first or there
+       is nothing left to justify. Same reason as bullets - the checkbox
+       belongs to the item and should travel with it. */
+    & ul[data-type='taskList'] li:has(> div > p[style*='text-align: center']) {
+      justify-content: center;
+    }
+    & ul[data-type='taskList'] li:has(> div > p[style*='text-align: right']) {
+      justify-content: flex-end;
+    }
+    & ul[data-type='taskList'] li:has(> div > p[style*='text-align: center']) > div,
+    & ul[data-type='taskList'] li:has(> div > p[style*='text-align: right']) > div {
+      flex: 0 1 auto;
+    }
+    /* Same pattern as li > p above: first line flush against the checkbox,
+       interior paragraphs of a multi-paragraph item keep a small gap. */
+    & ul[data-type='taskList'] li > div > p {
+      margin-top: 0.375em;
+      margin-bottom: 0.375em;
+    }
+    & ul[data-type='taskList'] li > div > p:first-child {
+      margin-top: 0;
+    }
+    & ul[data-type='taskList'] li > div > p:last-child {
+      margin-bottom: 0;
+    }
+    /* A done task fades as one piece instead of turning gray: a text color,
+       a highlight and inline code all stay what the person chose, and all
+       read as done the same way (GitHub #491). The fade sits on the item's
+       own blocks, not on the div, so a nested task list under a done item is
+       not faded twice. 0.6 over the theme's text color lands on the muted
+       text tone, so plain text looks the way a done task always has. */
+    & ul[data-type='taskList'] li[data-checked='true'] > div {
+      text-decoration-line: line-through;
+      text-decoration-color: currentColor;
+    }
+    & ul[data-type='taskList'] li[data-checked='true'] > div > :not(ul):not(ol) {
+      opacity: 0.6;
+    }
+  
+    /* Text-color spans must win over Tailwind prose's explicit color on
+       strong/em/code/etc. The color feature wraps a run in
+       <span style="color:…"> but bold renders a nested <strong>, and
+       prose sets `strong { color: var(--tw-prose-bold) }` which otherwise
+       overrides the inherited span color. Make inline marks inherit so a
+       wrapping color span applies to bold/italic/etc. text too. */
+    & span[style*='color'] strong {
+      color: inherit;
+    }
+    & span[style*='color'] em {
+      color: inherit;
+    }
+    & span[style*='color'] code {
+      color: inherit;
+    }
+    & span[style*='color'] del {
+      color: inherit;
+    }
+    & span[style*='color'] s {
+      color: inherit;
+    }
+  }
+}
+
+/* The Notes of a vault item, shown formatted (DetailNotes in detailPane.tsx).
+   The editor's heading ladder above sizes a heading for the top of a page;
+   here it is a label inside one item, so the levels stay under the hero's
+   title (text-heading) and close to the body copy (text-body). Same layer and
+   a more specific selector, because a Tailwind utility cannot beat this
+   layer. Spec: docs/internal/issues/0634.md */
+@layer editor {
+  .prose.pn-detail-notes {
+    & :where(h1, h2, h3, h4, h5, h6):not(:where([class~='not-prose'] *)) {
+      font-size: var(--fs-body);
+      line-height: 1.4;
+      margin-top: 1em;
+      margin-bottom: 0.25em;
+    }
+    & :where(h1):not(:where([class~='not-prose'] *)) {
+      font-size: var(--fs-title);
+    }
+    & :where(h2):not(:where([class~='not-prose'] *)) {
+      font-size: var(--fs-row);
+    }
+    /* A blank line typed in the box is the only paragraph break the notes
+       have, so it always shows as a gap, also on the default line spacing,
+       whose paragraph gap is 0 because the editor shows an empty line as
+       its own paragraph (#765). The same gap between list items the user
+       typed apart: padding, because each item carries an inline margin
+       from the renderer. */
+    & :where(p):not(:where([class~='not-prose'] *)) {
+      margin-top: 0.75em;
+      margin-bottom: 0.75em;
+    }
+    & :where(ol, ul)[data-loose] > li + li {
+      padding-top: 0.75em;
+    }
+  }
+}
+
+@layer editor {
+  .tableWrapper {
+    /* ---------------------------------------------------------------
+     * Table styling - clean, minimal, Apple Notes inspired.
+     * TipTap emits <table class="pn-table"> with <tr>, <td>, <th>.
+     * --------------------------------------------------------------- */
+    /* Wrapper emitted by TipTap's Table extension - make tables
+       horizontally scrollable on narrow viewports instead of
+       overflowing the editor. Fix: GitHub #100 */
+    .ProseMirror & {
+      overflow-x: auto;
+      margin: 1em 0;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+}
+
+@layer editor {
+  /* A column drag in progress (tableColumnResize.ts): the resize cursor
+     everywhere, and no text selection, while the pointer is anywhere on the
+     page. */
+  html.pn-col-resizing,
+  html.pn-col-resizing * {
+    cursor: col-resize !important;
+    user-select: none !important;
+  }
+  /* The keys a column drag reads, under the pointer while it lasts. */
+  .pn-col-drag-hint {
+    position: fixed;
+    z-index: 60;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: var(--fs-small);
+    white-space: nowrap;
+    pointer-events: none;
+    background: rgb(var(--pn-text));
+    color: rgb(var(--pn-surface-2));
+  }
+}
+
+@layer editor {
+  .pn-search-hit {
+    /* Find-in-note highlights (editorSearch.ts inline decorations). Yellow for
+       every match, a stronger amber with dark ink for the active one so it
+       stands out while stepping through results. box-decoration-break keeps the
+       fill whole when a match wraps across lines. */
+    .ProseMirror & {
+      background: rgb(250 204 21 / 0.45);
+      border-radius: 2px;
+      -webkit-box-decoration-break: clone;
+      box-decoration-break: clone;
+    }
+    :root.dark .ProseMirror & {
+      background: rgb(250 204 21 / 0.32);
+    }
+    /* Attachment chips matched by filename (node decorations) get a ring
+       instead of the inline text fill - a solid yellow wash over the whole
+       chip would drown its own styling. Dark selectors repeated so these
+       outrank the :root.dark background rules above. */
+    .ProseMirror &.react-renderer {
+      background: transparent;
+      box-shadow: 0 0 0 2px rgb(250 204 21 / 0.45);
+      border-radius: 8px;
+    }
+  
+    :root.dark .ProseMirror &.react-renderer {
+      background: transparent;
+      box-shadow: 0 0 0 2px rgb(250 204 21 / 0.45);
+      border-radius: 8px;
+    }
+  }
+}
+
+/* Spoiler text (editorSpoiler.ts): blurred until the caret touches it, a
+   click in a read-only note shows it, or the find bar's current match sits
+   inside it. Rendered notes (burn shares) show it on focus. Print shows it.
+   Spec: docs/internal/specs/spoiler-and-copy.md */
+@layer editor {
+  /* Hidden: a sharp box with a fine hatch, and the text blurred inside it.
+     Shown: the box fades to a faint tint, so the reader still sees which
+     words are the spoiler while editing them. */
+  .pn-spoiler {
+    padding: 0 2px;
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: rgb(var(--pn-text) / 0.1);
+    background-image: repeating-linear-gradient(
+      135deg,
+      rgb(var(--pn-text) / 0.07) 0 3px,
+      transparent 3px 7px
+    );
+    transition: background-color 120ms ease;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+
+    &:hover {
+      background-color: rgb(var(--pn-text) / 0.15);
+    }
+
+    & .pn-spoiler-text {
+      filter: blur(4px);
+      opacity: 0.6;
+      transition: filter 120ms ease, opacity 120ms ease;
+    }
+
+    &:has(.pn-spoiler-on),
+    &:has(.pn-search-hit-current),
+    &:focus {
+      outline: none;
+      background-color: rgb(var(--pn-text) / 0.05);
+      background-image: none;
+
+      & .pn-spoiler-text {
+        filter: none;
+        opacity: 1;
+      }
+    }
+
+    @media print {
+      background: none;
+
+      & .pn-spoiler-text {
+        filter: none;
+        opacity: 1;
+      }
+    }
+  }
+
+  /* The code block's copy icon after a copy (editorExtensions.ts): a green
+     check that pops once, and its tip held open to say "Copied". */
+  .pn-copied {
+    color: rgb(74 222 128) !important; /* theme-ok: the green of a done check, on the dark code toolbar */
+    animation: pn-copied-pop 260ms ease-out;
+  }
+  /* A done check that pops once in place of an icon (the theme builder's
+     Save). */
+  .pn-pop {
+    animation: pn-copied-pop 260ms ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pn-pop {
+      animation: none;
+    }
+  }
+  /* The popover's four-in-a-row theme cards sit in a scrolling box, which
+     clips a centered tip under the first and the last column: those two
+     align the tip with the card's outer edge instead. */
+  .pn-theme-grid > :nth-child(4n + 1) .pn-tip,
+  [dir='rtl'] .pn-theme-grid > :nth-child(4n) .pn-tip {
+    left: 0;
+    right: auto;
+    translate: none;
+  }
+  .pn-theme-grid > :nth-child(4n) .pn-tip,
+  [dir='rtl'] .pn-theme-grid > :nth-child(4n + 1) .pn-tip {
+    left: auto;
+    right: 0;
+    translate: none;
+  }
+  /* The Appearance gallery's empty note, shown while the search leaves a
+     section without a card. */
+  .pn-theme-gallery-empty {
+    display: none;
+  }
+  .pn-theme-gallery:not(:has(> *)) {
+    display: none;
+  }
+  .pn-theme-gallery:not(:has(> *)) + .pn-theme-gallery-empty {
+    display: block;
+  }
+  /* A tag or folder chip on a list row: a solid tint mixed from the list
+     background, not a see-through one. On a selected row a see-through tint
+     stacked on the row's own and took the chip text under 4.5:1 in several
+     themes; a solid one reads the same on every row (5:1 or better). */
+  .pn-chip {
+    background: color-mix(in srgb, rgb(var(--pn-accent)) 10%, rgb(var(--pn-surface-1)));
+  }
+  .pn-chip-pick:hover {
+    background: color-mix(in srgb, rgb(var(--pn-accent)) 20%, rgb(var(--pn-surface-1)));
+  }
+  .pn-tip-shown > .pn-tip {
+    opacity: 1;
+  }
+  @keyframes pn-copied-pop {
+    0% { transform: scale(0.6); }
+    60% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pn-copied {
+      animation: none;
+    }
+  }
+
+  /* "Copied" after a copy of inline code (editorCodeCopy.ts), above the
+     pointer. */
+  .pn-copy-bubble {
+    position: fixed;
+    z-index: 60;
+    transform: translate(-50%, calc(-100% - 8px));
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: var(--fs-small);
+    pointer-events: none;
+    background: rgb(var(--pn-text));
+    color: rgb(var(--pn-surface-2));
+  }
+}
+
+@layer editor {
+  .pn-search-hit-current {
+    .ProseMirror & {
+      background: rgb(245 158 11 / 0.9);
+      color: #1a1207;
+    }
+    :root.dark .ProseMirror & {
+      background: rgb(245 158 11 / 0.95);
+      color: #1a1207;
+    }
+    .ProseMirror &.react-renderer {
+      background: transparent;
+      box-shadow: 0 0 0 3px rgb(245 158 11 / 0.9);
+      color: inherit;
+    }
+  
+    :root.dark .ProseMirror &.react-renderer {
+      background: transparent;
+      box-shadow: 0 0 0 3px rgb(245 158 11 / 0.9);
+      color: inherit;
+    }
+  }
+}
+
+@layer editor {
+  .react-renderer {
+    /* Attachment chips matched by filename (node decorations) get a ring
+       instead of the inline text fill - a solid yellow wash over the whole
+       chip would drown its own styling. Dark selectors repeated so these
+       outrank the :root.dark background rules above. */
+    .ProseMirror &.pn-search-hit {
+      background: transparent;
+      box-shadow: 0 0 0 2px rgb(250 204 21 / 0.45);
+      border-radius: 8px;
+    }
+  
+    :root.dark .ProseMirror &.pn-search-hit {
+      background: transparent;
+      box-shadow: 0 0 0 2px rgb(250 204 21 / 0.45);
+      border-radius: 8px;
+    }
+    .ProseMirror &.pn-search-hit-current {
+      background: transparent;
+      box-shadow: 0 0 0 3px rgb(245 158 11 / 0.9);
+      color: inherit;
+    }
+  
+    :root.dark .ProseMirror &.pn-search-hit-current {
+      background: transparent;
+      box-shadow: 0 0 0 3px rgb(245 158 11 / 0.9);
+      color: inherit;
+    }
+  
+    /* ---------------------------------------------------------------
+     * Callouts (Callout.tsx). Colored, collapsible boxes. The node view
+     * sets --cc (space-separated rgb) and --cs (accent hex) per type, so
+     * the tinting here is generic; the hues live in calloutTypes.ts.
+     * Spec: docs/contrib/callouts.md
+     * --------------------------------------------------------------- */
+    /* The node-view wrapper establishes a BFC (flow-root) so the callout BOX
+       wraps beside the outline float like text does - a plain block's border
+       box ignores floats (only its line boxes are displaced), which slid the
+       box and its fold control underneath the outline. The wrapper takes over
+       the callout's vertical margins so sibling spacing keeps collapsing
+       exactly as before (a BFC contains its children's margins). It also
+       carries a larger scroll-margin than headings (further below) so an
+       outline jump parks the fold control clear of the collapsed outline pill,
+       not under it. Spec: docs/contrib/callouts.md */
+    .ProseMirror &.node-callout {
+      display: flow-root;
+      margin: 1em 0;
+      scroll-margin-top: calc(
+        var(--pn-tagrow-h, 0px) + var(--pn-editor-toolbar-h, 0px) + 48px
+      );
+    }
+  }
+}
+
+@layer editor {
+  /* ---------------------------------------------------------------
+   * Footnotes (footnotes.ts). The shown numbers come from decoration
+   * attributes, never from the stored label.
+   * Spec: docs/internal/specs/footnotes.md (section 6)
+   * --------------------------------------------------------------- */
+  .ProseMirror sup.pn-fn-ref {
+    cursor: pointer;
+    color: rgb(var(--pn-accent));
+    font-size: 0.75em;
+    font-weight: 600;
+    line-height: 0;
+    padding: 0 0.15em;
+    border-radius: 3px;
+    user-select: none;
+  }
+  .ProseMirror sup.pn-fn-ref::after {
+    content: attr(data-fn-number);
+  }
+  .ProseMirror sup.pn-fn-ref[data-fn-missing] {
+    color: rgb(var(--pn-text-muted));
+    text-decoration: underline dashed;
+  }
+  .ProseMirror sup.pn-fn-ref[data-fn-missing]::after {
+    content: '?';
+  }
+  .ProseMirror sup.pn-fn-ref.ProseMirror-selectednode,
+  .ProseMirror sup.pn-fn-ref:focus-visible {
+    outline: 2px solid rgb(var(--pn-accent));
+    outline-offset: 1px;
+  }
+  @media (pointer: coarse) {
+    /* A 24px tap target without moving the line: padding on an inline box
+       does not change the line height. */
+    .ProseMirror sup.pn-fn-ref {
+      padding: 0.6em 0.8em;
+      margin: -0.6em -0.6em;
+    }
+  }
+  .ProseMirror section.pn-footnotes {
+    margin-top: 2em;
+    padding-top: 0.75em;
+    border-top: 1px solid rgb(var(--pn-divider));
+  }
+  /* Two columns: the number, then the definition's blocks. The prose styles
+     size a paragraph to the editor body, so the number takes the same size,
+     and baseline alignment puts it on the first line of the text. */
+  .ProseMirror .pn-footnote {
+    display: grid;
+    grid-template-columns: 1.5em minmax(0, 1fr);
+    column-gap: 0.5em;
+    align-items: baseline;
+    margin: 0.3em 0;
+  }
+  .ProseMirror .pn-footnote > * {
+    grid-column: 2;
+    margin-top: 0.2em;
+    margin-bottom: 0.2em;
+  }
+  .ProseMirror .pn-footnote::before {
+    content: attr(data-fn-number) '.';
+    grid-column: 1;
+    grid-row: 1;
+    text-align: end;
+    font-size: var(--pn-editor-body);
+    color: rgb(var(--pn-text-muted));
+    font-variant-numeric: tabular-nums;
+  }
+  .ProseMirror .pn-footnote[data-fn-unused] {
+    color: rgb(var(--pn-text-muted));
+  }
+  .ProseMirror .pn-footnote[data-fn-unused]::before {
+    content: '\2013';
+  }
+  .ProseMirror .pn-footnote[data-fn-unused]::after {
+    content: attr(data-fn-unused-label);
+    grid-column: 2;
+    display: block;
+    font-size: 0.8em;
+    font-style: italic;
+  }
+  .ProseMirror p.pn-fn-empty::before {
+    content: attr(data-placeholder);
+    float: inline-start;
+    height: 0;
+    color: rgb(var(--pn-text-muted));
+    pointer-events: none;
+  }
+  .ProseMirror .pn-fn-back,
+  .ProseMirror .pn-fn-remove {
+    margin-inline-start: 0.35em;
+    padding: 0 0.25em;
+    border: 0;
+    background: none;
+    font: inherit;
+    line-height: 1;
+    color: rgb(var(--pn-accent));
+    cursor: pointer;
+  }
+  .ProseMirror .pn-fn-remove {
+    color: rgb(var(--pn-text-muted));
+  }
+  .pn-fn-card {
+    position: fixed;
+    z-index: 70;
+    max-width: min(22rem, calc(100vw - 16px));
+    padding: 0.5rem 0.75rem;
+    border: 1px solid rgb(var(--pn-divider));
+    border-radius: 8px;
+    background: rgb(var(--pn-surface-1));
+    color: rgb(var(--pn-text));
+    box-shadow: 0 6px 20px rgb(0 0 0 / 0.15);
+    font-size: var(--fs-compact);
+    line-height: 1.45;
+    white-space: pre-line;
+    display: -webkit-box;
+    -webkit-line-clamp: 6;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    pointer-events: none;
+  }
+}
+
+@layer editor {
+  /* "Go to day" in the quick switcher: the day's cells pulse once, with the
+     jump-to-file flash (useCalendarPillar.ts, markDay). */
+  .pn-day-flash {
+    animation: pn-file-flash 1.6s ease-out;
+  }
+  .pn-file-flash {
+    /* Jump-to-file flash (EditorHandle.scrollToFile): pulses the attachment
+       chip / image after opening its parent note from the Files pillar so
+       the eye lands on the right row in long file lists. */
+    .ProseMirror & {
+      animation: pn-file-flash 1.6s ease-out;
+      border-radius: 8px;
+    }
+  }
+}
+
+@layer editor {
+  .node-callout {
+    /* ---------------------------------------------------------------
+     * Callouts (Callout.tsx). Colored, collapsible boxes. The node view
+     * sets --cc (space-separated rgb) and --cs (accent hex) per type, so
+     * the tinting here is generic; the hues live in calloutTypes.ts.
+     * Spec: docs/contrib/callouts.md
+     * --------------------------------------------------------------- */
+    /* The node-view wrapper establishes a BFC (flow-root) so the callout BOX
+       wraps beside the outline float like text does - a plain block's border
+       box ignores floats (only its line boxes are displaced), which slid the
+       box and its fold control underneath the outline. The wrapper takes over
+       the callout's vertical margins so sibling spacing keeps collapsing
+       exactly as before (a BFC contains its children's margins). It also
+       carries a larger scroll-margin than headings (further below) so an
+       outline jump parks the fold control clear of the collapsed outline pill,
+       not under it. Spec: docs/contrib/callouts.md */
+    .ProseMirror &.react-renderer {
+      display: flow-root;
+      margin: 1em 0;
+      scroll-margin-top: calc(
+        var(--pn-tagrow-h, 0px) + var(--pn-editor-toolbar-h, 0px) + 48px
+      );
+    }
+  }
+}
+
+@layer editor {
+  .pn-callout {
+    .ProseMirror & {
+      position: relative;
+      margin: 0;
+      padding-block: 0.5em 0.6em;
+      padding-inline: 2.35em 0.9em;
+      border: 1px solid rgb(var(--cc) / 0.3);
+      border-inline-start: 3px solid var(--cs);
+      border-radius: 6px;
+      background: rgb(var(--cc) / 0.09);
+    }
+    :root.dark .ProseMirror & {
+      border-color: rgb(var(--cc) / 0.4);
+      background: rgb(var(--cc) / 0.15);
+    }
+    /* Title: bold, in the accent color. Descendant (not direct-child) selectors
+       because tiptap's React NodeViewContent inserts an intermediate wrapper div,
+       so the title and body are grandchildren of .pn-callout-content. */
+    .ProseMirror & [data-callout-title] {
+      margin: 0 0 0.1em;
+      font-weight: 600;
+      line-height: 1.6;
+      color: var(--cs);
+    }
+    /* Body = the title's following siblings. Tighten spacing so the box is compact. */
+    .ProseMirror & [data-callout-title] ~ * {
+      margin: 0.35em 0 0;
+    }
+  }
+}
+
+@layer editor {
+  /* The fold control IS the type icon: the type shows at rest, open or
+     folded, and the caret replaces it on hover or keyboard focus (down when
+     open, toward the inline end when folded). Spec: docs/contrib/callouts.md (fold control) */
+  .pn-callout-toggle {
+    .ProseMirror & {
+      position: absolute;
+      inset-inline-start: 0.6em;
+      top: 0.5em;
+      height: 1.6em;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 0.1em;
+      border: 0;
+      border-radius: 4px;
+      background: none;
+      color: var(--cs);
+      cursor: pointer;
+    }
+    .ProseMirror &:focus-visible {
+      outline: 2px solid rgb(var(--pn-accent));
+      outline-offset: 1px;
+    }
+    .ProseMirror & .pn-callout-caret {
+      display: none;
+    }
+    /* The caret's mirror (icons.tsx, `rtl:`) reads the page's dir, but a
+       callout takes its own from its text (editorDirection.ts): an English
+       callout in an Arabic app reads left-to-right, so its folded caret
+       points right. :dir() reads the nearest dir, the callout's. A Fold
+       callout's caret sits in the toggle with no wrapper, hence any svg. */
+    .ProseMirror & svg:dir(ltr) {
+      scale: none;
+    }
+    .ProseMirror &:focus-visible .pn-callout-type-icon {
+      display: none;
+    }
+    .ProseMirror &:focus-visible .pn-callout-caret {
+      display: inline-flex;
+    }
+    @media (hover: hover) {
+      .ProseMirror &:hover .pn-callout-type-icon {
+        display: none;
+      }
+      .ProseMirror &:hover .pn-callout-caret {
+        display: inline-flex;
+      }
+    }
+  }
+}
+
+@layer editor {
+  /* The Fold type: no box, no tint, the caret and the title in the text
+     color (the node view points --cs at it), the body indented to the
+     title. Direct-child selectors, so a callout nested inside keeps its own
+     look. */
+  .pn-callout-fold {
+    .ProseMirror &.pn-callout,
+    :root.dark .ProseMirror &.pn-callout {
+      padding-block: 0.15em;
+      padding-inline: 1.6em 0.9em;
+      border: 0;
+      border-radius: 0;
+      background: none;
+    }
+    .ProseMirror & > .pn-callout-toggle {
+      inset-inline-start: 0;
+      top: 0.15em;
+      color: rgb(var(--pn-text-muted));
+    }
+    .ProseMirror & > .pn-callout-placeholder {
+      inset-inline-start: 1.6em;
+      top: 0.15em;
+      color: rgb(var(--pn-text-muted));
+    }
+    .ProseMirror &.pn-callout-folded {
+      padding-bottom: 0.15em;
+    }
+  }
+
+  /* Box and Panel are framed plain types: the caret and the title in the
+     muted text color, no accent stripe. Box puts the title on a gray strip
+     and leaves the body on the page color; Panel is one soft wash. The
+     child chain (content > wrapper > title) keeps a nested callout's title
+     out of the strip. */
+  .pn-callout-box,
+  .pn-callout-panel {
+    .ProseMirror & > .pn-callout-toggle,
+    .ProseMirror & > .pn-callout-placeholder {
+      color: rgb(var(--pn-text-muted));
+    }
+  }
+  .pn-callout-panel {
+    .ProseMirror &.pn-callout {
+      border: 1px solid rgb(var(--pn-text) / 0.12);
+      background: rgb(var(--pn-text) / 0.035);
+    }
+    :root.dark .ProseMirror &.pn-callout {
+      border-color: rgb(var(--pn-text) / 0.12);
+      background: rgb(var(--pn-text) / 0.05);
+    }
+  }
+  .pn-callout-box {
+    .ProseMirror &.pn-callout,
+    :root.dark .ProseMirror &.pn-callout {
+      padding: 0 0 0.6em;
+      border: 1px solid rgb(var(--pn-text) / 0.2);
+      background: none;
+      overflow: hidden;
+    }
+    .ProseMirror & > .pn-callout-content > div > [data-callout-title] {
+      margin: 0;
+      padding-block: 0.4em;
+      padding-inline: 2.35em 0.9em;
+      background: rgb(var(--pn-text) / 0.05);
+      border-bottom: 1px solid rgb(var(--pn-text) / 0.12);
+    }
+    :root.dark .ProseMirror & > .pn-callout-content > div > [data-callout-title] {
+      background: rgb(var(--pn-text) / 0.07);
+    }
+    .ProseMirror & > .pn-callout-content > div > [data-callout-title] ~ * {
+      margin-inline: 0.9em;
+    }
+    .ProseMirror & > .pn-callout-content > div > [data-callout-title] + * {
+      margin-top: 0.5em;
+    }
+    .ProseMirror & > .pn-callout-toggle,
+    .ProseMirror & > .pn-callout-placeholder {
+      top: 0.4em;
+    }
+    .ProseMirror &.pn-callout-folded {
+      padding-bottom: 0;
+    }
+    .ProseMirror &.pn-callout-folded > .pn-callout-content > div > [data-callout-title] {
+      border-bottom: 0;
+    }
+  }
+}
+
+@layer editor {
+  /* The drag grip of a callout or a Kanban board (BlockGrip.tsx, #628): the
+     task grip's look. A callout's grip sits in the end padding of its title
+     line; a board's sits before its menu. It shows on the hovered block only,
+     never on a callout around it, and faintly at all times on a device with
+     no hover. */
+  .pn-block-grip {
+    .ProseMirror & {
+      width: 0.75em;
+      height: 1.6em;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+      color: rgb(var(--pn-text-muted));
+      opacity: 0;
+      transition: opacity 0.12s ease;
+    }
+    .ProseMirror & svg {
+      width: 0.6em;
+      height: 0.95em;
+      fill: currentColor;
+    }
+    .ProseMirror .pn-callout:hover:not(:has(.pn-callout:not(.pn-callout-column):hover)) > &,
+    .ProseMirror .pn-callout:hover:not(:has(.pn-callout:not(.pn-callout-column):hover)) > .pn-kanban-tools > &,
+    .ProseMirror .pn-task-dragging > .pn-callout > &,
+    .ProseMirror .pn-task-dragging > .pn-callout > .pn-kanban-tools > & {
+      opacity: 1;
+    }
+    @media (hover: none) {
+      .ProseMirror & {
+        opacity: 0.45;
+      }
+    }
+    .ProseMirror[contenteditable='false'] & {
+      display: none;
+    }
+    .ProseMirror .pn-task-dragging & .pn-tip {
+      display: none;
+    }
+  }
+  .pn-callout-grip {
+    .ProseMirror & {
+      position: absolute;
+      inset-inline-end: 0.15em;
+      top: 0.5em;
+    }
+    .ProseMirror .pn-callout-box > & {
+      top: 0.4em;
+    }
+    .ProseMirror .pn-callout-fold > & {
+      inset-inline-end: 0;
+      top: 0.15em;
+    }
+  }
+  .pn-kanban-grip {
+    .ProseMirror & {
+      width: 1.1em;
+    }
+  }
+  /* A callout or a board on its way to a new place. */
+  .ProseMirror .pn-task-dragging:not(li) {
+    position: relative;
+    z-index: 10;
+    border-radius: 6px;
+    box-shadow: 0 2px 10px rgb(0 0 0 / 0.12);
+  }
+}
+
+@layer editor {
+  .pn-callout-content {
+    .ProseMirror & {
+      margin: 0;
+    }
+  }
+}
+
+@layer editor {
+  .pn-callout-placeholder {
+    /* Placeholder shown while the title is empty (rendered by the node view). */
+    .ProseMirror & {
+      position: absolute;
+      inset-inline-start: 2.35em;
+      top: 0.5em;
+      line-height: 1.6;
+      color: rgb(var(--cc) / 0.65);
+      font-weight: 600;
+      pointer-events: none;
+    }
+  }
+}
+
+@layer editor {
+  .pn-callout-folded {
+    /* Folded: hide the body (the title's siblings), keep the title line. */
+    .ProseMirror & [data-callout-title] ~ * {
+      display: none;
+    }
+    .ProseMirror & {
+      padding-bottom: 0.5em;
+    }
+  }
+}
+
+@layer editor {
+  /* The drop line of a task or card drag (editorTasks.ts, kanbanDrag.ts):
+     fixed to the viewport, placed by the drag, hidden until it has a place. */
+  .pn-task-drop {
+    position: fixed;
+    display: none;
+    height: 2px;
+    border-radius: 1px;
+    background: rgb(var(--pn-accent));
+    pointer-events: none;
+    z-index: 60;
+  }
+  :root.pn-task-drag-active,
+  :root.pn-task-drag-active * {
+    cursor: grabbing;
+  }
+  /* A reorder drag (ui/reorder.tsx): one cursor, no text selection, and a
+     no-drop cursor over a spot that takes nothing. */
+  :root.pn-reorder-active,
+  :root.pn-reorder-active * {
+    cursor: grabbing !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+  }
+  :root.pn-reorder-refused,
+  :root.pn-reorder-refused * {
+    cursor: no-drop !important;
+  }
+}
+
+@layer editor {
+  /* Kanban board (KanbanBoard.tsx, kanban.ts): a framed board whose columns
+     sit side by side and wrap on a narrow pane; one column per row on a
+     phone. A column is never narrower than 8.5rem and a row never holds more
+     columns than the board has. Cards are the top-level tasks of a column,
+     each on its own card. Spec: docs/internal/issues/0270.md (Spec) */
+  .pn-callout-kanban {
+    .ProseMirror &.pn-callout,
+    :root.dark .ProseMirror &.pn-callout {
+      padding: 0.45em 0.6em 0.65em;
+      border: 1px solid rgb(var(--pn-text) / 0.14);
+      border-radius: 10px;
+      background: rgb(var(--pn-text) / 0.025);
+      container: pn-kanban / inline-size;
+    }
+    .ProseMirror &.pn-kanban-has-columns > .pn-callout-content > div {
+      display: grid;
+      grid-template-columns: repeat(
+        auto-fit,
+        minmax(max(8.5rem, calc((100% - (var(--kanban-cols) - 1) * 0.6rem) / var(--kanban-cols))), 1fr)
+      );
+      gap: 0.6rem;
+      align-items: start;
+    }
+    /* A phone, or a pane as narrow: one column per row. */
+    @container pn-kanban (max-width: 30rem) {
+      .ProseMirror &.pn-kanban-has-columns > .pn-callout-content > div {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+    .ProseMirror & > .pn-callout-content > div > [data-callout-title] {
+      grid-column: 1 / -1;
+      margin: 0;
+      padding-inline: 1.75rem 3.4rem;
+      color: rgb(var(--pn-text));
+    }
+    /* An icon that leads the title stands in for the Kanban glyph (#752). */
+    .ProseMirror &.pn-kanban-own-icon > .pn-callout-content > div > [data-callout-title] {
+      padding-inline-start: 0.05rem;
+    }
+    .ProseMirror & > .pn-callout-content > div > [data-callout-title] ~ * {
+      margin: 0;
+    }
+    .ProseMirror & > .pn-kanban-placeholder {
+      inset-inline-start: calc(0.6em + 1.75rem);
+      top: 0.45em;
+      color: rgb(var(--pn-text-muted));
+    }
+  }
+  .pn-kanban-icon {
+    .ProseMirror & {
+      position: absolute;
+      inset-inline-start: 0.65em;
+      top: 0.45em;
+      height: 1.6em;
+      display: inline-flex;
+      align-items: center;
+      color: rgb(var(--pn-text-muted));
+    }
+  }
+  .pn-kanban-tools {
+    .ProseMirror & {
+      position: absolute;
+      inset-inline-end: 0.3em;
+      top: 0.25em;
+      display: inline-flex;
+      align-items: center;
+      z-index: 1;
+    }
+  }
+  /* The count and the menu float at the end of the column's title line, so
+     a long title wraps around them at a word and never inside one. */
+  .pn-column-tools {
+    .ProseMirror & {
+      float: inline-end;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.1em;
+      margin-block: -0.2em 0;
+      margin-inline: 0.3em -0.3em;
+      position: relative;
+      z-index: 1;
+    }
+  }
+  .pn-callout-column {
+    .ProseMirror &.pn-callout,
+    :root.dark .ProseMirror &.pn-callout {
+      min-width: 0;
+      padding: 0.4em 0.45em 0.5em;
+      border: 1px solid color-mix(in srgb, var(--cs) 30%, transparent);
+      border-top: 3px solid var(--cs);
+      border-radius: 8px;
+      background: var(--ct);
+    }
+    .ProseMirror & > .pn-callout-content > div > [data-callout-title] {
+      margin: 0;
+      overflow-wrap: break-word;
+    }
+    /* The body starts under the floating tools, never beside them. */
+    .ProseMirror & > .pn-callout-content > div > [data-callout-title] ~ * {
+      clear: both;
+    }
+    .ProseMirror & > .pn-column-placeholder {
+      inset-inline-start: 0.45em;
+      top: 0.4em;
+      color: color-mix(in srgb, var(--cs) 65%, transparent);
+    }
+    /* Cards: the top-level tasks of the column. */
+    .ProseMirror & > .pn-callout-content > div > ul[data-type='taskList'] > li {
+      gap: 0.35em;
+      margin: 0.4em 0 0;
+      padding-block: 0.3em;
+      padding-inline: 0.4em 0.15em;
+      border: 1px solid rgb(var(--pn-text) / 0.1);
+      border-radius: 6px;
+      background: var(--color-surface-1);
+      overflow-wrap: break-word;
+    }
+    .ProseMirror & > .pn-callout-content > div > ul[data-type='taskList'] > li > .pn-task-grip {
+      width: 0.85em;
+    }
+  }
+  /* The column a dragged card would land in: the drop-inside look of a
+     folder or tag in the sidebar (SIDEBAR_DROP_INSIDE). */
+  .pn-kanban-drop-target {
+    .ProseMirror &.pn-callout,
+    :root.dark .ProseMirror &.pn-callout {
+      box-shadow: 0 0 0 1px rgb(var(--pn-accent));
+      background-image: linear-gradient(rgb(var(--pn-accent) / 0.1), rgb(var(--pn-accent) / 0.1));
+    }
+  }
+  /* Above phone width a column reads at the compact card size, 14 of the
+     body's 15 at the default Text size, and the board title at 16; both
+     follow Text size, and the checkbox scales with the text. At phone width
+     the app pins editor text at 16px against the iOS focus zoom, and the
+     board keeps that. */
+  @media (min-width: 641px) {
+    .pn-callout-column {
+      .ProseMirror &.pn-callout,
+      .ProseMirror &.pn-callout p,
+      .ProseMirror &.pn-callout li {
+        font-size: calc(var(--pn-editor-body) * 14 / 15);
+      }
+    }
+    .pn-callout-kanban {
+      .ProseMirror & > .pn-callout-content > div > [data-callout-title],
+      .ProseMirror & > .pn-kanban-placeholder {
+        font-size: calc(var(--pn-editor-body) * 16 / 15);
+      }
+    }
+  }
+  .pn-column-count {
+    .ProseMirror & {
+      min-width: 1.5em;
+      padding: 0 0.45em;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--cs) 16%, transparent);
+      color: rgb(var(--pn-text-muted));
+      font-size: var(--fs-meta);
+      line-height: 1.7;
+      text-align: center;
+    }
+  }
+}
+
+@layer editor {
+  .pn-table-toolbar {
+    /* ---------------------------------------------------------------
+     * Table toolbar - floating pill glued below the active table.
+     * Mirrors the image toolbar aesthetic (pn-image-toolbar).
+     * --------------------------------------------------------------- */
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px;
+    border-radius: 0 0 8px 8px;
+    background: rgb(var(--pn-track));
+    border: 1px solid rgb(var(--pn-divider));
+    user-select: none;
+    animation: pn-toolbar-in 0.1s ease-out;
+  }
+}
+
+@layer editor {
+  .pn-table-toolbar-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: rgb(var(--pn-text-muted));
+    cursor: pointer;
+    &:hover {
+      background: rgb(var(--pn-text) / 0.08);
+      color: rgb(var(--pn-text));
+    }
+  }
+}
+
+@layer editor {
+  .pn-table-toolbar-danger {
+    color: var(--color-red-400);
+    &:hover {
+      color: var(--color-red-300);
+      background: rgb(var(--pn-text) / 0.08);
+    }
+    :root:not(.dark) & {
+      color: var(--color-red-500);
+    }
+    :root:not(.dark) &:hover {
+      color: var(--color-red-600);
+      background: var(--color-red-50);
+    }
+  }
+}
+
+@layer editor {
+  .pn-table-toolbar-divider {
+    width: 1px;
+    height: 16px;
+    background: rgb(var(--pn-divider));
+    margin: 0 2px;
+  }
+}
+
+@layer editor {
+  .pn-image-node {
+    /* ---------------------------------------------------------------
+     * Image node - container + floating toolbar.
+     * The toolbar always sits ABOVE the image via flex column layout,
+     * never overlapping it.
+     * --------------------------------------------------------------- */
+    margin: 0.5em 0;
+    /* Selection ring wraps both image + toolbar as one unit.
+       Inset outline so it isn't clipped by the editor's overflow-x-hidden
+       on mobile (iOS Safari) or desktop. Fix: GitHub #100 */
+    &.ProseMirror-selectednode .pn-image-container {
+      outline: 2px solid rgb(var(--pn-accent));
+      outline-offset: -2px;
+    }
+    /* In a note nobody can edit, a click on a picture opens the viewer
+       (EncryptedImage.tsx, handleSelect). Read off the live attribute, so a
+       note locked while open changes cursor without a re-render. */
+    .ProseMirror[contenteditable='false'] & img {
+      cursor: zoom-in;
+    }
+  }
+}
+
+@layer editor {
+  .pn-image-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    position: relative;
+    border-radius: 8px;
+    /* Hug the image: shrink to the rendered image width (which may be
+         narrower than the size preset when the max-height cap shrinks a
+         tall/square image) so the selection ring and toolbar match the
+         image edges instead of leaving empty space. The size preset is
+         applied as max-width via inline style, so the container never
+         exceeds the chosen column fraction. */
+    width: fit-content;
+    max-width: 100%;
+    transition: max-width 0.15s ease;
+    /* Selection ring wraps both image + toolbar as one unit.
+       Inset outline so it isn't clipped by the editor's overflow-x-hidden
+       on mobile (iOS Safari) or desktop. Fix: GitHub #100 */
+    .pn-image-node.ProseMirror-selectednode & {
+      outline: 2px solid rgb(var(--pn-accent));
+      outline-offset: -2px;
+    }
+    /* Block display kills the inline baseline gap below <img> so the
+       toolbar sits flush against the image bottom. Also zero out the
+       Tailwind Typography img margins (2em top+bottom by default)
+       because spacing is handled by the outer .pn-image-node wrapper. */
+    & img {
+      display: block;
+      margin: 0;
+      /* width:auto + height:auto lets the browser's replaced-element
+         constraint resolver keep the aspect ratio when EITHER max-width
+         or max-height binds. An explicit width:100% would lock the width
+         so the max-height clamp could only squash the height - stretching
+         the image (a square rendered as a wide rectangle). The container
+         div already carries the 25/50/75/100% size preset, so max-width
+         still scales the image to the chosen column width. */
+      width: auto;
+      max-width: 100%;
+      /* Cap height so a tall (portrait) image can't grow past the visible
+         viewport and slide under fixed mobile browser chrome. With width:auto
+         the clamp shrinks BOTH dimensions proportionally, preserving the
+         ratio. Fix: GitHub image-overflows-viewport report.
+
+         The cap reads --pn-stable-vh (useKeyboardOpen.ts), the viewport
+         height with no keyboard in the way, and NOT a viewport unit. Android
+         resizes the layout viewport when the keyboard opens, so every unit
+         including svh shrinks with it, and the clamp re-ran mid-sentence: a
+         portrait photo the reader had set to full width redrew at about two
+         thirds the moment they started typing, then jumped back on dismiss.
+         The cap is about the screen a picture is read on, not about how much
+         room is left over the keyboard. The fallback is the old value, for a
+         viewport with no visualViewport API to measure. */
+      height: auto;
+      max-height: 70vh;
+      max-height: calc(var(--pn-stable-vh, 100svh) * 0.7);
+    }
+  }
+}
+
+@layer editor {
+  .ProseMirror-selectednode {
+    /* Selection ring wraps both image + toolbar as one unit.
+       Inset outline so it isn't clipped by the editor's overflow-x-hidden
+       on mobile (iOS Safari) or desktop. Fix: GitHub #100 */
+    &.pn-image-node .pn-image-container {
+      outline: 2px solid rgb(var(--pn-accent));
+      outline-offset: -2px;
+    }
+  }
+
+  /* A click on a divider's line selects it (the gaps around it add a line,
+     editorAddLine.ts); the accent shows that Delete will remove it. */
+  .ProseMirror hr.ProseMirror-selectednode {
+    border-color: rgb(var(--pn-accent));
+  }
+}
+
+@layer editor {
+  /* ---------------------------------------------------------------
+   * An unfocused editor must not show an editing affordance.
+   *
+   * ProseMirror seeds the initial selection with `Selection.atStart()`.
+   * An image is a leaf with no text position before it, so a note that
+   * OPENS with an image gets a NodeSelection on that image before anyone
+   * has clicked anything: toolbar up and selection ring on, on an editor
+   * that does not even hold focus. The same state survives clicking away
+   * from a selected image.
+   *
+   * This rule hides the affordance; it does not make the affordance free.
+   * Revealing it on focus used to reflow the document under the pointer and
+   * eat the click that caused the focus - see .pn-image-toolbar below, which
+   * is why that bar no longer takes part in the layout at all.
+   *
+   * Fixed here rather than in EncryptedImage.tsx because that component
+   * is wrapped in React.memo whose comparator ends at `prev.selected ===
+   * next.selected`. Focus is not part of that comparison, so a React fix
+   * needs extra plumbing to re-render on focus and blur. The toolbar
+   * lives inside .ProseMirror, so :focus-within stays true while its own
+   * buttons are being clicked.
+   * --------------------------------------------------------------- */
+  .ProseMirror:not(:focus-within) {
+    & .pn-image-node:not(.pn-image-tapped) .pn-image-toolbar,
+    & .pn-image-node:not(.pn-image-tapped) .pn-image-resize {
+      display: none;
+    }
+    & .pn-image-node:not(.pn-image-tapped).ProseMirror-selectednode .pn-image-container {
+      outline: none;
+    }
+  }
+}
+
+@layer editor {
+  .pn-image-toolbar {
+    /* Toolbar - flush below image, no gap, shared border radius */
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px;
+    border-radius: 0 0 8px 8px;
+    background: rgb(var(--pn-track));
+    border: 1px solid rgb(var(--pn-divider));
+    user-select: none;
+    z-index: 10;
+    animation: pn-toolbar-in 0.1s ease-out;
+    /* Out of the flow, resting on the image's own bottom edge, and that is
+       the whole point. A note opens with its first node selected, so a note
+       that starts with an image opens with that image selected and this bar
+       hidden by the :focus-within rule above. The first click anywhere in
+       the note then focuses the editor, the bar appears, and IN THE FLOW it
+       added its own height to the document - between the press and the
+       release of that very click. Every line below the image dropped by the
+       bar's height, the release landed on whichever line had moved into that
+       spot, and the browser fired the click on the common ancestor of press
+       and release: the editor. Whatever was actually pressed never saw it.
+       That is what ate the first click on a note-link and made it take two,
+       and it ate the first click on anything else under an image just as
+       quietly. Over the image rather than under it, because under it the bar
+       covered the reader's own first line - a caption, usually. Nothing
+       moves now, and nothing written is hidden. */
+    position: absolute;
+    bottom: 0;
+    inset-inline-start: 0;
+    border-start-end-radius: 8px;
+    /* As wide as its tools, never wider than the screen. The width is set
+       from the screen and not the picture: the bar's frame is the picture,
+       and at XS a bar capped at that frame folds into a narrow column. On a
+       phone the "Size:" label and the dividers go (the presets and the
+       percent sign say it), and a bar that still does not fit, such as one
+       with an armed "Delete?", wraps its tools to a second row. */
+    width: max-content;
+    max-width: calc(100vw - 2rem);
+    flex-wrap: wrap;
+    @media (max-width: 480px) {
+      & .pn-image-toolbar-label,
+      & .pn-image-toolbar-divider {
+        display: none;
+      }
+    }
+  }
+}
+
+@layer editor {
+  .pn-image-toolbar-label {
+    font-size: var(--fs-small);
+    color: rgb(var(--pn-text-muted));
+    margin-inline-end: 2px;
+    line-height: 1;
+  }
+}
+
+@layer editor {
+  .pn-image-toolbar-sizes {
+    display: flex;
+    gap: 2px;
+  }
+}
+
+@layer editor {
+  /* The percent field after the presets (EncryptedImage.tsx, WidthField).
+     Spec: docs/internal/design/patterns/151-160.md section 160 */
+  .pn-image-toolbar-width {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-inline-start: 2px;
+    font-size: var(--fs-small);
+    color: rgb(var(--pn-text-muted));
+    /* No spin arrows: they covered the digits, and the presets and the
+       keyboard arrows already step the value. */
+    & input {
+      width: 3.75rem;
+      text-align: center;
+      appearance: textfield;
+      -moz-appearance: textfield;
+    }
+    & input::-webkit-inner-spin-button,
+    & input::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+  }
+}
+
+@layer editor {
+  /* The corner handle that resizes a selected picture, at the top corner so
+     it never sits under the size bar on the bottom edge. It takes the whole
+     press: touch-action keeps a finger drag from scrolling the note.
+     Spec: docs/internal/design/patterns/151-160.md section 160 */
+  .pn-image-resize {
+    position: absolute;
+    top: 4px;
+    inset-inline-end: 4px;
+    z-index: 11;
+    /* A picture aligned right keeps its right edge; the handle moves to the
+       left one. rtl-ok: alignment is the stored physical value, as the
+       auto margins in EncryptedImage.tsx are. */
+    &.pn-image-resize-left {
+      inset-inline-end: auto;
+      left: 4px; /* rtl-ok: see above */
+    }
+  }
+  /* The plate of every corner resize handle: a picture's, a Home card's.
+     Phosphor `Notches` on it points at the bottom end corner as drawn; a
+     handle in another corner turns the glyph to point at its own. */
+  .pn-resize-plate {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid rgb(var(--pn-divider));
+    background: rgb(var(--pn-track));
+    color: rgb(var(--pn-text-muted));
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    &:hover {
+      color: rgb(var(--pn-text));
+    }
+    /* A larger target for a finger, with the same glyph. */
+    @media (pointer: coarse) {
+      width: 36px;
+      height: 36px;
+    }
+  }
+  .pn-image-resize-button {
+    cursor: nesw-resize;
+    /* The glyph's notches point at the corner the handle sits in. */
+    & svg {
+      transform: scaleY(-1);
+    }
+    &:dir(rtl),
+    .pn-image-resize-left & {
+      cursor: nwse-resize;
+      & svg {
+        transform: scale(-1, -1);
+      }
+    }
+  }
+
+  /* The percent while the handle drags, beside the handle. */
+  .pn-image-resize-value {
+    position: absolute;
+    top: 8px;
+    inset-inline-end: 40px;
+    z-index: 11;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: rgb(var(--pn-track));
+    border: 1px solid rgb(var(--pn-divider));
+    font-size: var(--fs-small);
+    font-variant-numeric: tabular-nums;
+    color: rgb(var(--pn-text));
+    pointer-events: none;
+    &.pn-image-resize-left {
+      inset-inline-end: auto;
+      left: 40px; /* rtl-ok: see .pn-image-resize-left */
+    }
+    @media (pointer: coarse) {
+      top: 12px;
+      inset-inline-end: 48px;
+      &.pn-image-resize-left {
+        left: 48px; /* rtl-ok: see .pn-image-resize-left */
+      }
+    }
+  }
+
+  /* The width follows the pointer with no easing while the handle drags. */
+  .pn-image-container.pn-image-resizing {
+    transition: none;
+  }
+
+  /* A map's corner handle in a note (PlaceMapNode.tsx): the bottom end
+     corner, above the credit line. Shown on hover and while the map is
+     selected; always on a touch screen, which has no hover. */
+  .pn-map-resize {
+    position: absolute;
+    bottom: 24px;
+    inset-inline-end: 6px;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity 120ms;
+    .pn-place-map:hover &,
+    .pn-place-map.ProseMirror-selectednode &,
+    .pn-place-map:focus-within & {
+      opacity: 1;
+    }
+    @media (pointer: coarse) {
+      opacity: 1;
+    }
+  }
+  /* The width while the handle drags, beside it. */
+  .pn-map-resize-value {
+    position: absolute;
+    bottom: 28px;
+    inset-inline-end: 44px;
+    z-index: 2;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: rgb(var(--pn-track));
+    border: 1px solid rgb(var(--pn-divider));
+    font-size: var(--fs-small);
+    font-variant-numeric: tabular-nums;
+    color: rgb(var(--pn-text));
+    pointer-events: none;
+  }
+}
+
+@layer editor {
+  .pn-image-toolbar-size {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: var(--fs-small);
+    font-weight: 500;
+    color: rgb(var(--pn-text-muted));
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    line-height: 1;
+    &:hover {
+      background: rgb(var(--pn-text) / 0.08);
+    }
+    &.active {
+      background: rgb(var(--pn-accent-fill));
+      color: white;
+    }
+    :root:not(.dark) &.active {
+      background: rgb(var(--pn-accent-fill));
+      color: white;
+    }
+  }
+}
+
+@layer editor {
+  .active {
+    &.pn-image-toolbar-size {
+      background: rgb(var(--pn-accent-fill));
+      color: white;
+    }
+    :root:not(.dark) &.pn-image-toolbar-size {
+      background: rgb(var(--pn-accent-fill));
+      color: white;
+    }
+  }
+}
+
+@layer editor {
+  .pn-image-toolbar-divider {
+    width: 1px;
+    height: 16px;
+    background: rgb(var(--pn-divider));
+    margin: 0 2px;
+  }
+}
+
+@layer utilities {
+  /* ------------------------------------------------------------------
+ * Color theme custom properties.
+ *
+ * Values are space-separated RGB channels (e.g. "30 64 175") so
+ * Tailwind's /opacity shorthand works: bg-accent/10 compiles to
+ * rgb(var(--pn-accent) / 0.1).
+ *
+ * surface-0/1/2 = sidebar / notes list / editor (darkest→lightest
+ * in dark mode, reversed in light). Used by BOTH light and dark -
+ * the dark: Tailwind prefix is NOT needed for surface classes.
+ *
+ * track = the recessed well behind inset controls (segmented control
+ * tracks, search fields, inputs). It is NOT surface-0: each theme's
+ * surface ramp has its own steepness, so the well needs its own value
+ * to read as recessed without turning into a slab. Never reach for a
+ * raw neutral here - that is what broke the cream theme.
+ *
+ * Light/dark axis: Tailwind `darkMode: 'class'` (toggles `dark`).
+ * Color themes: `theme-<name>` class on <html>.
+ * ------------------------------------------------------------------ */
+
+  /* The writing area: the editor pane's ground. A theme code's `paper` sets
+     it; without one it is the background.
+     Spec: docs/contrib/color-themes.md (section 8) */
+  :root {
+    --pn-paper: var(--pn-surface-2);
+  }
+
+  /* === Default light: neutral white ================================= */
+  :root {
+    /* The wordmark's "Notes" half, and the ONLY thing that reads it. It exists
+       because the mark must never inherit a muted paragraph color: on a
+       --pn-text-soft paragraph the blue half stayed full strength while the
+       ink half went grey, and the mark came apart. Every theme moves it with
+       --pn-text; `.pn-washi` (LandingPage.tsx) points it at the washi ink.
+       Spec: docs/internal/design-decisions.md (PrivacyNotes brand spelling) */
+    --brand-ink: rgb(var(--pn-text));
+    --pn-accent: 30 64 175; /* #1E40AF - Spec: docs/internal/design-decisions.md (brand accent) */
+    --pn-accent-hover: 30 58 138; /* #1E3A8A - Spec: docs/internal/design-decisions.md (brand accent hover) */
+    /* A filled control with white content. Light palettes fill with the
+       accent itself; dark palettes set a deeper blue, because a light accent
+       that reads well as text is too light under white. */
+    --pn-accent-fill: var(--pn-accent);
+    --pn-accent-fill-hover: var(--pn-accent-hover);
+    /* Status text. One step darker than the usual 600 shades, because those
+       fall under 4.5:1 on the Cream and Slate sidebars. */
+    --pn-danger: 193 0 7; /* #C10007 - red-700 */
+    --pn-warning: 151 60 0; /* #973C00 - amber-800 */
+    --pn-success: 0 96 69; /* #006045 - emerald-800 */
+    --pn-surface-0: 245 245 245; /* #F5F5F5 - sidebar */
+    --pn-surface-1: 250 250 249; /* #FAFAF9 - list */
+    --pn-surface-2: 255 255 255; /* #FFFFFF - editor */
+    --pn-divider: 229 229 229; /* #E5E5E5 */
+    --pn-track: 245 245 245; /* #F5F5F5 - recessed well - Spec: docs/contrib/color-themes.md (track token) */
+    --pn-text-soft: 64 64 64; /* #404040 - secondary text */
+    --pn-text: 10 10 10; /* #0A0A0A */
+    --pn-text-muted: 106 106 106; /* #6A6A6A */
+    /* The Pro rocket, LIGHT default. Burnt amber, and every light theme
+       inherits it: gold is a light colour, so it needs a dark ground.
+       Measured on white gold is 1.63:1 and on slate 1.24:1, which is
+       invisible, not subtle. Burnt amber is 5.02:1 on white, 3.83:1 on
+       slate's sidebar and 3.18:1 on warm-cream's, so it clears 3:1 on
+       every light ground. It replaced bronze #9C6B1F, which cleared the
+       first two but not warm-cream (2.93:1) and, being far less
+       saturated, read as brown rather than as a metal at 11px. Dark
+       themes take gold from the :root.dark block below.
+       Spec: docs/internal/design-decisions.md (Pro mark colour) */
+    --pn-pro: 180 83 9; /* #B45309 - burnt amber */
+    /* The ink of a folder or tag with no color of its own (`text-label`) and
+       of the Jump to hover: the accent, in every palette, as resolveTheme
+       gives a code without `label=`. A custom theme sets its own value.
+       Spec: docs/contrib/color-themes.md (section 6) */
+    --pn-label: var(--pn-accent);
+    /* Folder and tag colors, keyed to MODE like the Pro mark: every light theme
+       shares these. `ink` draws a glyph on any surface (3:1 or better, gray
+       on the cream sidebar the worst at 4.43); `tint` is an open note's background, light
+       enough that body and secondary text keep 4.5:1 and dates 3:1 on every
+       theme. tests/labelContrast.test.ts holds both floors.
+       Spec: docs/internal/specs/folder-tag-icons.md (section 4.2) */
+    --pn-label-gray-ink: #5a6168;
+    --pn-label-red-ink: #ba1c1c;
+    --pn-label-orange-ink: #a43f08;
+    --pn-label-yellow-ink: #8d5200;
+    --pn-label-green-ink: #206d2f;
+    --pn-label-teal-ink: #096878;
+    --pn-label-blue-ink: #1661a7;
+    --pn-label-purple-ink: #653ae6;
+    --pn-label-pink-ink: #b52356;
+    --pn-label-gray-tint: rgb(134 142 150 / 0.12);
+    --pn-label-red-tint: rgb(255 107 107 / 0.12);
+    --pn-label-orange-tint: rgb(255 146 43 / 0.12);
+    --pn-label-yellow-tint: rgb(250 204 21 / 0.12);
+    --pn-label-green-tint: rgb(64 192 87 / 0.12);
+    --pn-label-teal-tint: rgb(18 184 134 / 0.12);
+    --pn-label-blue-tint: rgb(51 154 240 / 0.12);
+    --pn-label-purple-tint: rgb(151 117 250 / 0.12);
+    --pn-label-pink-tint: rgb(240 101 149 / 0.12);
+  }
+
+  /* === Default dark: warm-charcoal =================================== */
+  :root.dark {
+    /* Gold, and every dark theme inherits it: 11.17:1 on this sidebar and
+       9.85:1 on the editor, against burnt amber's 3.62 and 3.20. The pair is
+       keyed to MODE, not to a theme id, so a new palette is right by
+       default and only needs a --pn-pro line if it is unusually light or
+       dark for its mode. Spec: docs/internal/design-decisions.md (Pro mark colour) */
+    --pn-pro: 245 197 24; /* #F5C518 - gold */
+    /* Folder and tag colors for every dark theme. A tint lightens a dark
+       surface, so it is weaker here, and yellow the weakest: at 0.10 it would
+       take dates on Soft dark under 3:1. */
+    --pn-label-gray-ink: #8e969d;
+    --pn-label-red-ink: #ea7171;
+    --pn-label-orange-ink: #f46d24;
+    --pn-label-yellow-ink: #f08c00;
+    --pn-label-green-ink: #33aa49;
+    --pn-label-teal-ink: #0fa4bc;
+    --pn-label-blue-ink: #469ae7;
+    --pn-label-purple-ink: #a085f0;
+    --pn-label-pink-ink: #e36f98;
+    --pn-label-gray-tint: rgb(134 142 150 / 0.10);
+    --pn-label-red-tint: rgb(255 107 107 / 0.10);
+    --pn-label-orange-tint: rgb(255 146 43 / 0.10);
+    --pn-label-yellow-tint: rgb(250 204 21 / 0.08);
+    --pn-label-green-tint: rgb(64 192 87 / 0.10);
+    --pn-label-teal-tint: rgb(18 184 134 / 0.10);
+    --pn-label-blue-tint: rgb(51 154 240 / 0.10);
+    --pn-label-purple-tint: rgb(151 117 250 / 0.10);
+    --pn-label-pink-tint: rgb(240 101 149 / 0.10);
+    /* Debrief Design tab: very dark gray + terminal green */
+    --pn-accent: 61 220 132; /* #3ddc84 - terminal green */
+    --pn-accent-hover: 110 235 160; /* lighter green for hover contrast */
+    --pn-accent-fill: 34 160 90; /* primary buttons */
+    --pn-accent-fill-hover: 26 130 72;
+    --pn-danger: 255 100 103; /* #FF6467 - red-400 */
+    --pn-warning: 226 194 122; /* #e2c27a - fork / warning */
+    --pn-success: 61 220 132; /* same family as accent */
+    --pn-surface-0: 26 26 26; /* #1a1a1a - sidebar / surface */
+    --pn-surface-1: 20 20 20; /* #141414 - list */
+    --pn-surface-2: 13 13 13; /* #0d0d0d - canvas / editor */
+    --pn-divider: 46 46 46; /* #2e2e2e */
+    --pn-track: 17 17 17; /* recessed well */
+    --pn-text-soft: 196 196 196;
+    --pn-text: 230 230 230; /* #e6e6e6 */
+    --pn-text-muted: 138 138 138; /* #8a8a8a */
+  }
+
+  /* === Light: warm-cream (parchment) ================================ */
+  :root:not(.dark).theme-warm-cream {
+    --pn-danger: 184 0 7; /* #B80007 - the shared red is 4.53:1 on this sidebar; this is 4.87 */
+    --pn-accent: 24 64 177; /* #1840B1 */
+    --pn-accent-hover: 30 58 138; /* #1E3A8A */
+    --pn-surface-0: 225 216 196; /* #E1D8C4 - sidebar */
+    --pn-surface-1: 228 220 202; /* #E4DCCA - list */
+    --pn-surface-2: 240 235 222; /* #F0EBDE - editor */
+    --pn-divider: 203 193 168; /* #CBC1A8 */
+    --pn-track: 228 220 202; /* #E4DCCA - recessed well */
+    --pn-text-soft: 87 75 56; /* #574B38 - secondary text */
+    --pn-text: 45 36 22; /* #2D2416 */
+    --pn-text-muted: 100 89 68; /* #645944 */
+  }
+
+  /* === Light: slate (blue-gray + indigo) ============================== */
+  :root:not(.dark).theme-slate {
+    --pn-accent: 67 56 202; /* #4338CA - indigo */
+    --pn-accent-hover: 55 48 163; /* #3730A3 */
+    --pn-surface-0: 221 225 232; /* #DDE1E8 - sidebar */
+    --pn-surface-1: 233 236 241; /* #E9ECF1 - list */
+    --pn-surface-2: 240 242 245; /* #F0F2F5 - editor */
+    --pn-divider: 192 198 209; /* #C0C6D1 */
+    --pn-track: 226 230 237; /* #E2E6ED - recessed well */
+    --pn-text-soft: 61 67 86; /* #3D4356 - secondary text */
+    --pn-text: 18 21 36; /* #121524 */
+    --pn-text-muted: 89 94 113; /* #595E71 */
+  }
+
+  /* === Dark: soft-dark =============================================== */
+  :root.dark.theme-soft-dark {
+    --pn-accent: 137 183 230; /* #89B7E6 */
+    --pn-accent-hover: 158 196 235; /* #9EC4EB */
+    --pn-accent-fill: 61 120 180; /* #3D78B4 */
+    --pn-accent-fill-hover: 52 103 155; /* #34679B */
+    --pn-surface-0: 28 31 38; /* #1C1F26 */
+    --pn-surface-1: 34 38 46; /* #22262E */
+    --pn-surface-2: 40 45 54; /* #282D36 */
+    --pn-divider: 54 60 72; /* #363C48 */
+    --pn-track: 24 27 33; /* #181B21 - recessed well */
+    --pn-text-soft: 166 174 189; /* #A6AEBD - secondary text */
+    --pn-text: 205 211 222; /* #CDD3DE */
+    --pn-text-muted: 146 154 170; /* #929AAA */
+  }
+
+  /* === Dark: navy-depths ============================================= */
+  :root.dark.theme-navy-depths {
+    --pn-accent: 131 164 248; /* #83A4F8 */
+    --pn-accent-hover: 153 180 249; /* #99B4F9 */
+    --pn-accent-fill: 68 111 221; /* #446FDD */
+    --pn-accent-fill-hover: 58 95 190; /* #3A5FBE */
+    --pn-surface-0: 13 19 33; /* #0D1321 */
+    --pn-surface-1: 18 26 46; /* #121A2E */
+    --pn-surface-2: 22 31 53; /* #161F35 */
+    --pn-divider: 30 42 69; /* #1E2A45 */
+    --pn-track: 10 15 27; /* #0A0F1B - recessed well */
+    --pn-text-soft: 174 183 201; /* #AEB7C9 - secondary text */
+    --pn-text: 212 218 231; /* #D4DAE7 */
+    --pn-text-muted: 136 146 168; /* #8892A8 */
+  }
+
+  /* === Light: sage (green tint + forest accent) ===================== */
+  :root:not(.dark).theme-sage {
+    --pn-accent: 43 106 77; /* #2B6A4D - forest green */
+    --pn-accent-hover: 31 83 59; /* #1F533B */
+    --pn-surface-0: 225 231 222; /* #E1E7DE - sidebar */
+    --pn-surface-1: 235 240 232; /* #EBF0E8 - list */
+    --pn-surface-2: 246 248 243; /* #F6F8F3 - editor */
+    --pn-divider: 204 214 199; /* #CCD6C7 */
+    --pn-track: 228 234 224; /* #E4EAE0 - recessed well */
+    --pn-text-soft: 56 70 59; /* #38463B - secondary text */
+    --pn-text: 23 32 26; /* #17201A */
+    --pn-text-muted: 85 102 90; /* #55665A */
+  }
+
+  /* === Dark: OLED (true black) ======================================== */
+  /* Every surface is black, so a pixel that shows no content is off on an
+     OLED screen; the panes are told apart by their dividers. The search
+     field and other wells keep a near-black of their own, because a well
+     computed from black would be black too. The accent is the brand blue,
+     inherited with its fill from :root.dark. */
+  :root.dark.theme-oled {
+    --pn-surface-0: 0 0 0; /* #000000 - sidebar */
+    --pn-surface-1: 0 0 0; /* #000000 - list */
+    --pn-surface-2: 0 0 0; /* #000000 - editor */
+    --pn-divider: 38 38 38; /* #262626 */
+    --pn-track: 22 22 22; /* #161616 - recessed well */
+    --pn-text-soft: 189 189 189; /* #BDBDBD - secondary text */
+    --pn-text: 232 232 232; /* #E8E8E8 */
+    --pn-text-muted: 143 143 143; /* #8F8F8F */
+  }
+  /* The search fields paint a surface color, black here, so they take the
+     well instead. */
+  :root.dark.theme-oled .pn-search-well {
+    background-color: rgb(var(--pn-track));
+  }
+
+  /* Muted text on a tinted background (a selected row, the active sidebar
+     item) reads at the soft level: the tint lifts the background toward the
+     muted color and takes it under 4.5:1. The element that paints the tint
+     carries pn-on-tint. Spec: docs/contrib/color-themes.md (section 3) */
+  .pn-on-tint .text-pn-muted {
+    color: rgb(var(--pn-text-soft));
+  }
+  /* A count on the strongest tint (the active sidebar item) still falls just
+     short at the soft level; a short number takes the full text color. */
+  .pn-on-tint .text-pn-muted.tabular-nums {
+    color: rgb(var(--pn-text));
+  }
+
+  /* The gold rating star (RatingStar.tsx). The gold measures
+     1.7:1 on white, so a light palette keeps the fill and draws an amber-700
+     edge, 5:1 on white. A dark palette shows the plain fill.
+     Spec: docs/contrib/color-themes.md (section 3) */
+  :root:not(.dark) .pn-rating-star {
+    overflow: visible;
+  }
+  :root:not(.dark) .pn-rating-star path {
+    stroke: #bb4d00;
+    stroke-width: 1px;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Note text in every theme. The typography plugin colors prose from its
+     own --tw-prose-* variables, which are fixed greys; prose-pn points them
+     at the palette tokens. Body text is the soft level in light mode and the
+     full text level in dark mode, where the soft level reads dim on a long
+     page. The code panel is dark in every theme, so its two values stay
+     fixed (theme-ok). Spec: docs/contrib/color-themes.md (section 3) */
+  .prose.prose-pn {
+    --tw-prose-body: rgb(var(--pn-text-soft));
+    --tw-prose-headings: rgb(var(--pn-text));
+    --tw-prose-lead: rgb(var(--pn-text-soft));
+    --tw-prose-links: rgb(var(--pn-accent));
+    --tw-prose-bold: rgb(var(--pn-text));
+    --tw-prose-counters: rgb(var(--pn-text-muted));
+    --tw-prose-bullets: rgb(var(--pn-text-muted));
+    --tw-prose-hr: rgb(var(--pn-divider));
+    --tw-prose-quotes: rgb(var(--pn-text));
+    --tw-prose-quote-borders: rgb(var(--pn-divider));
+    --tw-prose-captions: rgb(var(--pn-text-muted));
+    --tw-prose-kbd: rgb(var(--pn-text));
+    --tw-prose-kbd-shadows: rgb(var(--pn-text) / 10%);
+    --tw-prose-code: rgb(var(--pn-text));
+    --tw-prose-pre-code: #e5e5e5; /* theme-ok: the code panel */
+    --tw-prose-pre-bg: #262626; /* theme-ok: the code panel */
+    --tw-prose-th-borders: rgb(var(--pn-divider));
+    --tw-prose-td-borders: rgb(var(--pn-divider));
+  }
+  :root.dark .prose.prose-pn {
+    --tw-prose-body: rgb(var(--pn-text));
+    /* The body already takes the full text level here, so bold mixes
+       toward white to keep an ink cue on top of its weight.
+       Spec: docs/internal/design-decisions.md (editor heading scale) */
+    --tw-prose-bold: color-mix(in srgb, rgb(var(--pn-text)) 25%, #fff); /* theme-ok: lifts every dark palette's text */
+    --tw-prose-pre-code: #d4d4d4; /* theme-ok: the code panel */
+    --tw-prose-pre-bg: rgb(0 0 0 / 50%); /* theme-ok: the code panel */
+  }
+
+  /* Scrollbar theming - native scrollbars inherit the active color theme.
+   Uses scrollbar-color (Firefox, Chrome 121+) for broad coverage. */
+  * {
+    scrollbar-color: rgb(var(--pn-divider)) transparent;
+    scrollbar-width: thin;
+  }
+
+  /* Scrollbar-less horizontal scroller - the editor tag bar scrolls
+   sideways instead of wrapping, and a visible bar under the chips
+   would read as clutter. Content stays reachable via wheel/drag. */
+  .pn-scrollbar-none {
+    scrollbar-width: none;
+  }
+  .pn-scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Spinner for image upload placeholder */
+  @keyframes pn-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* Slide-up + fade-in for the version-update toast (and any future
+   toasts that want the same entrance). 280ms matches the theme-flip
+   crossfade so animations feel coordinated. */
+  @keyframes pn-toast-in {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  .pn-toast-in {
+    animation: pn-toast-in 280ms ease-out both;
+  }
+
+  /* Busy trace on a button border ("Compare with server"). The rect
+   carries pathLength="100", so the dash and the offset are percentages
+   of the perimeter whatever the button's size. Reduced motion holds the
+   whole border in the accent color instead. */
+  @keyframes pn-border-trace {
+    to {
+      stroke-dashoffset: -100;
+    }
+  }
+  .pn-border-trace {
+    fill: none;
+    stroke: rgb(var(--pn-accent));
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-dasharray: 18 82;
+    animation: pn-border-trace 1.8s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pn-border-trace {
+      animation: none;
+      stroke-dasharray: none;
+    }
+  }
+
+  /* The Ninja buttons (TagsRail, CollapsedSidebar, ListNav): on hover a
+     katana cuts the tile. One steel line with an amber edge crosses it
+     corner to corner, slowly (1.1 s), then the mark gives a small nod as it
+     shows its real colors. The line is the child span .pn-jump-charge, over
+     the content, clipped by the button. Pointer devices only; under reduced
+     motion the colors change and nothing moves.
+     Spec: docs/internal/design/patterns/145-150.md section 147 */
+  .pn-jump {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .pn-jump-charge {
+    position: absolute;
+    left: -60%;
+    top: 50%;
+    width: 220%;
+    height: 2px;
+    z-index: 2;
+    /* theme-ok: the blade's steel and the bandana's amber */
+    background: linear-gradient(90deg, transparent, #fff 40%, #f59e0b 58%, transparent);
+    transform: rotate(-35deg) translateX(-120%);
+    opacity: 0;
+    pointer-events: none;
+  }
+  @keyframes pn-ninja-slash {
+    0% { transform: rotate(-35deg) translateX(-120%); opacity: 1; }
+    75% { opacity: 1; }
+    100% { transform: rotate(-35deg) translateX(120%); opacity: 0; }
+  }
+  @keyframes pn-ninja-nod {
+    40% { transform: translate(1px, 1px) scale(0.94); }
+  }
+  /* The logo and the "Privacy" half of the wordmark take the accent in every
+     palette but Default, and show the real colors while the brand button is
+     hovered. A palette opts in by setting --pn-logo-tint and --pn-logo-ink on
+     the root, scoped to its mode like the palette blocks.
+     Spec: docs/contrib/color-themes.md (section 6) */
+  :root:not(.dark):is(.theme-warm-cream, .theme-slate, .theme-sage, .theme-custom-light),
+  :root.dark:is(.theme-soft-dark, .theme-navy-depths, .theme-oled, .theme-custom-dark) {
+    --pn-logo-tint: 1;
+    --pn-logo-ink: var(--pn-accent);
+  }
+  .pn-logo {
+    isolation: isolate;
+  }
+  .pn-logo-tint {
+    position: absolute;
+    inset: 0;
+    background: rgb(var(--pn-accent));
+    mix-blend-mode: color;
+    mask: url('/privacy-notes.webp') center / contain no-repeat;
+    opacity: var(--pn-logo-tint, 0);
+    transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  .pn-logo-host .pn-brand-blue {
+    /* theme-ok: Fold Blue, the wordmark's real color, unless a palette tints it */
+    color: rgb(var(--pn-logo-ink, 79 107 213));
+    transition: color 0.2s;
+  }
+  /* A custom theme whose code says logo=original keeps the real colors in
+     its own mode. */
+  :root:not(.dark).logo-light-original .pn-logo-tint,
+  :root.dark.logo-dark-original .pn-logo-tint {
+    opacity: 0;
+  }
+  :root:not(.dark).logo-light-original .pn-logo-host .pn-brand-blue,
+  :root.dark.logo-dark-original .pn-logo-host .pn-brand-blue {
+    color: #4f6bd5; /* theme-ok: Fold Blue, the wordmark's real color */
+  }
+  @media (hover: hover) {
+    .pn-logo-host:hover .pn-logo-tint {
+      opacity: 0;
+    }
+    .pn-logo-host:hover .pn-brand-blue {
+      color: #4f6bd5; /* theme-ok: Fold Blue, the wordmark's real color */
+    }
+  }
+  /* The Ninja mark (NinjaIcon.tsx) follows the theme like the logo above:
+     one accent ink with the eye slit cut out in the surface color, and the
+     real colors (ink face, cream slit, amber bandana) while a pointer is on
+     its button, on the homepage (.pn-ninja-real), and in a custom theme whose
+     code keeps the original logo. Spec: docs/internal/design/patterns/145-150.md
+     section 145 */
+  .pn-ninja .nj-face,
+  .pn-ninja .nj-eye {
+    fill: currentColor;
+    stroke: transparent;
+  }
+  .pn-ninja .nj-band {
+    fill: currentColor;
+    opacity: 0.55;
+  }
+  .pn-ninja .nj-slit {
+    fill: rgb(var(--pn-surface-2));
+  }
+  .pn-ninja .nj-glint {
+    fill: transparent;
+  }
+  .pn-ninja * {
+    transition: fill 0.2s, opacity 0.2s;
+  }
+  .pn-ninja-real .nj-face,
+  :root:not(.dark).logo-light-original .pn-ninja .nj-face,
+  :root.dark.logo-dark-original .pn-ninja .nj-face {
+    fill: #1c1917; /* theme-ok: the mark's real ink */
+  }
+  .pn-ninja-real .nj-eye,
+  :root:not(.dark).logo-light-original .pn-ninja .nj-eye,
+  :root.dark.logo-dark-original .pn-ninja .nj-eye {
+    fill: #1c1917; /* theme-ok: the mark's real ink */
+  }
+  .pn-ninja-real .nj-band,
+  :root:not(.dark).logo-light-original .pn-ninja .nj-band,
+  :root.dark.logo-dark-original .pn-ninja .nj-band {
+    fill: #f59e0b; /* theme-ok: the site's amber, the bandana's real color */
+    opacity: 1;
+  }
+  .pn-ninja-real .nj-slit,
+  :root:not(.dark).logo-light-original .pn-ninja .nj-slit,
+  :root.dark.logo-dark-original .pn-ninja .nj-slit {
+    fill: #fbefc4; /* theme-ok: the mark's real cream */
+  }
+  .pn-ninja-real .nj-glint {
+    fill: #fff; /* theme-ok: catchlight */
+  }
+  .dark .pn-ninja-real .nj-face {
+    stroke: rgba(237, 231, 219, 0.55); /* theme-ok: rim on a dark surface */
+  }
+  @media (hover: hover) {
+    .pn-jump:hover .pn-ninja .nj-face,
+    .pn-jump:hover .pn-ninja .nj-eye {
+      fill: #1c1917; /* theme-ok: the mark's real ink */
+    }
+    .pn-jump:hover .pn-ninja .nj-band {
+      fill: #f59e0b; /* theme-ok: the bandana's real amber */
+      opacity: 1;
+    }
+    .pn-jump:hover .pn-ninja .nj-slit {
+      fill: #fbefc4; /* theme-ok: the mark's real cream */
+    }
+    .dark .pn-jump:hover .pn-ninja .nj-face {
+      stroke: rgba(237, 231, 219, 0.55); /* theme-ok: rim on a dark surface */
+    }
+  }
+  @media (hover: hover) {
+    .pn-jump:hover .pn-jump-charge {
+      animation: pn-ninja-slash 1.1s cubic-bezier(0.75, 0, 0.2, 1) forwards;
+    }
+    .pn-jump:hover .pn-ninja {
+      animation: pn-ninja-nod 0.6s 0.75s ease;
+    }
+  }
+  /* The same cut on the mark in the Ninja box, once per opening. */
+  .pn-ninja-open .pn-jump-charge {
+    /* theme-ok: amber edges carry the cut over the light input row, the white
+       core over the dark face */
+    background: linear-gradient(90deg, transparent, #f59e0b 35%, #fff 50%, #f59e0b 65%, transparent);
+    height: 2.5px;
+    animation: pn-ninja-slash 1.1s 0.15s cubic-bezier(0.75, 0, 0.2, 1) forwards;
+  }
+  .pn-ninja-open .pn-ninja {
+    animation: pn-ninja-nod 0.6s 0.9s ease;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pn-jump:hover .pn-jump-charge,
+    .pn-jump:hover .pn-ninja,
+    .pn-ninja-open .pn-jump-charge,
+    .pn-ninja-open .pn-ninja {
+      animation: none;
+    }
+    .pn-ninja * {
+      transition: none;
+    }
+  }
+
+  /* Base background - uses the sidebar surface tier (darkest panel).
+   Works for both light and dark: the CSS variable handles the switch. */
+}
+@layer base {
+  html {
+    background-color: rgb(var(--pn-surface-0));
+    color: rgb(var(--pn-text));
+  }
+  /* No rubber-band on the page itself: the app is a fixed shell, and the
+     elastic overscroll of WebView2 on a precision touchpad slid the whole
+     window content (issue #593). Inner scrollers still scroll. */
+  html, body {
+    overscroll-behavior: none;
+  }
+}
+
+/* Line-wrapping: balance headings and prevent orphans in body copy so text
+   reflows cleanly across languages without per-locale hand-tuning. The editor
+   stays on default wrapping (the writing surface must stay predictable).
+   Spec: docs/contrib/i18n-spec.md (line-wrapping pass) */
+@layer base {
+  h1, h2, h3, h4 { text-wrap: balance; }
+  p { text-wrap: pretty; }
+  .ProseMirror :is(h1, h2, h3, h4, h5, h6, p) { text-wrap: wrap; }
+}
+
+@layer editor {
+  @keyframes pn-file-flash {
+    0%,
+    55% {
+      box-shadow: 0 0 0 3px rgb(var(--pn-accent) / 0.55);
+      background: rgb(var(--pn-accent) / 0.12);
+    }
+    100% {
+      box-shadow: 0 0 0 3px rgb(var(--pn-accent) / 0);
+      background: rgb(var(--pn-accent) / 0);
+    }
+  }
+  @keyframes pn-toolbar-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+}
+
+/* ------------------------------------------------------------------
+ * Mobile: kill iOS Safari's auto-zoom on input focus.
+ *
+ * iOS zooms into any editable element whose computed font-size is
+ * below 16px. The editor body (prose-p: 15px) and the tag chip input
+ * (text-xs: 12px) both tripped this. Combined with Tab-driven focus
+ * movement between title → tags → body, iOS would get stuck in its
+ * "form navigation" mode and leave the viewport half-zoomed when the
+ * keyboard dismissed.
+ *
+ * Holding editable text at 16px or more at ≤640px breaks the zoom
+ * heuristic. The viewport meta in index.html (maximum-scale=1) is the
+ * belt; this is the braces.
+ *
+ * Text size still applies above the floor (GitHub #646): on a phone the
+ * body scales off 16px instead of 15px, so Large and Largest grow the
+ * body, and the smaller sizes stop at 16px. Headings, code and copy
+ * boxes derive from --pn-editor-body and follow it.
+ * ------------------------------------------------------------------ */
+@media (max-width: 640px) {
+  :root {
+    --pn-editor-body: max(16px, calc(16px * var(--pn-text-scale)));
+  }
+  input,
+  textarea:not(.pn-note-title),
+  select {
+    font-size: 16px !important; /* type-scale: exempt - iOS zooms into a field under 16px */
+  }
+  [contenteditable='true'],
+  [contenteditable='true'] p,
+  [contenteditable='true'] li,
+  [contenteditable='true'] blockquote,
+  .ProseMirror,
+  .ProseMirror p,
+  .ProseMirror li,
+  .ProseMirror blockquote {
+    font-size: var(--pn-editor-body) !important;
+  }
+  /* The Markdown view's field and its marks copy, which sizes the field
+     and must wrap exactly like it: the same 14px base as on desktop,
+     held at the floor. */
+  textarea.pn-source-field,
+  .pn-source-marks {
+    font-size: max(16px, calc(14px * var(--pn-text-scale))) !important;
+  }
+}
+
+/* Notes / files grid columns. Column COUNT tracks the list panel's own width via
+   a container query (the panel is the `.pn-list-panel` query container). This is
+   the one definition that behaves for both the full-width grid AND the narrow
+   docked panel beside an open editor - a viewport media query can't tell those
+   apart. `1fr` columns keep every row gap-free (no trailing empty space); the
+   breakpoints add a column just before tiles would stretch past ~330px, so tiles
+   stay in a comfortable band instead of ballooning. The compact CARD layout below
+   keys off the same container, so count and treatment can't disagree. */
+.pn-list-panel {
+  container-type: inline-size;
+  container-name: pn-list;
+  /* Spec: docs/internal/design-decisions.md (grid tile width band) */
+}
+
+/* Off-screen list rows and grid tiles skip style, layout and paint
+   (content-visibility). The list panes are unvirtualized, so at a few
+   thousand notes every pane-resize drag frame paid a full-list relayout:
+   measured 92 ms per width change at ~2.7k rows, 12 ms with this on
+   (backlog #152). The intrinsic block size is only a scrollbar estimate
+   for rows never yet rendered - `auto` pins it to the real height once a
+   row has been on screen. Off-screen rows keep their own box and border,
+   so separators and the scrollbar stay correct. */
+.pn-lazy-row {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 72px;
+}
+/* A palette change is not a hover: keep off-screen rows from animating colors. */
+.pn-theme-switching,
+.pn-theme-switching *,
+.pn-theme-switching *::before,
+.pn-theme-switching *::after {
+  transition: none !important;
+}
+/* A TILE gets the same treatment only where a grid track reads a skipped
+   item's intrinsic block size. The Linux app's web engine does not: it sizes
+   the row from an item with no contents, so every tile shrinks to its own
+   padding, paints its head row clipped inside a 22px box, and a whole vault
+   crushes into one screen of slivers (GitHub #314, a 321-note grid; the same
+   grid at 54 items was correct, because nothing that short is ever far enough
+   off-screen to be skipped, which is what makes the failure read as a scale
+   bug). Block-layout rows keep their estimate there, so the rule above needs
+   no gate. `main.tsx` sets the attribute, and its absence is the safe state:
+   an engine nobody has measured draws the plain, correct grid. */
+[data-lazy-tiles='on'] .pn-lazy-card {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 180px;
+}
+/* Windowed items must measure their contents, not an intrinsic-size estimate. */
+.pn-lazy-row[data-window-item],
+.pn-lazy-card[data-window-item] {
+  content-visibility: visible;
+}
+/* Settings tab strips: SettingsTabStrip in settingsUI.tsx sets data-row when
+   every label fits on one line beside its icon. The gap and padding here are
+   the ROW_GAP and ROW_PAD it measures with. A phone always stacks, so every
+   strip on a phone looks the same. */
+/* data-tight: the longest words of the labels do not fit side by side, so
+   the columns go back to equal shares and a word may break anywhere. */
+.pn-tab-strip[data-tight] { grid-auto-columns: minmax(0, 1fr); }
+.pn-tab-strip[data-tight] > .pn-tab { overflow-wrap: anywhere; hyphens: auto; }
+@media (min-width: 640px) {
+  .pn-tab-strip[data-row] > .pn-tab { flex-direction: row; justify-content: center; gap: 6px; padding-inline: 8px; white-space: nowrap; }
+}
+
+/* Fallback for engines without container-query support: fluid auto-fill. */
+.pn-notes-grid {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+/* Two columns from 260px, not 320px: a phone with a large display size or a
+   narrow cover screen reports under 320 CSS px and fell back to one column,
+   which is the list with extra padding (GitHub #257). */
+@container pn-list (min-width: 260px)  { .pn-notes-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container pn-list (min-width: 700px)  { .pn-notes-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@container pn-list (min-width: 1040px) { .pn-notes-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@container pn-list (min-width: 1380px) { .pn-notes-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+@container pn-list (min-width: 1720px) { .pn-notes-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+
+/* The calendar card in the grid is one tile, like every other: its days
+   shrink with the tile (MonthGrid caps each at 32px), so seven of them and
+   the short month title fit down to about 170px. Only the two-column grid of
+   a narrow phone list makes tiles smaller than that, and there the card takes
+   the whole row. The sideways clip is the guard for a width no rule foresaw;
+   it is `overflow-x: clip`, never `hidden`, because a hidden overflow makes
+   the card a scroll container and a grid row then shrinks it to its padding.
+   Spec: docs/internal/design/ui-patterns.md section 141 */
+.pn-notes-grid .pn-grid-cal {
+  min-width: 0;
+  overflow-x: clip;
+}
+@container pn-list (max-width: 399px) { .pn-notes-grid .pn-grid-cal { grid-column: 1 / -1; } }
+
+/* The check-in card in the grid is a tile two columns wide, not a band: the
+   calendar and the first notes fill the rest of its row. In the two-column
+   grid it takes the whole row. */
+.pn-notes-grid .pn-grid-checkin { grid-column: 1 / -1; }
+@container pn-list (min-width: 700px) { .pn-notes-grid .pn-grid-checkin { grid-column: span 2; } }
+
+/* Home (dashboard/Dashboard.tsx) is its own grid, not the tile grid above:
+   its columns, its row height and every card's place are inline styles from
+   the packer (packBoxes in dashboard/dashboardLayout.ts). The calendar card
+   does not take the sideways clip it has in the tile grid: no Home column is
+   narrower than the month (HOME_MIN_COL_PX), and with the clip WebKit drew
+   the grip tab on the card's top edge cut in half.
+   Spec: docs/internal/specs/dashboard.md (section 3) */
+.pn-home-grid .pn-grid-cal {
+  min-width: 0;
+}
+/* A widget's arranging tools (Dashboard.tsx): the grip tab on the card's
+   top edge and the resize corner. With a mouse they show while the card is
+   hovered or holds focus, and the card being dragged or resized keeps them;
+   on touch the tab always shows, a little larger, and the corner is not
+   drawn (the widget menu resizes). Spec: docs/internal/specs/dashboard.md
+   (section 6) */
+@media (hover: hover) {
+  .pn-home-grid .pn-card-ctl {
+    opacity: 0;
+    transition: opacity 120ms;
+  }
+  .pn-home-grid > li:hover .pn-card-ctl,
+  .pn-home-grid > li:focus-within .pn-card-ctl,
+  .pn-home-grid > li.ring-accent .pn-card-ctl {
+    opacity: 1;
+  }
+}
+@media (hover: none) {
+  .pn-home-grid .pn-card-resize { display: none; }
+  .pn-home-grid .pn-card-grip { height: 1.5rem; width: 3rem; top: -0.75rem; }
+}
+/* A widget's rows are few, and the fit that hides the rows past a card's
+   bottom (useFitRows in dashboard/widgets.tsx) needs their real height, not
+   the placeholder a lazy row has before it paints. */
+.pn-home-grid .pn-lazy-row {
+  content-visibility: visible;
+}
+/* A widget's rows keep the compact row's padding at every window width, so
+   a small card shows more than one; the last row that shows has no divider,
+   which would stand alone over the card's edge. */
+.pn-home-grid .pn-row {
+  padding-block: 0.5rem;
+}
+.pn-home-grid .pn-row[data-fit-last] {
+  border-bottom-color: transparent;
+}
+
+/* A pick on the mood scale, and the check-in's "logged" mark: one short pop,
+   none for people who asked for less motion.
+   Spec: docs/internal/design/ui-patterns.md section 141 */
+@keyframes pn-pop {
+  0% { transform: scale(0.6); }
+  60% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pn-pop { animation: pn-pop 280ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+}
+
+/* The password generator's Regenerate arrows: one full turn on a click (a
+   new React key restarts it), none for people who asked for less motion. */
+@keyframes pn-turn {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pn-turn { animation: pn-turn 420ms cubic-bezier(.3,.7,.2,1); }
+}
+
+/* Pane resize strips (sidebar + notes-list dividers, GitHub #211).
+   The 24px collapse strips double as drag handles. Affordance ladder:
+   idle keeps the quiet caret; hover/keyboard-focus fade in two grip-dot
+   clusters plus a faint center hairline and the col-resize cursor; an
+   active drag (data-dragging, set imperatively by usePaneResize.ts)
+   turns the hairline solid. The badge is the fixed-position live-width
+   readout next to the pointer (z-50 overlay tier, ui-patterns section 8).
+   Hover affordances are (hover: hover) gated like HoverLabel tips so
+   touch devices never get a stuck hover state; focus-visible works on
+   every input type. .pn-col-dragging sits on NotesView's root div for
+   the drag's duration: cursor + text-selection guard, and it suppresses
+   the .pn-tip hover pills which would otherwise flicker under the
+   captured pointer.
+   Spec: docs/internal/design-decisions.md (pane resize), ui-patterns.md section 56 */
+.pn-strip {
+  position: relative;
+  touch-action: none;
+  cursor: col-resize;
+}
+.pn-strip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-accent);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+/* One 38px grip column of six 3px dots, centered on the hairline: the whole
+   resting affordance now that the caret is gone (it read as a fat arrow the
+   12px strip had no room for). Visible but quiet at rest so the splitter is
+   still discoverable without hovering, brighter on hover/focus/drag. */
+.pn-strip-dots {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - 19px);
+  transform: translateX(-50%);
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow:
+    0 7px 0 currentColor, 0 14px 0 currentColor, 0 21px 0 currentColor,
+    0 28px 0 currentColor, 0 35px 0 currentColor;
+  opacity: 0.3;
+  transition: opacity 0.12s ease;
+  pointer-events: none;
+}
+@media (hover: hover) {
+  .pn-strip:hover::after { opacity: 0.35; }
+  .pn-strip:hover .pn-strip-dots { opacity: 0.9; }
+}
+.pn-strip:focus-visible::after { opacity: 0.35; }
+.pn-strip:focus-visible .pn-strip-dots { opacity: 0.9; }
+.pn-strip[data-dragging]::after { opacity: 1; }
+.pn-strip[data-dragging] .pn-strip-dots { opacity: 0.9; }
+/* Past the limit: a release collapses. The badge names it; the line and
+   the dots go faint so the snap reads as "let go and it folds". */
+.pn-strip[data-snap]::after { opacity: 0.35; }
+/* The sidebar's own divider, between Content and the tags or folders
+   (useSidebarSplit.ts): the strip above turned on its side, with the same
+   12px band, borders and surfaces (TagsRail.tsx), one row of grip dots, and
+   the accent line on hover, focus and drag. */
+.pn-hstrip {
+  position: relative;
+  touch-action: none;
+  cursor: row-resize;
+}
+.pn-hstrip::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+  background: var(--color-accent);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.pn-hstrip-dots {
+  position: absolute;
+  top: 50%;
+  left: calc(50% - 19px);
+  transform: translateY(-50%);
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow:
+    7px 0 0 currentColor, 14px 0 0 currentColor, 21px 0 0 currentColor,
+    28px 0 0 currentColor, 35px 0 0 currentColor;
+  opacity: 0.3;
+  transition: opacity 0.12s ease;
+  pointer-events: none;
+}
+@media (hover: hover) {
+  .pn-hstrip:hover::after { opacity: 0.35; }
+  .pn-hstrip:hover .pn-hstrip-dots { opacity: 0.9; }
+}
+.pn-hstrip:focus-visible { outline: none; }
+.pn-hstrip:focus-visible::after { opacity: 0.35; }
+.pn-hstrip:focus-visible .pn-hstrip-dots { opacity: 0.9; }
+.pn-hstrip[data-dragging]::after { opacity: 1; }
+.pn-hstrip[data-dragging] .pn-hstrip-dots { opacity: 0.9; }
+.pn-row-dragging,
+.pn-row-dragging * { cursor: row-resize !important; }
+.pn-row-dragging { user-select: none; }
+.pn-row-dragging .pn-tip { display: none !important; }
+
+/* A list row or tile drags with a mouse or a pen only (onto a folder, a tag
+   or a note). On a touch screen a long press selects rows, and a webview that
+   lifted a draggable row on that press would take the gesture from it. */
+@media (hover: none) {
+  li[data-item-id][draggable='true'],
+  [data-file-drag][draggable='true'] { -webkit-user-drag: none; }
+}
+.pn-drag-badge {
+  position: fixed;
+  z-index: 50;
+  display: none;
+  pointer-events: none;
+  background: var(--color-accent-fill);
+  color: #fff;
+  border-radius: 6px;
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  line-height: 1;
+  padding: 5px 8px;
+  white-space: nowrap;
+}
+.pn-drag-badge[data-on] { display: block; }
+.pn-col-dragging,
+.pn-col-dragging * { cursor: col-resize !important; }
+.pn-col-dragging { user-select: none; }
+.pn-col-dragging .pn-tip { display: none !important; }
+
+/* Storage add-on picker (SyncOptionsModal): tier CARDS when the settings pane
+   is wide, growth ROWS when narrow. Like the notes grid above, the PANE's own
+   width decides - the same pane renders in the max-w-4xl desktop shell
+   (~590px content), the max-w-md standalone/mobile modal (~400px), and on
+   phones; a viewport query can't tell those apart. Engines without container
+   queries keep the rows at every width (graceful fallback, same as the grid).
+   See docs/internal/design/ui-patterns.md section 48. */
+.pn-storage-picker {
+  container-type: inline-size;
+  container-name: pn-storage;
+}
+.pn-storage-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.pn-storage-cards {
+  display: none;
+}
+@container pn-storage (min-width: 520px) {
+  .pn-storage-rows { display: none; }
+  .pn-storage-cards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+/* ── Account ID row (SyncPanel) ──────────────────────────────────────
+   Same reasoning as pn-storage above: the settings pane's width decides,
+   not the viewport. Narrow: the ID code spans the full line and the two
+   buttons split a 2-column row under it (one squeezed line truncated the
+   ID to four characters on phones). Wide: one line, ID flexes. Engines
+   without container queries keep the stacked form - graceful fallback. */
+.pn-account-id {
+  container-type: inline-size;
+  container-name: pn-account-id;
+}
+.pn-account-id-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.pn-account-id-row > code {
+  grid-column: 1 / -1;
+}
+@container pn-account-id (min-width: 420px) {
+  .pn-account-id-row {
+    display: flex;
+    align-items: center;
+  }
+  .pn-account-id-row > code {
+    flex: 1;
+  }
+}
+/* ── Grid card mini layout (narrow panel) ─────────────────────────────
+   NoteCard normally shows a boxed type icon plus a single-line (truncated)
+   title. When the LIST PANEL is narrow it switches to a compact form: the
+   type icon moves inline so the title can wrap up to 3 lines instead of
+   truncating, the preview drops to one line, and spacing tightens.
+
+   Gated by the same `pn-list` container as the column count above, NOT by
+   the viewport and NOT by whether the editor is docked. Two earlier hooks
+   (`.pn-notes-grid--docked`, keyed on a note being selected, and a
+   `max-width: 640px` viewport media query) carried byte-identical rules and
+   both asked the wrong question: docked said "mini" on a 1490px panel with
+   roomy 282px tiles, while identical 281px tiles in a 6-column full-width
+   grid stayed full-size. The panel's own width is the only thing that knows
+   whether a tile is actually cramped - a phone (panel = viewport) and a
+   genuinely squeezed docked panel both land under this line on their own. */
+.pn-card-preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  /* A URL has no break point: it would run past the side, cut mid-letter,
+     instead of wrapping into the clamped lines and their ellipsis. */
+  overflow-wrap: anywhere;
+}
+/* "Longer preview text" (listPrefs.longPreview). The excerpt keeps the note's
+   line breaks, and the clamp decides how many lines show: 4 on a list row, 6 on
+   a tile, 5 on a mini tile (below). */
+.pn-preview-long {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.pn-card-preview.pn-preview-long {
+  -webkit-line-clamp: 6;
+}
+/* Estimates for never-rendered items, so the scrollbar does not jump when
+   taller previews scroll into view. */
+.pn-lazy-row:has(.pn-preview-long) {
+  contain-intrinsic-block-size: auto 130px;
+}
+[data-lazy-tiles='on'] .pn-lazy-card:has(.pn-preview-long) {
+  contain-intrinsic-block-size: auto 250px;
+}
+.pn-card-glyph {
+  display: none;
+  margin-inline-end: 4px;
+  vertical-align: -2px;
+}
+/* Per-item actions (bookmarks' pencil/trash pair, the derived rows' open-note /
+   save-bookmark pair) rest invisible and fade in when the pointer - or the
+   keyboard, via :focus-within - reaches the row or the tile. A list of saved
+   links is read far more often than it is edited, and two buttons per item read
+   as clutter on every one of them.
+
+   They keep their place in the layout either way (opacity, not display), so a
+   title truncates at the same word whether or not the pointer is there, and
+   nothing reflows on hover. `pointer-events: none` while invisible keeps a
+   click landing on the row itself, which opens the link.
+
+   Hover-capable pointers ONLY: a phone has no hover, so touch keeps every
+   button visible at all times - a control that needs a hover there is a control
+   that does not exist. The mini grid moves this cluster into the tile's corner
+   (the rule right below); the list rows keep theirs in the flow. */
+@media (hover: hover) {
+  .pn-row-actions,
+  .pn-card-actions {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease;
+  }
+  .pn-row:hover .pn-row-actions,
+  .pn-row:focus-within .pn-row-actions,
+  .pn-card:hover .pn-card-actions,
+  .pn-card:focus-within .pn-card-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  /* An invisible cluster must not hold its width either. In the flow it kept
+     60px of a 280px row, and the title truncated 86px before the row's edge
+     with nothing visible in between (measured 2026-08-22). Pinned to the row's
+     end and centred on it, the text gets the whole row at rest and the buttons
+     cover its tail on hover, which is the same bargain the tiles strike.
+     Only under (hover: hover): where the buttons are always visible, they stay
+     in the flow and the text truncates before them, as it always did. */
+  .pn-row-actions {
+    position: absolute;
+    inset-inline-end: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+}
+
+/* On a TILE the cluster also leaves the flow, for the tile's top end corner. As
+   a footer row it cost every tile ~36px of height for two buttons that are
+   usually not wanted, and a mini tile has none to spare; overlapping the title's
+   tail buys that height back. It can do that because it is invisible at rest -
+   the two only share the corner while the pointer is on the tile, and the
+   buttons carry their own opaque background. List ROWS keep the in-flow slot:
+   there the cluster sits at the end of the title line, where nothing needs
+   covering. Selection mode is unaffected - it hides these buttons entirely and
+   puts its checkbox in that corner instead. */
+.pn-notes-grid .pn-card-actions {
+  position: absolute;
+  inset-inline-end: 6px;
+  top: 6px;
+  z-index: 1;
+  margin: 0;
+  padding: 0;
+}
+
+/* Grid tiles stretch to the tallest tile in their row (grid align-items: stretch),
+   so pin the date/meta row to the bottom of each tile - dates then line up across
+   a row instead of floating just under each tile's (differently sized) content. */
+.pn-notes-grid .pn-card-meta {
+  margin-top: auto;
+}
+
+/* The bookmark ribbon: a saved link wears the accent marker the landing page's
+   Bookmark tile wears, tucked into the row's or the tile's top end corner. It
+   is the ONE thing that separates a bookmark from a vault login, which draw the
+   same favicon chip over the same two lines and were indistinguishable in All
+   and Pinned. Vault items stay unmarked on purpose - the ribbon says
+   "bookmark", so a second marker on the other half of the pair would say the
+   same thing twice, and a login already falls back to a padlock chip when it
+   has no favicon. The clip-path is the landing page's `.pn-fx-ribbon` polygon
+   at row scale, so the two surfaces cut the same notch.
+   Spec: docs/internal/design/ui-patterns.md section 78 (bookmark ribbon) */
+.pn-ribbon {
+  position: absolute;
+  top: 0;
+  inset-inline-end: 12px;
+  width: 14px;
+  height: 19px;
+  background: rgb(var(--pn-accent));
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 74%, 0 100%);
+  pointer-events: none;
+}
+/* A row's ribbon lines up with the row's own 16px text gutter, a tile's with
+   its 12px padding. */
+.pn-row .pn-ribbon {
+  inset-inline-end: 16px;
+}
+
+/* Touch has no hover, so the row and tile action buttons never fade out - and
+   they sit in the very corner the ribbon claims, which put the accent notch
+   across the trash button on every saved link (reported 2026-08-27, phone
+   screenshot). Hover-capable pointers are unaffected: there the buttons are
+   invisible until the pointer arrives, and the overlap lasts as long as the
+   hover does.
+
+   The buttons move inboard past the mark, and the mark itself does not move:
+   a list row spans the whole screen on a phone, so a ribbon pushed into the
+   row's outer edge sits against the bezel with nothing around it, which reads
+   as a rendering slip rather than as a corner mark. It stays in the row's own
+   16px gutter, the position it holds under a mouse and the one the row's text
+   is measured from, and only the rows that carry a ribbon pay for the lane.
+   Spec: docs/internal/design/ui-patterns.md section 78 (bookmark ribbon) */
+@media (hover: none) {
+  /* A tile keeps its ribbon at the resting 12px, clear of the 12px corner
+     radius: at the tile's very edge the notch sat on the rounded border and
+     read as clipped. The buttons move inboard of it instead, and the title
+     leaves room for them, because on touch they never fade and would
+     otherwise sit on top of its text. `--pn-act-*` is the cluster's end
+     inset and width, `--pn-pad` the tile's own padding. */
+  .pn-notes-grid .pn-card {
+    --pn-act-end: 6px;
+    --pn-act-w: 28px;
+    --pn-pad: 12px;
+  }
+  .pn-notes-grid .pn-card:has(.pn-ribbon) {
+    --pn-act-end: 28px;
+  }
+  .pn-notes-grid .pn-card:has(.pn-card-actions > :nth-child(2)) {
+    --pn-act-w: 60px;
+  }
+  .pn-notes-grid .pn-card:has(.pn-card-actions) .pn-card-title {
+    padding-inline-end: calc(var(--pn-act-end) + var(--pn-act-w) + 4px - var(--pn-pad));
+  }
+  /* Scoped with :has(), so a row without a bookmark mark keeps its trailing
+     controls where every other row puts them. A browser without :has()
+     (Firefox before 121) leaves the buttons under the ribbon, which is the
+     behaviour that shipped before the lane existed. */
+  .pn-row:has(.pn-ribbon) .pn-row-actions {
+    padding-inline-end: 22px;
+  }
+  .pn-notes-grid .pn-card-actions {
+    inset-inline-end: var(--pn-act-end);
+  }
+}
+
+/* Selection mode indents a tile so its checkbox can sit at the START edge, the
+   way the list row's already does (`ps-10` in NoteRow). The end corner belongs
+   to the ribbon, and a checkbox that shared it covered the one mark telling a
+   bookmark from a vault login. Unlayered on purpose: Tailwind's `p-3` on the
+   same element is layered, so this wins without an `!important` or a longer
+   selector. */
+.pn-card--select {
+  padding-inline-start: 36px;
+}
+@container pn-list (max-width: 640px) {
+  .pn-notes-grid .pn-card {
+    padding: 10px;
+    gap: 5px;
+  }
+  /* Mini tiles are too small for hover bubbles - an 'above' tip covers the
+     neighboring tile's content. The buttons keep their aria-labels. */
+  .pn-notes-grid .pn-card .pn-tip {
+    display: none;
+  }
+  .pn-notes-grid .pn-card-head {
+    display: block;
+  }
+  .pn-notes-grid .pn-card-icbox {
+    display: none;
+  }
+  .pn-notes-grid .pn-card-glyph {
+    /* Absolutely positioned (not inline) so a long unbreakable title can't shove the
+       glyph onto a line of its own - the title's first line is indented to leave room
+       for it, and wrapped lines flow full-width underneath. */
+    display: block;
+    position: absolute;
+    inset-inline-start: 0;
+    top: 2px;
+    margin: 0;
+  }
+  /* Bookmarks and vault logins draw their favicon in this slot instead of a type
+     icon (CardGlyph). It is 15px against the 13px glyphs, so it seats a pixel
+     higher to stay centred on the title's first line, and the indent below clears
+     the wider of the two. The boxed 28px chip stays hidden here: a mini tile has
+     room for the site or for the title, not both. */
+  .pn-notes-grid .pn-card-glyph-fav {
+    top: 1px;
+  }
+  .pn-notes-grid .pn-card-title {
+    /* Clamp the title text to 3 lines. The first-line room for the absolute glyph
+       comes from text-indent on the titletext CHILD below, NOT on this element:
+       WebKit ignores text-indent on the -webkit-box itself (Chromium applies it),
+       which rendered as glyph-over-text on macOS/iOS while Windows looked fine. */
+    position: relative;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    white-space: normal;
+    font-size: var(--fs-body);
+    line-height: 1.3;
+  }
+  .pn-notes-grid .pn-card-titletext {
+    /* Block child so text-indent behaves the same in both engines: first line
+       indented to clear the glyph, lines 2-3 wrap full width under it. Unlike an
+       inline spacer, text-indent adds no break opportunity, so a long unbreakable
+       title still fills line 1 instead of orphaning the glyph on its own line. */
+    display: block;
+    text-indent: 19px;
+    white-space: normal;
+    overflow: visible;
+    overflow-wrap: anywhere;
+  }
+  /* A compact tile has no glyph, so its title starts at the edge. */
+  .pn-notes-grid .pn-card-title--bare .pn-card-titletext {
+    text-indent: 0;
+  }
+  .pn-notes-grid .pn-card-preview {
+    -webkit-line-clamp: 2;
+  }
+  .pn-notes-grid .pn-card-preview.pn-preview-long {
+    -webkit-line-clamp: 5;
+  }
+  .pn-notes-grid .pn-card-date {
+    font-size: var(--fs-meta);
+  }
+  /* Mini tiles take a smaller ribbon, tucked closer to the corner - the tile's
+     own padding drops to 10px here. */
+  .pn-notes-grid .pn-ribbon {
+    inset-inline-end: 7px;
+    width: 10px;
+    height: 13px;
+  }
+  /* The touch lane again, at mini scale: a 10px ribbon at the 10px padding,
+     the buttons inboard of it. A mini title wraps to three lines, so it clears
+     the buttons with a float as tall as the 28px buttons (`float: inline-end`
+     keeps it right in RTL), not with a padding that narrows every line. */
+  @media (hover: none) {
+    .pn-notes-grid .pn-ribbon {
+      inset-inline-end: 10px;
+    }
+    .pn-notes-grid .pn-card {
+      --pn-pad: 10px;
+    }
+    .pn-notes-grid .pn-card:has(.pn-ribbon) {
+      --pn-act-end: 22px;
+    }
+    .pn-notes-grid .pn-card:has(.pn-card-actions) .pn-card-title {
+      padding-inline-end: 0;
+    }
+    .pn-notes-grid .pn-card:has(.pn-card-actions) .pn-card-titletext::before {
+      content: '';
+      float: inline-end;
+      width: calc(var(--pn-act-end) + var(--pn-act-w) + 4px - var(--pn-pad));
+      height: 26px;
+    }
+  }
+  /* The selection indent again, at mini scale. It has to repeat here because
+     the 10px padding above outranks `.pn-card--select` on specificity, so this
+     rule matches it and follows it. */
+  .pn-notes-grid .pn-card--select {
+    padding-inline-start: 32px;
+  }
+}
+
+/* ── Folder tree (FolderTreeView, drawn by the sidebar AND the Move dialog) ──
+   An expanded top-level branch gets a faint wash behind the whole branch, so
+   where one branch ends and the next begins is readable at a glance. The guide
+   line alone never said that: it marks depth, not boundaries, and two open
+   branches ran together into one column of folder rows. Top level only -
+   nested washes stack into mud. */
+.pn-ftree-branch {
+  /* Negative margin plus equal padding: the wash grows outward without
+     moving a single row, so a tinted branch still lines up with the
+     untinted ones above and below it. Without the padding the guide line
+     ran 12px from the wash's edge and the bracket's rounded corner landed
+     exactly ON its bottom edge, where two curves an inch apart read as one
+     smudge (reported 2026-08-27). */
+  margin-inline: -6px;
+  padding-inline: 6px;
+  padding-block: 3px 7px;
+  border-radius: 8px;
+  /* Not one alpha for both themes: a light wash on a dark rail lifts at 3%,
+     while 3% black on a near-white rail is invisible at arm's length
+     (compared side by side on 2026-08-27). The dark value is the quieter one
+     because the light text it washes with is the brighter ink. */
+  background: rgb(var(--pn-text) / 0.05);
+}
+:root.dark .pn-ftree-branch {
+  background: rgb(var(--pn-text) / 0.03);
+}
+
+/* The guide line turns a corner at the bottom, so a branch has a visible END
+   as well as a visible left edge. A bare vertical line says "these rows are
+   nested" and stops saying anything at all where the nesting stops, which in a
+   tree with several open branches leaves the reader counting indents to find
+   where one folder's contents finish (reported 2026-08-27).
+
+   Drawn as one pseudo-element rather than borders on the group, so the turn can
+   be a short 10px stub with a rounded corner instead of a full-width rule
+   underlining the last child - a horizontal line the width of a row reads as a
+   separator between rows, which is the opposite of what this says. Logical
+   properties throughout, so it mirrors in Arabic for free. */
+.pn-ftree-group {
+  position: relative;
+}
+.pn-ftree-group::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 10px;
+  border-inline-start: 1px solid rgb(var(--pn-divider));
+  border-bottom: 1px solid rgb(var(--pn-divider));
+  border-end-start-radius: 5px;
+  pointer-events: none;
+}
+
+/* The drag handle follows the row-actions rule exactly: revealed on hover
+   where a pointer can hover, permanently visible on touch, and holding its
+   place either way so a name never reflows under the pointer. Without the
+   touch half there is no way to reorder folders on a phone at all. */
+@media (hover: hover) {
+  .pn-ftree-grip {
+    opacity: 0;
+    transition: opacity 0.12s ease;
+  }
+  .pn-ftree-row:hover .pn-ftree-grip,
+  .pn-ftree-row:focus-within .pn-ftree-grip {
+    opacity: 1;
+  }
+  /* A folder or tag icon that opens the look picker says so on hover. Mouse
+     only: on touch the icon is part of the row a thumb taps to open. */
+  .pn-look-glyph {
+    border-radius: 4px;
+    transition: box-shadow 0.12s ease;
+  }
+  .pn-look-glyph:hover {
+    box-shadow: 0 0 0 3px rgb(var(--pn-accent) / 0.25);
+  }
+}
+
+/* A code block's pre neither wraps nor scrolls: the span inside it
+   (.pn-codeblock-scroll) does both, so the tools in the pre's corner stay put
+   while a long line moves under them. Whether lines wrap is a device setting,
+   default on, painted as `pn-wrap-code` on <html> (codeWrap.ts). overflow:
+   hidden clips the span's scrollbar to the rounded corners. Kept UNLAYERED on
+   purpose: prosemirror-view runtime-injects `.ProseMirror pre { white-space:
+   pre-wrap }` unlayered and after our stylesheet, so an @layer rule can never
+   beat it - same physics as the gapcursor override below. The extra .tiptap
+   class wins the specificity tie regardless of injection order.
+   Spec: docs/internal/design-decisions.md (code blocks wrap by default) */
+.tiptap.ProseMirror pre {
+  white-space: pre;
+  overflow: hidden;
+}
+/* Gap cursor visibility. Kept UNLAYERED on purpose: prosemirror-gapcursor ships
+   its default unlayered, and an @layer rule can never beat an unlayered one, so
+   this override lives at the top level with a higher-specificity selector.
+   The library default is a thin 1px BLACK line - invisible in dark/sepia themes
+   and lost against a leading callout's border box. That is the "where did my
+   cursor go" confusion when a callout is the first block and you ArrowUp /
+   ArrowLeft to type or delete above it. Recolor to the theme accent, thicken,
+   and widen so it reads as a real "type here" caret in every theme.
+   Spec: docs/contrib/callouts.md */
+.ProseMirror .ProseMirror-gapcursor::after {
+  border-top: 2px solid rgb(var(--pn-accent));
+  width: 1.5em;
+  top: -2px;
+}
+/* A gap cursor at the very START of the note (before a leading callout) draws
+   its line 2px ABOVE its anchor - but the anchor is the document's first pixel
+   row, which sits flush against the sticky toolbar's bottom edge, so the line
+   rendered entirely BEHIND the toolbar and looked like no cursor at all.
+   Draw the doc-start line below its anchor instead: it lands in the leading
+   block's top margin, visibly under the toolbar. Mid-document gap cursors keep
+   the -2px default (they sit in the gap between blocks, nothing covers them). */
+.ProseMirror > .ProseMirror-gapcursor:first-child::after {
+  top: 4px;
+}
+
+/* Note history comparison (noteDiff.ts). Color is never the only signal:
+   added text is underlined, removed text is struck through, and a changed
+   block carries a bar on its starting side, dashed when only its formatting
+   changed. The tints come from the theme's own success and danger colors. */
+.pn-diff-ins {
+  color: inherit;
+  background: rgb(var(--pn-success) / 0.16);
+  text-decoration: underline;
+  text-decoration-color: rgb(var(--pn-success));
+  text-underline-offset: 2px;
+  border-radius: 2px;
+}
+.pn-diff-del {
+  color: inherit;
+  background: rgb(var(--pn-danger) / 0.14);
+  text-decoration: line-through;
+  text-decoration-color: rgb(var(--pn-danger));
+  border-radius: 2px;
+}
+.pn-diff-block-ins,
+.pn-diff-block-del,
+.pn-diff-block-format {
+  border-inline-start: 3px solid;
+  padding-inline-start: 0.5rem;
+}
+.pn-diff-block-ins {
+  border-inline-start-color: rgb(var(--pn-success));
+  background: rgb(var(--pn-success) / 0.08);
+}
+.pn-diff-block-del {
+  border-inline-start-color: rgb(var(--pn-danger));
+  background: rgb(var(--pn-danger) / 0.07);
+  text-decoration: line-through;
+  text-decoration-color: rgb(var(--pn-danger));
+}
+.pn-diff-block-format {
+  border-inline-start-style: dashed;
+  border-inline-start-color: rgb(var(--pn-warning));
+}
+
+/* Invisible characters (pilcrows, space dots, break arrows). Base glyph and
+   layout rules vendored from @tiptap/extension-invisible-characters 1.x: the
+   package only injects them from inside its plugin init, which the lazy
+   variant in editorInvisibles.ts replaces (injection rode along with the
+   eager whole-document decoration build that cost ~600 ms per huge-note
+   open, backlog #150). Keep this block in sync if the package updates. */
+.tiptap-invisible-character {
+  height: 0;
+  padding: 0;
+  pointer-events: none;
+  user-select: none;
+  width: 0;
+}
+.tiptap-invisible-character::before {
+  caret-color: inherit;
+  color: rgb(var(--pn-text-muted));
+  display: inline-block;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1em;
+  width: 0;
+}
+.tiptap-invisible-character--space::before { content: '\00B7'; }
+.tiptap-invisible-character--break::before { content: '\00AC'; }
+.tiptap-invisible-character--paragraph::before { content: '\00B6'; }
+.tiptap-invisible-character + img.ProseMirror-separator {
+  height: 0 !important;
+  pointer-events: none;
+  user-select: none;
+  width: 0 !important;
+}
+
+/* Our adjustments over the vendored base. Sets the color the base leaves at
+   full prose contrast, so the marks read as a proofreading overlay rather
+   than as content. Stays unlayered beside the base block above - file order
+   decides the conflicts, and these come second on purpose.
+   Spec: docs/internal/design-decisions.md (Invisible characters toggle) */
+.tiptap .tiptap-invisible-character::before {
+  color: rgb(var(--pn-accent));
+  opacity: 0.45;
+}
+/* The two END-OF-LINE marks need real width; the space dot does not. The
+   extension gives every glyph `width: 0` so a dot can sit on top of the space
+   it marks without shifting the text - right for the dot, wrong for the
+   pilcrow and the break arrow, which land where a line ends. A right-aligned
+   line ends flush against the content edge, so a zero-width pilcrow paints
+   past it, and the overflow-x: auto on .tiptap itself (the wide-content
+   scroller, GitHub #95) turns that spill into a horizontal scrollbar across
+   the whole editor - measured at 9px. Sizing these two to their
+   glyph puts them inside the line box, so alignment accounts for them - the
+   same thing Word does. Space dots stay at 0: the space already has width. */
+.tiptap .tiptap-invisible-character--paragraph::before,
+.tiptap .tiptap-invisible-character--break::before {
+  width: auto;
+}
+/* An empty note already has the "Start writing..." placeholder sitting in that
+   paragraph, and the pilcrow paints on top of its first letter. The extension
+   ships a rule for exactly this case, but keys it off `.has-focus` - a class
+   from @tiptap/extension-focus, which we do not install - so it never matches.
+   Mirror the selector the placeholder itself is painted with (the @layer editor
+   block near the top of this file) so the two can never disagree. Scoped to
+   is-editor-empty, which means the WHOLE document is empty: a blank paragraph
+   mid-note keeps its pilcrow, since seeing those is the point of the toggle. */
+.tiptap p.is-editor-empty:first-child > .tiptap-invisible-character {
+  display: none;
+}
+
+/* Block math sits on its own line, centered, with breathing room matching a
+   paragraph. Inline math keeps the surrounding line's metrics untouched.
+   Both wrappers are KaTeX-rendered by @tiptap/extension-mathematics. */
+.tiptap [data-type='block-math'] {
+  display: block;
+  margin: 0.75em 0;
+  text-align: center;
+  overflow-x: auto;
+}
+.tiptap .tiptap-mathematics-render--editable {
+  cursor: pointer;
+  border-radius: 3px;
+}
+.tiptap .tiptap-mathematics-render--editable:hover {
+  background: rgb(var(--pn-accent) / 0.12);
+}
+
+/* The LaTeX source line, shown in place of the formula while it is edited.
+   It stays inside the math node, so nothing the user types is part of the
+   document until it is committed - see mathNodeView. LaTeX is always
+   left-to-right, whatever the surrounding text does. */
+.tiptap .pn-math-source {
+  direction: ltr;
+  text-align: start;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  color: rgb(var(--pn-text));
+  background: rgb(var(--pn-surface-2));
+  border: 1px solid rgb(var(--pn-accent) / 0.5);
+  border-radius: 3px;
+  padding: 0.15em 0.35em;
+  resize: none;
+  outline: none;
+}
+.tiptap textarea.pn-math-source {
+  width: 100%;
+}
+
+/* ── Collapsed icon rail: measured fit tiers ──────────────────────────
+   The rail sheds, then compacts, then scrolls, and `CollapsedSidebar`
+   picks the tier by measuring: it applies each one in turn and stops at
+   the first that does not overflow. Height thresholds cannot do this
+   job, because both numbers move - the footer and the demo banner
+   subtract from what the rail gets, and a switched-off pillar, an
+   unavailable Markdown pillar or a pinned row hiding at zero each take
+   a row off the content. A threshold set for one content height paints
+   over the footer at every other one.
+   Scroll and tooltips are mutually exclusive: scrolling needs a
+   clipping overflow, and the HoverLabel tooltips extend well past the
+   52px column, so the scroll tier turns them off rather than showing a
+   mangled sliver of each. The icons keep their aria-labels. The
+   scrollbar is hidden: it would eat a third of the column and uncenter
+   the icons; wheel, trackpad and drag still scroll.
+   Spec: docs/internal/design/ui-patterns.md section 40 (rail fit tiers) */
+.pn-rail:is([data-fit='shed'], [data-fit='compact'], [data-fit='scroll']) .pn-rail-optional {
+  display: none;
+}
+.pn-rail:is([data-fit='compact'], [data-fit='scroll']) {
+  gap: 2px;
+}
+.pn-rail:is([data-fit='compact'], [data-fit='scroll']) button {
+  width: 30px;
+  height: 30px;
+}
+.pn-rail[data-fit='scroll'] {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+.pn-rail[data-fit='scroll']::-webkit-scrollbar {
+  display: none;
+}
+.pn-rail[data-fit='scroll'] .pn-tip {
+  display: none;
+}
+
+/* A hover tip that is not showing has no box. With only opacity hiding it,
+   a tip that hangs past the edge of a clipping scroller (the editor pane)
+   still widened that scroller's content, and a click could then scroll it
+   sideways, cutting off everything at its start edge. HoverLabel moves a
+   showing tip inside the visible box (`fitTip`), so a shown tip cannot do
+   this either. Unlayered, so it wins over the tip's own display utility.
+   Spec: docs/internal/design/ui-patterns.md section 18 */
+.pn-tip-host:not(:hover) > .pn-tip {
+  display: none;
+}
+
+/* The caret PinInput draws in its focused empty box, because the field's own
+   is transparent with its text (the shoulder-surfing fix of issue #254), and
+   the lock screen typewriter's idle caret (`pn-caret-blink`). Both blink like
+   a native caret; with reduced motion they stay solid. */
+.pn-pin-caret > span,
+.pn-caret-blink {
+  animation: pn-pin-caret-blink 1.1s steps(1, end) infinite;
+}
+@keyframes pn-pin-caret-blink {
+  50% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pn-pin-caret > span,
+  .pn-caret-blink { animation: none; }
+}
+
+/* "Add a line" between two blocks (editorAddLine.ts) fades in after a short
+   wait, so the hint does not flash on every gap the pointer crosses while a
+   note scrolls under it. The top zone in Editor.tsx waits the same 150ms
+   through a transition delay. Spec: docs/internal/design/ui-patterns.md
+   ("Add a line" between two blocks) */
+.pn-add-line-hint {
+  animation: pn-add-line-in 120ms ease-out 150ms both;
+}
+@keyframes pn-add-line-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pn-add-line-hint { animation: none; }
+}
+
+/* The sidebar narrows down to SIDEBAR_WIDTH_MIN. Below 230px the extras that
+   only add a hint go - the version badge beside the brand, the shortcut on
+   Jump to, the icons and the Pro mark on the Tags and Folders tabs - so the
+   brand, the Jump to label and the tab names keep their words, and the
+   footer actions name themselves in a tip instead of the expanding pill.
+   Spec: docs/internal/design-decisions.md (pane resize clamps) */
+.pn-sidebar {
+  container: pn-sidebar / inline-size;
+}
+.pn-sb-tip > .pn-tip {
+  display: none;
+}
+.pn-sb-tip-roomy > .pn-tip {
+  display: none;
+}
+/* The open space's name beside its icon in the sidebar switch: below this
+   width its segment cannot hold the name, and the switch is icons and a
+   hover tip. */
+@container pn-sidebar (max-width: 259px) {
+  .pn-sb-roomy {
+    display: none !important;
+  }
+  /* The space switch has three names to fit, so it drops them here, takes
+     equal shares, and names its segments in tips. */
+  .pn-browse-roomy .pn-browse-seg {
+    flex-grow: 1 !important;
+  }
+  .pn-sb-tip-roomy > .pn-tip {
+    /* flex, as a one-line tip is: block drops the gap after the label. */
+    display: flex;
+  }
+}
+/* The Tags and Folders switch (TagsRail). The open segment takes two shares
+   and shows its name; a closed one is its icon. On hover or keyboard focus a
+   closed segment takes the two shares and its name slides in, and the open
+   one steps back to its icon, so one name shows at a time. */
+/* No transition on flex-grow: Chromium keeps the old value of a transition
+   whose end value a container query changes, so a sidebar dragged across
+   the widths below would leave the segments at the wrong share. */
+.pn-browse-seg {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0%;
+}
+.pn-browse-seg.is-open {
+  flex-grow: 2;
+}
+/* Two closed segments side by side get a hairline between them, so a track
+   with nothing open (the folded list) still reads as separate buttons. It
+   steps aside next to a segment under the pointer, whose own fill shows. */
+.pn-browse-seg:not(.is-open) + .pn-browse-seg:not(.is-open)::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: -1.5px;
+  top: 25%;
+  bottom: 25%;
+  width: 1px;
+  background: rgb(var(--pn-accent) / 0.3);
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.pn-browse-seg:is(:hover, :focus-within) + .pn-browse-seg::before,
+.pn-browse-seg:is(:hover, :focus-within)::before {
+  opacity: 0;
+}
+.pn-browse-name {
+  display: grid;
+  grid-template-columns: 0fr;
+  transition: grid-template-columns 0.2s ease;
+}
+.pn-browse-name > span {
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s ease, padding 0.2s ease;
+}
+.pn-browse-seg.is-open .pn-browse-name {
+  grid-template-columns: 1fr;
+}
+.pn-browse-seg.is-open .pn-browse-name > span {
+  opacity: 1;
+  padding-inline-start: 0.375rem;
+}
+@media (hover: hover) {
+  .pn-browse-seg:not(.is-open):is(:hover, :focus-within) {
+    flex-grow: 2;
+  }
+  .pn-browse-seg:not(.is-open):is(:hover, :focus-within) .pn-browse-name {
+    grid-template-columns: 1fr;
+  }
+  .pn-browse-seg:not(.is-open):is(:hover, :focus-within) .pn-browse-name > span {
+    opacity: 1;
+    padding-inline-start: 0.375rem;
+  }
+  .pn-browse:has(.pn-browse-seg:not(.is-open):is(:hover, :focus-within)) .pn-browse-seg.is-open,
+  .pn-jump-row:has(.pn-jump:is(:hover, :focus-visible)) .pn-browse-seg.is-open {
+    flex-grow: 1;
+  }
+  /* Jump's name slides in from the same row, so the open space steps back
+     for it too. */
+  .pn-browse:has(.pn-browse-seg:not(.is-open):is(:hover, :focus-within)) .pn-browse-seg.is-open .pn-browse-name,
+  .pn-jump-row:has(.pn-jump:is(:hover, :focus-visible)) .pn-browse-seg.is-open .pn-browse-name {
+    grid-template-columns: 0fr;
+  }
+  .pn-browse:has(.pn-browse-seg:not(.is-open):is(:hover, :focus-within)) .pn-browse-seg.is-open .pn-browse-name > span,
+  .pn-jump-row:has(.pn-jump:is(:hover, :focus-visible)) .pn-browse-seg.is-open .pn-browse-name > span {
+    opacity: 0;
+    padding-inline-start: 0;
+  }
+}
+@container pn-sidebar (max-width: 229px) {
+  .pn-sb-wide {
+    display: none !important;
+  }
+  /* No room for a name: the segments share the width and a tip names them. */
+  .pn-browse-seg {
+    flex-grow: 1 !important;
+  }
+  /* The footer actions name themselves in a tip here, not in the pill. */
+  .pn-sb-tip > .pn-tip {
+    /* flex, as a one-line tip is: block drops the gap after the label. */
+    display: flex;
+  }
+}
+
+/* The bar on the Format bar tab marches its edge, as the Markdown tile on the
+   homepage does (pn-fx-ants): on hover, and once for a moment when the tab
+   opens (`data-intro`), so it reads as the place a button can be dropped.
+   The dashes are a layer of their own on the wrapper, masked to a 1px ring
+   over the bar's border, so they can fade in and out while the solid edge
+   underneath fades the other way; a background swap on the bar itself would
+   jump in one frame. The wrapper is not the scroll container, so the ring is
+   never clipped on touch. One dash period is 8px along the 45deg axis,
+   11.31px across, so the loop is seamless. Only the resting bar marches: a
+   drag swaps in its own edge.
+   Spec: docs/internal/design/ui-patterns.md section 132 */
+.pn-bar-ants {
+  position: relative;
+}
+.pn-bar-ants > ul {
+  transition: border-color 0.35s ease, background-color 0.35s ease;
+}
+.pn-bar-ants::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: repeating-linear-gradient(45deg, rgb(var(--pn-accent) / 0.8) 0 4px, transparent 4px 8px);
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+.pn-bar-ants[data-intro]::before {
+  opacity: 1;
+  animation: pn-bar-ants 0.5s linear infinite;
+}
+.pn-bar-ants[data-intro] > ul {
+  border-color: transparent;
+}
+@media (hover: hover) {
+  .pn-bar-ants:hover::before {
+    opacity: 1;
+    animation: pn-bar-ants 0.5s linear infinite;
+  }
+  .pn-bar-ants:hover > ul {
+    border-color: transparent;
+  }
+}
+@keyframes pn-bar-ants {
+  to { background-position: 11.31px 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pn-bar-ants[data-intro]::before,
+  .pn-bar-ants:hover::before {
+    animation: none;
+  }
+}
+
+/* The format row on a touch screen: one strip that scrolls sideways, with no
+   scrollbar, and a fade on each edge that has more to show (`data-fade`, set
+   by the toolbar from the scroll position). The ramps are logical, so the
+   fade follows the reading direction.
+   Spec: docs/internal/specs/format-bar.md (section 7) */
+.pn-format-strip {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  --pn-fade: 24px;
+}
+.pn-format-strip::-webkit-scrollbar {
+  display: none;
+}
+.pn-format-strip[data-fade="end"] {
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--pn-fade)), transparent);
+}
+.pn-format-strip[data-fade="start"] {
+  mask-image: linear-gradient(to right, transparent, #000 var(--pn-fade));
+}
+.pn-format-strip[data-fade="both"] {
+  mask-image: linear-gradient(to right, transparent, #000 var(--pn-fade), #000 calc(100% - var(--pn-fade)), transparent);
+}
+[dir="rtl"] .pn-format-strip[data-fade="end"] {
+  mask-image: linear-gradient(to left, #000 calc(100% - var(--pn-fade)), transparent);
+}
+[dir="rtl"] .pn-format-strip[data-fade="start"] {
+  mask-image: linear-gradient(to left, transparent, #000 var(--pn-fade));
+}
+
+/* Default swatch in the toolbar's Highlight popover. That entry stores NO
+   color on the mark, so it renders from the themed `mark` rule in the prose
+   block above - which the swatch cannot inherit, sitting outside the editor.
+   These two values mirror that rule and must be changed with it; a literal
+   hex on the button would show the light-mode wash to a dark-mode reader. */
+.pn-hl-default {
+  background: rgb(250 224 108 / 0.55);
+}
+:root.dark .pn-hl-default {
+  background: rgb(250 204 21 / 0.24);
+}
+
+@layer components {
+  /* Keyboard-shortcut chips (e.g. the About-modal hotkeys list) must never
+     mirror under RTL - key sequences read the same order in every language. */
+  kbd {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  /* Burn-viewer callouts: markdownRender emits real <details> (the editor's
+     callout is a React node view, so these selectors never touch it). The
+     same rules the export stylesheet ships - hide the UA disclosure
+     triangle, swap the caret when a folded callout is closed, and mirror
+     the closed caret in a right-to-left page.
+     Without them a folded burn callout shows a triangle plus the wrong
+     caret. The export .html carries its own copy in export.ts. */
+  summary.pn-callout-summary::-webkit-details-marker { display: none; }
+  summary.pn-callout-summary { list-style: none; }
+  details.pn-callout:not([open]) > summary .pn-caret-down { display: none; }
+  details.pn-callout:not([open]) > summary .pn-caret-right { display: inline !important; }
+  details.pn-callout:dir(rtl) > summary .pn-caret-right { transform: scaleX(-1); }
+}
+
+/* Every scale tile - the mood, a 0 to 10 scale, a custom scale - from one
+   rule, so their heights never drift apart. Spec: docs/internal/design/ui-patterns.md section 141 */
+.pn-scale-tile {
+  display: flex;
+  min-width: 0;
+  /* Square while the row is narrow, capped at 36 px on a wide one: a fixed
+     height turned a 21 px column into a tall bar. */
+  width: 100%;
+  aspect-ratio: 1;
+  height: auto;
+  min-height: 1.75rem;
+  max-height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  font-size: var(--fs-compact);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  outline: none;
+  transition: background-color 150ms, color 150ms, filter 150ms;
+}
+.pn-scale-tile:focus-visible { box-shadow: 0 0 0 2px rgb(var(--pn-accent)); }
+/* A timed card on the calendar's hour grid: a short event (30 minutes is
+   about 24 px) has room for the title line only, so the time line goes rather
+   than show cut in half. The button's label still names the time. */
+.pn-timed-card { container-type: size; }
+@container (max-height: 29.98px) { .pn-timed-time { display: none; } }
+@media (hover: none) { .pn-scale-tile { max-height: 2.5rem; } }
+/* A row under 240 px (a check-in card in the narrowest list pane): a 13 px
+   "10" is wider than its tile there. */
+@container scale (max-width: 239.98px) { .pn-scale-tile { font-size: var(--fs-meta); } }
+/* An unpicked mood tile: its band at 26%, or one neutral color while a parent
+   sets --pn-tile-shown (the check-in card at rest). An accent scale lights in
+   the accent. */
+.pn-scale-mood { background: var(--pn-tile-shown, var(--pn-tile)); }
+.pn-scale-accent { --pn-tile-lit: rgb(var(--pn-accent) / 0.15); }
+/* The meter, under a mouse only: the tile under the pointer and every tile
+   before it take their lit color, the chosen tile excepted. DOM order, so a
+   right-to-left row lights from its right end. */
+@media (hover: hover) {
+  .pn-scale-row:has(> .pn-scale-tile:hover) > .pn-scale-tile:not(:hover ~ *):not([aria-checked="true"]) {
+    background: var(--pn-tile-lit);
+  }
+  .pn-scale-row:has(> .pn-scale-tile:hover) > .pn-scale-accent:not(:hover ~ *) { color: rgb(var(--pn-accent)); }
+}
+
+@layer editor {
+    /* The fill leads the drawn check. The 1.45em target scales with the text. */
+    .pn-task-checkbox {
+      appearance: none;
+      -webkit-appearance: none;
+      cursor: pointer;
+      width: 1.45em;
+      height: 1.45em;
+      margin: 0;
+      border-radius: 0.33em;
+      border: 1.5px solid rgb(var(--pn-text-muted));
+      background: transparent;
+      transition: background-color 0.18s ease, border-color 0.18s ease;
+    }
+    .pn-task-checkbox:hover {
+      border-color: rgb(var(--pn-accent));
+      background: rgb(var(--pn-accent) / 0.08);
+    }
+    .pn-task-checkbox:focus-visible {
+      outline: 2px solid rgb(var(--pn-accent) / 0.45);
+      outline-offset: 2px;
+    }
+    .pn-task-checkbox:disabled {
+      cursor: default;
+    }
+    .pn-task-checkbox:checked {
+      background: rgb(var(--pn-accent-fill));
+      border-color: rgb(var(--pn-accent-fill));
+    }
+    /* The check sits exactly over the input; clicks fall through. */
+    .pn-task-checkbox + .pn-check {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-content: center;
+      pointer-events: none;
+    }
+    .pn-task-checkbox + .pn-check svg {
+      display: block;
+      width: 0.82em;
+      height: 0.82em;
+    }
+    .pn-task-checkbox + .pn-check path {
+      fill: none;
+      stroke: #fff;
+      stroke-width: 2.4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-dasharray: 14;
+      stroke-dashoffset: 14;
+    }
+    /* Draw after the fill begins; hide immediately when unchecked. */
+    .pn-task-checkbox:checked + .pn-check path {
+      stroke-dashoffset: 0;
+      /* Spec: docs/internal/design-decisions.md (Checkbox feedback) */
+      transition: stroke-dashoffset 0.75s ease-out 0.06s;
+    }
+}

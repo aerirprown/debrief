@@ -1,0 +1,430 @@
+{
+  "noteRow": {
+    "created": "Creata",
+    "modified": "Modificata",
+    "select": "Seleziona nota",
+    "deselect": "Deseleziona nota",
+    "pinProtected": "Protetta da PIN",
+    "readOnly": "Sola lettura",
+    "empty": "Vuota",
+    "noContent": "Nessun contenuto",
+    "notBackedUp": "Senza backup",
+    "archived": "Archiviato",
+    "date": "Data",
+    "dayOf": "giorno {{n}} di {{total}}",
+    "reminders_one": "{{count}} promemoria",
+    "reminders_other": "{{count}} promemoria"
+  },
+  "header": {
+    "new": "Nuova",
+    "newNote": "Nuova nota",
+    "newEvent": "Nuovo evento"
+  },
+  "folderChip": {
+    "clear": "Rimuovi il filtro cartella: {{folder}}",
+    "subfolders": "Sottocartelle",
+    "subfoldersLabel": "Includi le sottocartelle"
+  },
+  "tagChip": {
+    "clear": "Rimuovi il filtro tag: {{tag}}"
+  },
+  "vaultNew": {
+    "ariaLabel": "Nuovo elemento della cassaforte",
+    "card": "Carta di credito",
+    "sshKey": "Chiave SSH",
+    "generator": "Password"
+  },
+  "newMenu": {
+    "note": "Nota",
+    "task": "Attività",
+    "kanban": "Kanban",
+    "drawing": "Disegno",
+    "journal": "Diario",
+    "login": "Accesso",
+    "bookmark": "Segnalibro",
+    "clipPage": "Salva pagina web",
+    "contact": "Contatto",
+    "event": "Evento"
+  },
+  "vaultFilter": {
+    "all": "Tutti",
+    "logins": "Accessi",
+    "cards": "Carte",
+    "keys": "Chiavi"
+  },
+  "journal": {
+    "newEntry": "Nuova pagina di diario"
+  },
+  "tasks": {
+    "newTitle": "Attività del {{date}}"
+  },
+  "trash": {
+    "empty": "Svuota",
+    "emptyHover": "Elimina tutte le note nel cestino",
+    "autoDelete": "Elimina dopo 30 giorni"
+  },
+  "search": {
+    "sortOptions": "Opzioni di ordinamento e visualizzazione",
+    "placeholderVault": "Cerca nella cassaforte…",
+    "placeholderNotes": "Cerca tra le note…",
+    "placeholderEvents": "Cerca tra gli eventi…",
+    "placeholderDrawings": "Cerca tra i disegni…"
+  },
+  "selection": {
+    "countOf": "{{selected}} di {{total}} selezionati",
+    "selectAll": "Seleziona tutto",
+    "deselectAll": "Deseleziona tutto"
+  },
+  "empty": {
+    "noMatches": "Nessun risultato.",
+    "vault": "La cassaforte è vuota.",
+    "notes": "Ancora nessuna nota.",
+    "journal": "Ancora nessuna pagina di diario.",
+    "drawings": "Ancora nessun disegno.",
+    "drawingsLine": "Fai uno schizzo, pianifica o crea la mappa di un'idea. I disegni possono collegarsi alle tue note, ma non ne mostrano il contenuto.",
+    "archive": "Niente in archivio.",
+    "trash": "Il cestino è vuoto.",
+    "filtered": "Nessun elemento corrisponde ai tuoi filtri.",
+    "filteredAfter": "per visualizzarli.",
+    "hiddenInAll_other": "{{count}} elementi sono nascosti dal filtro Mostra in «Tutti». Apri il filtro accanto a Tutti per mostrarli.",
+    "inOtherSpace_other": "{{count}} elementi sono nel tuo spazio {{space}}. Passa a {{space}} nella barra laterale per vederli.",
+    "inOtherSpace_one": "{{count}} elemento è nel tuo spazio {{space}}. Passa a {{space}} nella barra laterale per vederlo.",
+    "hiddenInAll_one": "{{count}} elemento è nascosto dal filtro Mostra in «Tutti». Apri il filtro accanto a Tutti per mostrarlo."
+  },
+  "listGroups": {
+    "previous7Days": "Ultimi 7 giorni",
+    "previous30Days": "Ultimi 30 giorni",
+    "other": "Altro",
+    "collapseAll": "Comprimi tutti i gruppi",
+    "expandAll": "Espandi tutti i gruppi"
+  },
+  "footerStats": {
+    "journals_one": "Pagina di diario",
+    "journals_other": "Pagine di diario",
+    "items_one": "Elemento",
+    "items_other": "Elementi",
+    "trashed_one": "Nel cestino",
+    "trashed_other": "Nel cestino",
+    "notes_one": "Nota",
+    "notes_other": "Note",
+    "bookmarks_one": "Segnalibro",
+    "bookmarks_other": "Segnalibri",
+    "contacts_one": "Contatto",
+    "contacts_other": "Contatti",
+    "drawings_one": "Disegno",
+    "drawings_other": "Disegni",
+    "files_one": "File",
+    "files_other": "File",
+    "lists_one": "Elenco",
+    "lists_other": "Elenchi",
+    "tasks_one": "Attività",
+    "tasks_other": "Attività",
+    "today": "Oggi"
+  },
+  "toast": {
+    "imageUploadFailed": "Caricamento immagine non riuscito: {{error}}",
+    "imageError": "Errore immagine: {{error}}",
+    "uploadFailedFor": "Caricamento non riuscito per \"{{filename}}\": {{error}}",
+    "importedSyncing_one": "Importata {{count}} nota. Sincronizzazione…",
+    "importedSyncing_other": "Importate {{count}} note. Sincronizzazione…",
+    "addedTag_one": "Aggiunto #{{tag}} a {{count}} elemento",
+    "addedTag_other": "Aggiunto #{{tag}} a {{count}} elementi",
+    "restoreSummary": "Ripristino completato. {{added}} aggiunte, {{updated}} aggiornate, {{unchanged}} già aggiornate."
+  },
+  "burn": {
+    "mediaOnly": "Questa nota contiene solo contenuti multimediali e non può essere condivisa tramite burn link.",
+    "shareTitle": "Nota cifrata"
+  },
+  "loadError": {
+    "message": "Impossibile caricare le tue note. La connessione al database locale è stata interrotta. Può capitare dopo che l'app è rimasta in background per un po'.",
+    "reload": "Ricarica"
+  },
+  "banner": {
+    "proActivationPending": "Pagamento ricevuto, ma l'attivazione di Pro sta richiedendo più tempo del solito. Aggiorna tra un minuto, oppure contatta l'assistenza se non si attiva.",
+    "crypto": {
+      "waiting": "In attesa del pagamento in criptovalute. Pro si attiva quando viene confermato.",
+      "seen": "Pagamento in criptovalute rilevato. Pro si attiva quando la rete lo conferma, di solito entro un'ora per Bitcoin.",
+      "partial": "È arrivata solo una parte del pagamento in criptovalute. Invia il resto sulla pagina di pagamento prima che il link scada.",
+      "ended": "Il link di pagamento in criptovalute è scaduto prima che arrivasse il pagamento completo.",
+      "paid": "Il pagamento in criptovalute è confermato. Pro è attivo.",
+      "openPayment": "Pagina di pagamento"
+    },
+    "snapshotPaused": "La cronologia delle note è in pausa. Il tuo piano Pro risulta inattivo. Le nuove modifiche non verranno salvate finché Pro non viene ripristinato.",
+    "restorePro": "Ripristina Pro",
+    "storagePastDue": "Il pagamento del tuo abbonamento allo spazio non è andato a buon fine. Aggiorna la carta su Paddle per non perdere la capacità extra.",
+    "updateCard": "Aggiorna carta"
+  },
+  "sidebar": {
+    "collapse": "Comprimi barra laterale"
+  },
+  "notesList": {
+    "collapse": "Comprimi elenco note",
+    "expand": "Espandi elenco note"
+  },
+  "split": {
+    "action": "Dividi la nota",
+    "done": "Divisa in “{{title}}”",
+    "overLimit": "“{{title}}” supera 1 MB e resta su questo dispositivo",
+    "cannot": "Questa nota non può essere divisa qui. Metti il cursore dove deve iniziare la nuova nota.",
+    "continuedTitle": "{{title}} (continua)",
+    "continuedIn": "Continua in {{link}}"
+  },
+  "paneResize": {
+    "hintCollapse": "Clicca per comprimere · Trascina per ridimensionare",
+    "hintExpand": "Clicca per espandere · Trascina per ridimensionare"
+  },
+  "emptyEditor": {
+    "selectFile": "Seleziona un file per l'anteprima",
+    "uploadFiles": "Oppure carica nuovi file nella tua cassaforte cifrata.",
+    "selectNote": "Seleziona una nota o creane una nuova.",
+    "selectMarkdown": "Apri un file Markdown per leggerlo qui."
+  },
+  "zen": {
+    "exit": "Esci da Zen",
+    "exitHover": "Esci dalla modalità Zen",
+    "enterHover": "Entra in modalità Zen",
+    "proHover": "Modalità Zen (Pro)",
+    "enterAriaShortcut": "Entra in modalità Zen ({{keys}})"
+  },
+  "editor": {
+    "backToList": "Torna all'elenco note",
+    "backToGrid": "Torna alla griglia",
+    "titlePlaceholder": "Senza titolo (clicca per modificare o lascia che si generi da solo)",
+    "titlePlaceholderLogin": "es. GitHub",
+    "titlePlaceholderCard": "es. Visa che termina con 4242",
+    "unlocked": "Sbloccata",
+    "lock": "Blocca",
+    "lockNow": "Blocca ora",
+    "lockNowHint": "Nascondi subito il contenuto",
+    "turnOffHint": "Consenti di nuovo le modifiche",
+    "unarchiveHint": "Mostra di nuovo nei tuoi elenchi",
+    "showFormatted": "Mostra formattato",
+    "invisiblesShow": "Mostra caratteri invisibili",
+    "invisiblesHide": "Nascondi caratteri invisibili",
+    "undo": "Annulla",
+    "redo": "Ripeti",
+    "hide": "Nascondi",
+    "show": "Mostra",
+    "hideToolbar": "Nascondi barra di formattazione",
+    "showToolbar": "Mostra barra di formattazione",
+    "widthDefault": "Larghezza predefinita",
+    "widthWide": "Più largo",
+    "widthFull": "Larghezza piena",
+    "titlePlaceholderLink": "Nome del segnalibro",
+    "notBackedUpTooLarge": "Oltre il limite di 1 MB, quindi senza backup. Sposta le immagini negli allegati o dividi la nota.",
+    "notBackedUpFailed": "Senza backup. Ultimo errore: {{message}}. Nuovo tentativo in corso.",
+    "unknownType": "Questo elemento è stato creato con una versione più recente di PrivacyNotes. Aggiorna l'app per aprirlo."
+  },
+  "share": {
+    "hover": "Condividi / Esporta",
+    "ariaLabel": "Condividi o esporta",
+    "currentMdTitle": "Nota corrente (.md)",
+    "currentMdDesc": "Markdown grezzo con front-matter.",
+    "currentHtmlTitle": "Nota corrente (.html)",
+    "currentHtmlDesc": "Adatto alla stampa, markdown renderizzato su pagina bianca.",
+    "printTitle": "Stampa / Salva come PDF",
+    "printDesc": "Apre la finestra di stampa. Salva come PDF o invia a una stampante.",
+    "printTextTitle": "Stampa solo il testo",
+    "printTextDesc": "Mantiene il titolo. Omette data, cartella e tag.",
+    "burnTitle": "Condividi & Burn After Reading",
+    "burnDesc": "Pubblica questa nota come link a visualizzazione singola. Il link si autodistrugge dopo la lettura. La tua nota resta al sicuro nel tuo account.",
+    "drawingFileTitle": "Disegno (.excalidraw)",
+    "drawingFileDesc": "Si apre in Excalidraw e Obsidian, con le sue immagini.",
+    "drawingPngTitle": "Immagine (.png)",
+    "drawingPngDesc": "L'intero disegno come un'unica immagine."
+  },
+  "weekReview": {
+    "title": "Riepilogo della settimana",
+    "daysLogged": "{{count}}/7 registrati",
+    "mood": "Umore",
+    "meds": "Farmaci"
+  },
+  "footer": {
+    "settings": "Impostazioni",
+    "viewShortcuts": "Vedi tutte le scorciatoie da tastiera",
+    "newNote": "Nuovo",
+    "newNoteHintMac": "Option + Maiusc + N",
+    "newNoteHintOther": "Alt + Maiusc + N",
+    "newNoteHintMacDesktop": "Comando + N",
+    "newNoteHintOtherDesktop": "Ctrl + N",
+    "openStats": "Apri statistiche",
+    "journalCalendar": "Calendario del diario",
+    "words_one": "Parola",
+    "words_other": "Parole",
+    "zen": "Modalità Zen",
+    "lockApp": "Blocca l'app",
+    "lockAppSetUp": "Imposta prima un PIN in Sicurezza",
+    "goToTop": "Vai all'inizio",
+    "goToEnd": "Vai alla fine",
+    "signingOut": "Disconnessione…",
+    "switchToLight": "Passa alla modalità chiara",
+    "switchToDark": "Passa alla modalità scura"
+  },
+  "settings": {
+    "groupYourNotes": "I tuoi dati",
+    "groupPreferences": "Preferenze",
+    "groupBrand": "PrivacyNotes",
+    "statsLabel": "Statistiche",
+    "importLabel": "Trasferimento",
+    "backupLabel": "Backup",
+    "planLabel": "Account",
+    "storageLabel": "Archiviazione",
+    "imagesLabel": "Immagini",
+    "securityLabel": "Sicurezza",
+    "accountLabel": "ID & Sync",
+    "appearanceLabel": "Aspetto",
+    "editorLabel": "Editor",
+    "formatBarLabel": "Barra di formattazione",
+    "listsLabel": "Elenchi",
+    "trackersLabel": "Tracker",
+    "helpLabel": "Aiuto",
+    "aboutLabel": "Info",
+    "languageLabel": "Lingua",
+    "dateLabel": "Data e ora",
+    "dateTabFormat": "Formato",
+    "languageDesc": "Scegli la lingua in cui viene mostrato PrivacyNotes.",
+    "calendarLabel": "Calendario"
+  },
+  "importStore": {
+    "title": "Importare o archiviare?",
+    "confirm": "Importa come note",
+    "cancel": "Archivia come file",
+    "bodySingle": "<strong>{{filename}}</strong> sembra un file markdown. Vuoi importarlo come nota così da poterlo leggere e modificare, oppure archiviarlo come allegato cifrato?",
+    "bodyMulti": "Questi {{count}} file sembrano markdown. Vuoi importarli come note così da poterli leggere e modificare, oppure archiviarli come allegati cifrati?"
+  },
+  "archiveConfirm": {
+    "body_one": "Archiviare <highlight>{{count}} elemento</highlight>? Esce dai tuoi elenchi e ti aspetta nella vista Archivio. Togli dall’archivio lo riporta indietro.",
+    "body_other": "Archiviare <highlight>{{count}} elementi</highlight>? Escono dai tuoi elenchi e ti aspettano nella vista Archivio. Togli dall’archivio li riporta indietro."
+  },
+  "bulkTrash": {
+    "body_one": "Eliminare <highlight>{{count}} elemento</highlight>? Spostalo nel cestino per ripristinarlo in seguito, oppure eliminalo per sempre.",
+    "body_other": "Eliminare <highlight>{{count}} elementi</highlight>? Spostali nel cestino per ripristinarli in seguito, oppure eliminali per sempre.",
+    "confirm": "Sposta nel cestino",
+    "keys": "Fuori da questa finestra, <kbd>{{trash}}</kbd> sposta subito un elemento nel cestino e <kbd>{{ask}}</kbd> apre questa finestra anche dopo Non chiedere più.",
+    "dontAskAgain": "Non chiedere più",
+    "readOnlyAcknowledge": "Ho capito",
+    "readOnlyBlocked_one": "Questo elemento è in <highlight>sola lettura</highlight>, quindi non può finire nel cestino. Disattiva prima la sola lettura nelle opzioni nota.",
+    "readOnlyBlocked_other": "Tutti i <highlight>{{count}} elementi</highlight> sono in sola lettura, quindi nessuno può finire nel cestino. Disattiva prima la sola lettura nelle opzioni nota.",
+    "readOnlySkipped_one": "<highlight>{{count}} elemento</highlight> è in sola lettura e resta dov'è.",
+    "readOnlySkipped_other": "<highlight>{{count}} elementi</highlight> sono in sola lettura e restano dove sono."
+  },
+  "deleteCheckedTasks": {
+    "title": "Eliminare gli elementi spuntati?",
+    "body_one": "<highlight>{{count}} elemento</highlight> verrà eliminato da questa nota. L'operazione è irreversibile.",
+    "body_other": "<highlight>{{count}} elementi</highlight> verranno eliminati da questa nota, elementi annidati inclusi. L'operazione è irreversibile."
+  },
+  "tagConfirm": {
+    "mergeTitle": "Unisci tag",
+    "mergeConfirm": "Unisci",
+    "mergeBody_one": "Il tag <highlight>“{{targetTag}}”</highlight> esiste già. Unire <highlight>{{count}} nota</highlight> attualmente taggata “{{tag}}”?",
+    "mergeBody_other": "Il tag <highlight>“{{targetTag}}”</highlight> esiste già. Unire <highlight>{{count}} note</highlight> attualmente taggate “{{tag}}”?",
+    "deleteBody_one": "Rimuovere il tag <highlight>“{{tag}}”</highlight> da <highlight>{{count}} nota</highlight>? Le note non vengono eliminate.",
+    "deleteBody_other": "Rimuovere il tag <highlight>“{{tag}}”</highlight> da <highlight>{{count}} note</highlight>? Le note non vengono eliminate.",
+    "deleteWithNotesBody_one": "Eliminare il tag <highlight>“{{tag}}”</highlight> e spostare <highlight>{{count}} nota</highlight> nel cestino? Potrai ripristinarla da lì.",
+    "deleteWithNotesBody_other": "Eliminare il tag <highlight>“{{tag}}”</highlight> e spostare <highlight>{{count}} note</highlight> nel cestino? Potrai ripristinarle da lì."
+  },
+  "createNote": {
+    "title": "Creare la nota?",
+    "confirm": "Crea nota",
+    "body": "Non esiste alcuna nota intitolata <highlight>“{{title}}”</highlight>. Può succedere se la nota collegata è stata rinominata. Vuoi creare una nuova nota con questo titolo?"
+  },
+  "freshVault": {
+    "title": "Nuova cassaforte creata",
+    "confirm": "Ho capito",
+    "body": "Nessuna cassaforte esistente corrispondeva alla frase che hai inserito, quindi ne è stata creata una nuova e vuota. Se ti aspettavi di vedere le tue note, esci e reinserisci la frase con attenzione - basta una sola parola diversa per aprire una cassaforte diversa."
+  },
+  "ambiguousLink": {
+    "title": "Due note hanno lo stesso titolo",
+    "body": "Più di una nota si intitola <highlight>“{{title}}”</highlight>, quindi questo link non dice quale intende. Rinomina una delle due e il link punterà all'altra."
+  },
+  "connections": {
+    "title": "Collegamenti",
+    "hide": "Nascondi collegamenti",
+    "linkedFrom": "Collegamenti in entrata",
+    "linksTo": "Collegamenti in uscita",
+    "missing": "Non ancora creata",
+    "protectedHidden_one": "{{count}} elemento protetto da PIN non mostrato",
+    "protectedHidden_other": "{{count}} elementi protetti da PIN non mostrati",
+    "related": "Collegamenti suggeriti",
+    "relatedWords": "Entrambe citano {{words}}",
+    "relatedLinksTo": "Entrambe rimandano a {{title}}",
+    "relatedLinkedFrom": "Entrambe collegate da {{title}}",
+    "relatedTag": "Entrambe con il tag {{tag}}",
+    "relatedMeaning": "Stesso significato",
+    "meaningDoor": "Collegamenti intelligenti: trova note con lo stesso significato, con un'IA offline",
+    "meaningDoorNo": "Non mostrare più",
+    "meaningDoorHidden": "Nascosto in tutte le note. Collegamenti intelligenti resta in Impostazioni > Editor > Comportamento.",
+    "hideSuggestions": "Nascondi collegamenti suggeriti",
+    "notRelated": "Non correlata",
+    "notRelatedDone": "Non verrà più suggerita",
+    "notRelatedCount": "Non correlate ({{n}})",
+    "restoreSuggestion": "Suggerisci di nuovo",
+    "linkAtCursor": "Collega nel punto del cursore",
+    "linkNeedsCursor": "Prima fai clic nella nota",
+    "linkAsFootnote": "Collega come nota a piè di pagina"
+  },
+  "drawing": {
+    "fullScreen": "Schermo intero",
+    "frame": "Cornice",
+    "laser": "Puntatore laser",
+    "bar": {
+      "hiddenNote": "Funzionano comunque con i loro tasti."
+    },
+    "resetTitle": "Reimpostare la tela?",
+    "resetBody": "Questo rimuove tutto ciò che c'è sulla tela. Annulla lo riporta indietro.",
+    "hotkeysTitle": "Scorciatoie da tastiera per il disegno",
+    "tools": {
+      "label": "Strumenti di disegno",
+      "keepTool": "Mantieni lo strumento dopo aver disegnato",
+      "hand": "Sposta la tela",
+      "rectangle": "Rettangolo",
+      "diamond": "Rombo",
+      "ellipse": "Ellisse",
+      "arrow": "Freccia",
+      "line": "Linea",
+      "pen": "Penna",
+      "text": "Casella di testo",
+      "steps": "Passaggi numerati",
+      "eraser": "Gomma",
+      "resetZoom": "Reimposta lo zoom",
+      "open": "Apri un file di disegno",
+      "reset": "Reimposta la tela",
+      "style": "Stile",
+      "more": "Più strumenti",
+      "fewer": "Meno strumenti"
+    }
+  },
+  "location": {
+    "add": "Aggiungi posizione",
+    "title": "Posizione",
+    "chipLabel": "Posizione: {{place}}",
+    "useCurrent": "Usa la mia posizione attuale",
+    "locating": "Rilevamento della posizione",
+    "inputLabel": "Luogo, coordinate o link a una mappa",
+    "nameLabel": "Nome (facoltativo)",
+    "openOsm": "Apri in OpenStreetMap",
+    "copyCoordinates": "Copia coordinate",
+    "remove": "Rimuovi posizione",
+    "errorUnreadable": "Nessun luogo trovato. Scrivi un luogo, oppure incolla delle coordinate o un link a una mappa.",
+    "errorShortLink": "I link brevi hanno bisogno di internet per aprirsi. Apri il link, poi copia l'indirizzo completo.",
+    "errorRange": "Questi numeri sono fuori dalla mappa.",
+    "errorDenied": "La localizzazione è disattivata per PrivacyNotes. Attivala nelle impostazioni, oppure incolla delle coordinate.",
+    "errorOff": "I servizi di localizzazione sono disattivati su questo telefono. Attivali nelle impostazioni, oppure incolla delle coordinate.",
+    "errorTimeout": "Non siamo riusciti a rilevare la tua posizione. Riprova all'aperto, oppure incolla delle coordinate.",
+    "saveFailed": "La posizione non è stata salvata. Riprova.",
+    "mapNotice": "Mappa dal nostro server, per la tua privacy: maps.privacynotes.app",
+    "mapLoading": "Caricamento della mappa",
+    "mapLabel": "Mappa di {{place}}",
+    "mapFailed": "La mappa non può essere mostrata qui. Aprila invece in OpenStreetMap.",
+    "inputPlaceholder": "Fuji, oppure 35.36, 138.72",
+    "townsLoading": "Caricamento dell'elenco dei luoghi",
+    "insertMap": "Inserisci mappa",
+    "gestureCtrl": "Tieni premuto Ctrl e scorri per ingrandire la mappa",
+    "gestureMac": "Tieni premuto ⌘ e scorri per ingrandire la mappa",
+    "gestureTouch": "Usa due dita per spostare la mappa",
+    "autoNote": "Aggiungi la mia posizione a ogni nuova nota",
+    "autoJournal": "Aggiungi la mia posizione a ogni nuova pagina di diario",
+    "autoDenied": "La localizzazione è disattivata per PrivacyNotes. Attivala prima nelle impostazioni del telefono.",
+    "autoOff": "I servizi di localizzazione sono disattivati su questo telefono. Attivali prima."
+  }
+}

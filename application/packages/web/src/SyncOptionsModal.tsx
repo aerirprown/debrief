@@ -1,0 +1,1590 @@
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
+import { useAuth } from './auth';
+import { useEscapeToClose } from './useEscapeToClose';
+import {
+  listDevices,
+  registerDevice,
+  revokeDevice,
+  fetchQuotaUsage,
+  recalculateQuota,
+  fetchMyStorageSubs,
+  manageStorageSub,
+  previewStorageUpgrade,
+  isStorageQuoteRefusal,
+  type DeviceRow,
+  type QuotaUsage,
+  type StorageSubRow,
+  type StorageUpgradeQuote,
+} from './devices';
+import { groupDeviceSlots, shortDeviceId, type DeviceSlot } from './deviceSlots';
+import { readPanelCache, writePanelCache } from './accountPanelCache';
+import { ArrowsClockwise, Check, CreditCard, Database, Devices, Hourglass, PencilSimple, SignIn, SignOut, User, Vault, X, HardDrives } from './icons';
+import { InlineRenameField } from './InlineRenameField';
+import { DEVICE_LABEL_MAX, deviceLabelOf, type DeviceLabels } from './deviceLabels';
+import { HoverLabel } from './HoverLabel';
+import { DeviceIcon } from './DeviceIcon';
+import { deviceVersionFloor, isBelowFloor } from './deviceLook';
+import { DangerZone } from './DangerZone';
+import { QuotaRing } from './QuotaRing';
+import { IconUpgrade } from './UpgradeModal';
+import { RatingStar } from './RatingStar';
+import { isStorageConfigured, getStoragePackages, isBetaPricing } from './paddle';
+import { startStorageCheckout, startStorageUpgrade, openNativeSubscriptionManagement, storageProductId, PRO_PRODUCT_ID, isNativeStoreBuild, restoreNativePurchases, type RestoreOutcome } from './billing';
+import { STORAGE_ADDON_PRICE, STORAGE_PACKAGES, PRO_PRICE, EARLY_PRICE } from './pricing';
+import { useStorePrices, type StorePrice } from './storePrices';
+import { formatInstant, formatRelative } from './intlFormat';
+import { SectionEyebrow, SettingsCallout, SETTINGS_BTN, SETTINGS_BTN_UPGRADE, SETTINGS_HELP, SettingsTabStrip, settingsTabClass } from './settingsUI';
+import { CloseButton, Modal } from './ui';
+import { SyncPanel } from './SyncPanel';
+import { DmsPanel } from './DmsPanel';
+import { HelpChip } from './HelpChip';
+import { AccountLoginsPanel } from './AccountLoginsPanel';
+import { KeyCustodyTab } from './security/KeyCustodyTab';
+import type { UserSettings } from './userSettings';
+import { isDemoMode } from './demo';
+import { DemoAccountTeaser } from './DemoAccountTeaser';
+import { usePaneTab } from './settingsPaneTab';
+
+type Props = {
+  onClose: () => void;
+  /**
+   * Optional hook the parent uses to open the full Upgrade modal when
+   * the user clicks the Pro CTA from here. The button is a stub when
+   * undefined (keeps the modal renderable outside the main app shell).
+   */
+  onOpenUpgrade?: () => void;
+  /** Sign-out handler - closes modal then triggers the phrase-reminder flow. */
+  onSignOut?: () => void;
+  /** Manual "Sync now" - the orchestrator's runSync. */
+  onSyncNow?: () => void | Promise<void>;
+  /** Render inline as a settings pane (no overlay, no own header/tabs/footer/escape). */
+  embedded?: boolean;
+  /**
+   * Run the sync verification immediately on open. Set when the user
+   * got here by clicking the sync status, which is already the
+   * question this panel answers.
+   */
+  autoVerify?: boolean;
+  /** Opens a note from ID & Sync's not-backed-up list. */
+  onOpenNote?: (id: string) => void;
+  /**
+   * Opens the Images settings pane. The Storage tab is where somebody
+   * stares at a full quota bar, so the lever that shrinks new images is
+   * linked from here. Absent when no caller can navigate.
+   */
+  onOpenImageSettings?: () => void;
+  /**
+   * Whether a sync pass is running right now. Owned by the app shell,
+   * passed in so this panel can report the same live state the footer
+   * indicator shows - it is where that indicator sends people.
+   */
+  /** Controlled active tab. When set, the internal tab strip is the shell rail. */
+  tab?: 'plan' | 'storage' | 'sync' | 'me';
+  /** Called when the controlled tab should change (unused while embedded). */
+  onTabChange?: (tab: 'plan' | 'storage' | 'sync' | 'me') => void;
+  /** The names given to devices (userSettings.deviceLabels). */
+  deviceLabels?: DeviceLabels;
+  /** Renames a device; an empty name resets it. Absent: no rename control. */
+  onRenameDevice?: (deviceId: string, name: string, serverName: string) => void;
+  /** Opens About > Rating. Absent where no caller can navigate. */
+  onOpenRating?: () => void;
+  onOpenPhrase?: () => void;
+  custodySettings?: { hasPin: boolean; pinCredential: string; pinTimeoutMinutes: number;
+    userSettings?: UserSettings; onSettingsChange?: (next: UserSettings, base: UserSettings) => void };
+  initialSection?: 'overview' | 'connectedAccounts' | 'keyCustody';
+  /** The ID & Sync tab a settings search hit opens. */
+  initialMeSection?: 'overview' | 'dms';
+};
+
+/** What Remove acts on: one row of a slot, or every row in it. */
+type RevokeTarget = { slot: DeviceSlot; rows: [DeviceRow, ...DeviceRow[]] };
+
+/**
+ * Device management + sync status panel.
+ *
+ * Shows the list of registered devices for the current pubkey, with a
+ * "Remove" action that signs a revoke challenge with the user's
+ * ed25519 private key and calls the `revoke-device` edge function.
+ * The current device is flagged - removing it is allowed (the user
+ * holds the phrase) but the UI warns, because the revoked device will
+ * sign itself out on the next heartbeat (within a sync interval).
+ *
+ * Recently revoked devices are listed under "Recently removed" for
+ * 72h as an audit trail. Cooldown rows do not occupy a slot - the
+ * limit is strictly on active devices (see migration 0043).
+ *
+ * Pro status is surfaced with a badge + an upsell block for free
+ * users.
+ */
+export function SyncOptionsModal({ onClose, onOpenUpgrade, onSignOut, onSyncNow, embedded = false, autoVerify = false, onOpenNote, onOpenImageSettings, tab: controlledTab, onTabChange, deviceLabels = {}, onRenameDevice, onOpenRating, onOpenPhrase, custodySettings, initialSection, initialMeSection }: Props) {
+  const { t } = useTranslation('settings');
+  // Real App Store / Play prices, already in the user's storefront currency.
+  // Null everywhere else, and every use below falls back to the Paddle USD
+  // figures. Spec: docs/internal/design-decisions.md (fair global pricing)
+  const storePrices = useStorePrices();
+  const { auth, supabase, refreshProStatus } = useAuth();
+  // Seeded from the last-known figures for this account so the panel
+  // paints immediately instead of holding an empty pane for a round-trip
+  // (the reads below overwrite them within the same second). Null on a
+  // first-ever open, in demo, or after a sign-out - the loading state
+  // then behaves exactly as it always did. See accountPanelCache.ts.
+  const cachePubkey = auth.status === 'authenticated' ? auth.pubkey : null;
+  const cachedPanel = useMemo(
+    () => (cachePubkey ? readPanelCache(cachePubkey) : null),
+    [cachePubkey],
+  );
+  const [devices, setDevices] = useState<DeviceRow[] | null>(cachedPanel?.devices ?? null);
+  const [quota, setQuota] = useState<QuotaUsage | null>(cachedPanel?.quota ?? null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<RevokeTarget | null>(null);
+
+
+  const authed = auth.status === 'authenticated' ? auth : null;
+  // Pro status comes from auth state (set at sign-in by registerDevice).
+  // Reading it from there instead of a fresh RPC avoids flipping the UI
+  // to "Free" when the is_pro RPC fails due to a network blip.
+  const isPro = authed?.isPro ?? null;
+  const isEarlySupporter = authed?.isEarlySupporter ?? false;
+  const [storageBusy, setStorageBusy] = useState(false);
+  const [storagePurchaseError, setStoragePurchaseError] = useState<string | null>(null);
+  const [restoreBusy, setRestoreBusy] = useState(false);
+  const [restoreOutcome, setRestoreOutcome] = useState<RestoreOutcome | null>(null);
+  const [storageSubs, setStorageSubs] = useState<StorageSubRow[] | null>(cachedPanel?.storageSubs ?? null);
+  const [storageActionBusy, setStorageActionBusy] = useState(false);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [cancelDone, setCancelDone] = useState(false);
+  // Pending upgrade awaiting explicit confirmation (prevents one-click charges).
+  // priceLabel is the already-formatted renewal price (store string on native,
+  // "$4.80" on web), so the confirm step quotes the same figure as the tile.
+  const [confirmingUpgrade, setConfirmingUpgrade] = useState<{ gb: number; priceId: string; pricePerYear: number; priceLabel: string } | null>(null);
+  const [upgradeDue, setUpgradeDue] = useState<StorageUpgradeQuote | null>(null);
+  const [upgradePreviewFailed, setUpgradePreviewFailed] = useState(false);
+  // Bumped by the dialog's retry, which re-runs the preview.
+  const [upgradePreviewRun, setUpgradePreviewRun] = useState(0);
+  // One active storage sub per user under the package model.
+  const activeStorageSub = storageSubs && storageSubs.length > 0 ? storageSubs[0] : null;
+  // Play and Apple upgrades complete in the store's own sheet, which shows the
+  // charge. Every other upgrade goes through manage-storage-sub, which charges
+  // the card on file the moment the confirm is pressed, so that confirm waits
+  // for the exact figure.
+  const storeSheetUpgrade = activeStorageSub?.source === 'play' || activeStorageSub?.source === 'apple';
+  // Tab is controllable: when the shell drives it (rail items), `controlledTab`
+  // wins and the internal tab strip is hidden. Otherwise local state runs it.
+  const [internalTab, setInternalTab] = usePaneTab<'plan' | 'storage' | 'sync' | 'me'>('account', 'plan');
+  const tab = controlledTab ?? internalTab;
+  const setTab = onTabChange ?? setInternalTab;
+  const [selectedAccountSection, setAccountSection] = useState<'overview' | 'connectedAccounts' | 'keyCustody'>(initialSection ?? 'overview');
+  const accountPagesAvailable = Boolean(authed && !isDemoMode() && custodySettings && onOpenPhrase);
+  const demoAccountPages = isDemoMode();
+  const accountSection = accountPagesAvailable || demoAccountPages ? selectedAccountSection : 'overview';
+  useEffect(() => { setAccountSection(initialSection ?? 'overview'); }, [initialSection]);
+  // ID & Sync: the sync readout, and the dead man's switch beside it.
+  const [meSection, setMeSection] = usePaneTab<'overview' | 'dms'>('account.me', initialMeSection ?? 'overview');
+  useEffect(() => { if (initialMeSection) setMeSection(initialMeSection); }, [initialMeSection, setMeSection]);
+  const [billingRefresh, setBillingRefresh] = useState(0);
+
+  useEffect(() => {
+    if (!authed) return;
+    // Only two of the four panels draw any of this. The effect depends on
+    // `tab`, so without this gate every entry to the Sync and Me panels would
+    // pay for a device list, a quota read, a subscription read, a server
+    // recount and a second quota read. The recount is narrower still: it
+    // exists to heal a drifted image_bytes behind the storage bar.
+    const needsAccountData = tab === 'plan' || tab === 'storage';
+    const needsRecount = tab === 'storage';
+    if (!needsAccountData) return;
+    let stale = false;
+    let busy = false;
+    const refresh = async (recount = false) => {
+      if (busy || stale) return;
+      busy = true;
+      try {
+        // Paint first, heal second. Awaiting recalculateQuota BEFORE the reads
+        // would hold the whole panel empty until four serial round-trips
+        // completed - measured at ~10s on a phone whose NAT had killed the
+        // connection pool (2026-08-26). So the reads go out immediately and
+        // the panel paints off them; the recalc runs after, and one more quota
+        // read swaps the healed figure in under the already-painted UI.
+        //
+        // A read that fails leaves the figure already on screen alone. The
+        // alternative is a panel that blanks its own numbers whenever the
+        // server refuses, and a stale figure beside a sync status that says
+        // what is wrong beats no figure at all.
+        const [ds, q, subs] = await Promise.all([
+          listDevices(supabase, authed.pubkey).catch(() => null),
+          fetchQuotaUsage(supabase, isPro ?? false).catch(() => null),
+          fetchMyStorageSubs(supabase).catch(() => null),
+        ]);
+        if (stale) return;
+        if (ds) setDevices(ds);
+        if (q) setQuota(q);
+        if (subs) setStorageSubs(subs);
+        if (ds && q && subs) writePanelCache(authed.pubkey, { devices: ds, quota: q, storageSubs: subs });
+        if (!recount) return;
+        // Recompute blob bytes from Storage ground truth so a drifted
+        // image_bytes self-heals when the storage settings open. Best-effort;
+        // the refetch swaps the healed figure in under the already-painted UI.
+        await recalculateQuota(supabase).catch(() => {});
+        if (stale) return;
+        const healed = await fetchQuotaUsage(supabase, isPro ?? false).catch(() => null);
+        if (stale || !healed) return;
+        setQuota(healed);
+        if (ds && subs) writePanelCache(authed.pubkey, { devices: ds, quota: healed, storageSubs: subs });
+      } finally { busy = false; }
+    };
+    void refresh(needsRecount);
+    const onReturn = () => { if (!document.hidden) void refresh(); };
+    window.addEventListener('focus', onReturn);
+    document.addEventListener('visibilitychange', onReturn);
+    // Spec: docs/internal/billing-integration.md (billing panel refresh cadence)
+    const timer = window.setInterval(onReturn, 60_000);
+    // `tab` is a dependency on purpose: the settings shell keeps this
+    // component mounted while the user moves between panels, so a
+    // mount-only fetch showed a figure frozen at open time - another
+    // device's deletes never appeared until a full reload (measured
+    // 2026-08-10: two devices disagreed 425.0 vs 425.2 MB). Re-reading
+    // on every panel entry keeps the server as the single source of
+    // truth for the number on screen. `stale` guards the late writes:
+    // a re-run for another panel must not overwrite fresher state.
+    return () => {
+      stale = true;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', onReturn);
+      document.removeEventListener('visibilitychange', onReturn);
+    };
+  }, [authed, supabase, isPro, tab, billingRefresh]);
+
+  // Fetch the real prorated amount when the upgrade dialog opens, and again
+  // on each retry.
+  useEffect(() => {
+    setUpgradeDue(null);
+    setUpgradePreviewFailed(false);
+    if (!confirmingUpgrade || !authed) return;
+    // Native-store subs (Play/Apple) have no server-side proration preview -
+    // the store's own sheet shows the exact charge. Skip the Paddle preview
+    // (it would 404 on a store purchase token) and let the dialog render its
+    // generic "prorated amount" copy.
+    if (storeSheetUpgrade) return;
+    let cancelled = false;
+    void (async () => {
+      const sub = activeStorageSub;
+      const { data: sessData } = await supabase.auth.getSession();
+      const token = sessData.session?.access_token;
+      const due = token && sub
+        ? await previewStorageUpgrade({
+          supabase,
+          accessToken: token,
+          subscriptionId: sub.subscription_id,
+          priceId: confirmingUpgrade.priceId,
+        })
+        : null;
+      if (cancelled) return;
+      setUpgradeDue(due);
+      setUpgradePreviewFailed(due === null);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [confirmingUpgrade, authed, supabase, upgradePreviewRun]);
+
+  // Esc closes only the upgrade dialog when it's open (topmost wins via the
+  // hook's LIFO stack), leaving the Settings shell behind it open.
+  useEscapeToClose(() => setConfirmingUpgrade(null), confirmingUpgrade !== null);
+
+  // Manual restore (native store builds only). The automatic recheck in
+  // authProStatus.ts already self-heals the common cases; this button exists
+  // for Apple 3.1.1 and for support ("tap Restore purchases"). On success,
+  // refresh Pro once - not per purchase - then re-read quota and subs so
+  // restored storage capacity shows immediately.
+  // Spec: docs/internal/specs/iap-restore-handoff.md
+  async function handleRestore() {
+    if (!authed || restoreBusy) return;
+    setRestoreBusy(true);
+    setRestoreOutcome(null);
+    const outcome = await restoreNativePurchases(authed.pubkey);
+    if (outcome === 'restored' || outcome === 'none') {
+      await refreshProStatus({ silent: true, attempts: 1 });
+      const [q, subs] = await Promise.all([
+        fetchQuotaUsage(supabase, true).catch(() => null),
+        fetchMyStorageSubs(supabase).catch(() => null),
+      ]);
+      if (q) setQuota(q);
+      if (subs) setStorageSubs(subs);
+    }
+    setRestoreOutcome(outcome);
+    setRestoreBusy(false);
+  }
+
+  async function handleStorageAction(action: 'cancel' | 'switch', target?: { priceId: string; gb: number; quote?: string }) {
+    if (!authed || !activeStorageSub || storageActionBusy) return;
+    const source = activeStorageSub.source ?? 'paddle';
+
+    // Native-store subs (Play/Apple): the store owns the billing relationship,
+    // so neither action can go through manage-storage-sub (a store purchase
+    // token PATCHed at Paddle just 404s - burned in Play internal testing).
+    if (source === 'play' || source === 'apple') {
+      if (action === 'cancel') {
+        // Cancellation happens in the store's subscription center; the
+        // lifecycle notification (play-rtdn / appstore-notifications) writes
+        // the result back to paddle_storage_subs.
+        setError(null);
+        try {
+          await openNativeSubscriptionManagement(source, activeStorageSub.price_id);
+        } catch (err) {
+          console.error('Storage action error:', err);
+          // Append the raw failure so an on-device report names the failing
+          // layer - the bare localized line proved undiagnosable (2026-08-26:
+          // release builds expose no console, and the generic text was all we
+          // had). The detail is data, not copy, so it stays untranslated.
+          const detail = err instanceof Error ? err.message : String(err);
+          setError(`${t('errors.storageUpdateFailed')} (${detail})`);
+        }
+        return;
+      }
+      if (!target) return;
+      setStorageActionBusy(true);
+      setError(null);
+      try {
+        // The store sheet is the confirmation + payment UI; validation and the
+        // DB write complete before startStorageUpgrade resolves, so refetch
+        // immediately. A user-cancel fires neither callback and changes nothing.
+        let succeeded = false;
+        await startStorageUpgrade(
+          authed.pubkey,
+          target.gb,
+          { subscription_id: activeStorageSub.subscription_id, source },
+          () => { succeeded = true; },
+          (reason) => setError(t(`billing:purchaseError.${reason}`)),
+        );
+        if (succeeded) {
+          void fetchMyStorageSubs(supabase).then(setStorageSubs);
+          void fetchQuotaUsage(supabase, true).then(setQuota, () => { /* keep the figure on screen */ });
+        }
+      } catch (err) {
+        console.error('Storage action error:', err);
+        setError(t('errors.storageUpdateFailed'));
+      } finally {
+        setStorageActionBusy(false);
+      }
+      return;
+    }
+
+    setStorageActionBusy(true);
+    setError(null);
+    try {
+      const { data: sessData } = await supabase.auth.getSession();
+      const session = sessData.session;
+      if (!session?.access_token || !session.user?.id) {
+        setError(t('errors.noSession'));
+        return;
+      }
+      await manageStorageSub({
+        supabase,
+        accessToken: session.access_token,
+        authUid: session.user.id,
+        signingPrivateKey: authed.signingPrivateKey,
+        subscriptionId: activeStorageSub.subscription_id,
+        action,
+        priceId: target?.priceId,
+        quote: target?.quote,
+      });
+      if (action === 'cancel') setCancelDone(true);
+      // The Paddle webhook updates the row; refetch shortly after.
+      setTimeout(() => {
+        void fetchMyStorageSubs(supabase).then(setStorageSubs);
+        void fetchQuotaUsage(supabase, true).then(setQuota, () => { /* keep the figure on screen */ });
+      }, 1500);
+    } catch (err) {
+      console.error('Storage action error:', err);
+      setError(t(isStorageQuoteRefusal(err) ? 'storage.upgradeAmountChanged' : 'errors.storageUpdateFailed'));
+    } finally {
+      setStorageActionBusy(false);
+    }
+  }
+
+  async function handleRevoke(target: RevokeTarget) {
+    if (!authed) return;
+    setBusy(target.slot.key);
+    setError(null);
+    const { data: sessData } = await supabase.auth.getSession();
+    const session = sessData.session;
+    if (!session?.access_token || !session.user?.id) {
+      setError(t('errors.noSession'));
+      setBusy(null);
+      return;
+    }
+    try {
+      for (const row of target.rows) {
+        await revokeDevice({
+          supabase,
+          accessToken: session.access_token,
+          authUid: session.user.id,
+          signingPrivateKey: authed.signingPrivateKey,
+          targetDeviceId: row.device_id,
+        });
+      }
+
+      // If we just revoked our own device, immediately re-register it.
+      // The revoke + re-register is meant to clear ghost rows from the
+      // server side without losing this device. Without a retry on the
+      // re-register, a network blip leaves the user's device row stuck
+      // in the revoked state - both their slots get burned for 72h
+      // and they're locked out. registerDevice is idempotent on a
+      // matching device_id (it un-revokes), so a retry is the recovery
+      // path. See gap #27.
+      if (target.rows.some((row) => row.device_id === authed.deviceId)) {
+        const registerArgs = {
+          supabase,
+          accessToken: session.access_token,
+          authUid: session.user.id,
+          pubkey: authed.pubkey,
+          signingPrivateKey: authed.signingPrivateKey,
+          fpPepper: authed.fpPepper,
+          // The person removed this device here by hand to clear ghost rows.
+          reactivate: true,
+        };
+        try {
+          await registerDevice(registerArgs);
+        } catch (registerErr) {
+          console.warn('[devices] re-register failed, retrying:', registerErr);
+          await new Promise((r) => setTimeout(r, 1000));
+          try {
+            await registerDevice(registerArgs);
+          } catch (retryErr) {
+            throw new Error(
+              t('errors.reRegisterFailed', { message: (retryErr as Error).message }),
+            );
+          }
+        }
+      }
+
+      const fresh = await listDevices(supabase, authed.pubkey);
+      setDevices(fresh);
+      setConfirm(null);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const freeLimit = 2;
+  const cooldownDevices = devices?.filter((d) => d.revoked_at) ?? [];
+  // One card per server slot, so this list and the free-tier cap agree.
+  const slots = groupDeviceSlots(devices ?? [], authed?.deviceId ?? null);
+
+  return (
+    <>
+    <Modal
+      embedded={embedded}
+      embeddedClassName="flex-1 min-h-0 flex flex-col text-pn"
+      onClose={onClose}
+      escape={!confirm}
+      title={t('notes:settings.planLabel')}
+      className="max-w-md p-6 space-y-5 max-h-[90vh] overflow-y-auto"
+    >
+        {/* Tab bar - hidden when embedded; the shell rail drives the tab. */}
+        {!embedded && (
+        <SettingsTabStrip className="-mx-6 px-4 sm:px-6">
+          {([
+            { tabId: 'plan', Icon: CreditCard },
+            { tabId: 'storage', Icon: Database },
+            { tabId: 'sync', Icon: ArrowsClockwise },
+            { tabId: 'me', Icon: User },
+          ] as const).map(({ tabId, Icon }) => (
+            <button
+              key={tabId}
+              type="button"
+              onClick={() => setTab(tabId)}
+              aria-pressed={tab === tabId}
+              className={settingsTabClass(tab === tabId)}
+            >
+              <Icon aria-hidden="true" />
+              <span className="capitalize">{t(`tabs.${tabId}`)}</span>
+            </button>
+          ))}
+        </SettingsTabStrip>
+        )}
+
+        {tab === 'plan' && (accountPagesAvailable || demoAccountPages) && <SettingsTabStrip className={embedded ? 'shrink-0 px-4 sm:px-6' : '-mx-6 px-4 sm:px-6'}>
+          {([
+            { section: 'overview', label: 'overview', Icon: Devices },
+            { section: 'connectedAccounts', label: 'accounts', Icon: SignIn },
+            { section: 'keyCustody', label: 'keyCustody', Icon: Vault },
+          ] as const).map(({ section, label, Icon }) => <button key={section}
+            type="button" aria-pressed={accountSection === section} onClick={() => setAccountSection(section)}
+            className={settingsTabClass(accountSection === section)}>
+            <Icon className="shrink-0 text-accent" aria-hidden="true" />
+            <span className="min-w-0">{t(`security:accountTabs.${label}`)}</span>
+          </button>)}
+        </SettingsTabStrip>}
+
+        {tab === 'me' && authed && <SettingsTabStrip className={embedded ? 'shrink-0 px-4 sm:px-6' : '-mx-6 px-4 sm:px-6'}>
+          {([
+            { section: 'overview', label: t('security:accountTabs.overview'), Icon: ArrowsClockwise },
+            { section: 'dms', label: t('dms.tab'), Icon: Hourglass },
+          ] as const).map(({ section, label, Icon }) => <button key={section}
+            type="button" aria-pressed={meSection === section} onClick={() => setMeSection(section)}
+            className={settingsTabClass(meSection === section)}>
+            <Icon className="shrink-0 text-accent" aria-hidden="true" />
+            <span className="min-w-0">{label}</span>
+          </button>)}
+        </SettingsTabStrip>}
+
+        {/* Embedded, the pane scrolls under its tab strip, as every pane does. */}
+        <PaneBody embedded={embedded}>
+        {/* ── Account overview ── */}
+        {tab === 'plan' && accountSection === 'overview' && (
+          <>
+            {/* Plan badge */}
+            {authed && isPro !== null && (
+              isPro ? (
+                <div className="rounded-md border border-divider bg-surface-1 p-4">
+                  <div className="flex items-center gap-4">
+                    {/* Rocket medallion with hanging ribbon tails - the Pro mark, gilded for everyone. */}
+                    <div className="shrink-0 w-9 text-center">
+                      <div className="relative z-[2] mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/15">
+                        <IconUpgrade size={20} />
+                      </div>
+                      <div className="relative -mt-1 h-[18px]">
+                        <span
+                          className="absolute start-1.5 top-0 h-[18px] w-2.5 bg-amber-500"
+                          style={{ clipPath: 'polygon(0 0,100% 0,100% 100%,50% 70%,0 100%)', transform: 'skewX(-8deg)' }}
+                        />
+                        <span
+                          className="absolute end-1.5 top-0 h-[18px] w-2.5 bg-amber-600"
+                          style={{ clipPath: 'polygon(0 0,100% 0,100% 100%,50% 70%,0 100%)', transform: 'skewX(8deg)' }}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex-1 text-small leading-relaxed">
+                      <div className="flex items-baseline gap-2">
+                        <strong className="text-body text-pn">Pro</strong>
+                        <span className="text-pn-soft">{t('plan.proUnlimited')}</span>
+                      </div>
+                      <p className="mt-1 text-warning">
+                        {isEarlySupporter ? t('plan.earlySupporterThanks') : t('plan.proThanks')}
+                      </p>
+                    </div>
+                  </div>
+                  {onOpenRating && (
+                    <div className="mt-3 flex items-center gap-3 border-t border-divider pt-3 text-small">
+                      <RatingStar size={16} />
+                      <span className="flex-1 text-pn-soft">{t('plan.ratePro')}</span>
+                      <button type="button" onClick={onOpenRating} className={RATE_BUTTON}>
+                        {t('plan.rateCta')}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-md border border-divider bg-surface-1 p-4 text-small leading-relaxed">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                    <span className="text-pn-soft">
+                      <Trans
+                        i18nKey="settings:plan.freeLimit"
+                        values={{ count: freeLimit }}
+                        components={{ strong: <strong className="text-pn" /> }}
+                      />
+                    </span>
+                    {devices && (
+                      <span className="text-pn-muted tabular-nums">
+                        {t('plan.freeUsage', { used: slots.length, limit: freeLimit })}
+                      </span>
+                    )}
+                  </div>
+                  {devices && (
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-divider" aria-hidden="true">
+                      <div
+                        className={`h-full rounded-full ${slots.length >= freeLimit ? 'bg-amber-500' : 'bg-accent-fill'}`}
+                        style={{ width: `${Math.min(slots.length / freeLimit, 1) * 100}%` }}
+                      />
+                    </div>
+                  )}
+                  {onOpenRating && (
+                    <div className="mt-3 flex items-center gap-3 rounded-md bg-surface-2 p-3">
+                      <RatingStar size={18} />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-body font-medium text-pn">{t('plan.rateFreeTitle')}</div>
+                        <div className="text-pn-soft">{t('plan.rateFreeBody')}</div>
+                      </div>
+                      <button type="button" onClick={onOpenRating} className={RATE_BUTTON}>
+                        {t('plan.rateCta')}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            )}
+
+            {/* Restore purchases - only where purchases live in a store
+                account (iOS / Play build). Paddle platforms have nothing to
+                restore: entitlement follows the pubkey server-side. */}
+            {authed && isNativeStoreBuild() && (
+              <div className="rounded-md border border-divider bg-surface-1 p-4">
+                <SectionEyebrow setting="plan.restorePurchases" className="mb-1">{t('plan.restore.heading')}</SectionEyebrow>
+                <p className={`${SETTINGS_HELP} leading-relaxed`}>{t('plan.restore.body')}</p>
+                <button
+                  type="button"
+                  disabled={restoreBusy}
+                  onClick={() => void handleRestore()}
+                  className="mt-3 rounded-md border border-divider bg-surface-2 hover:bg-track disabled:opacity-60 disabled:cursor-not-allowed px-3 py-1.5 text-small font-medium text-pn transition"
+                >
+                  {restoreBusy ? t('plan.restore.ctaBusy') : t('plan.restore.cta')}
+                </button>
+                {restoreOutcome && (
+                  <p
+                    className={`mt-2 text-small leading-relaxed ${
+                      restoreOutcome === 'restored'
+                        ? 'text-success'
+                        : restoreOutcome === 'none'
+                          ? 'text-pn-muted'
+                          : 'text-danger'
+                    }`}
+                  >
+                    {t(`plan.restore.${restoreOutcome}`)}
+                  </p>
+                )}
+              </div>
+            )}
+
+          </>
+        )}
+
+        {tab === 'plan' && demoAccountPages && accountSection !== 'overview' && (
+          <DemoAccountTeaser kind={accountSection === 'keyCustody' ? 'keyCustody' : 'accounts'} />
+        )}
+        {tab === 'plan' && accountPagesAvailable && accountSection === 'connectedAccounts' && (
+          <AccountLoginsPanel onOpenCustody={() => setAccountSection('keyCustody')} onOpenPhrase={onOpenPhrase} />
+        )}
+        {tab === 'plan' && accountPagesAvailable && accountSection === 'keyCustody' && authed && custodySettings && onOpenPhrase && (
+          <KeyCustodyTab phrase={authed.phrase} pubkey={authed.pubkey} {...custodySettings}
+            onCancel={() => setAccountSection('overview')} onOpenPhrase={onOpenPhrase}
+            onOpenConnectedAccounts={() => setAccountSection('connectedAccounts')} />
+        )}
+
+        {/* ── Storage tab ── */}
+        {tab === 'storage' && (
+          <>
+            {/* Storage quota + add-on packages */}
+            {authed && quota && isPro !== null && (
+              <div data-setting="storage.quota">
+                <div className="space-y-6">
+                  {isPro ? (
+                    <>
+                      <QuotaRing
+                        compact
+                        label={t('storage.quotaLabel')}
+                        usedBytes={quota.totalBytes + quota.imageBytes}
+                        maxBytes={quota.maxTotalBytes}
+                      />
+                      <p className={`${SETTINGS_HELP} -mt-3`}>
+                        {t('common:storageBar.cleanupInfo')}
+                        {onOpenImageSettings && (
+                          <>
+                            {' '}
+                            <button type="button" onClick={onOpenImageSettings} className="text-accent hover:underline">
+                              {t('storage.imageSettingsLink')}
+                            </button>
+                          </>
+                        )}
+                      </p>
+                      {(activeStorageSub || isStorageConfigured()) ? (
+                          <div>
+                            <SectionEyebrow setting="storage.addon" className="mb-1" icon={HardDrives}>
+                              {t('storage.addonHeading')}
+                            </SectionEyebrow>
+                            <SettingsCallout className="mb-4">
+                              {t('storage.addonFileSizePerk')}
+                            </SettingsCallout>
+                            {storagePurchaseError && (
+                              <div className="mb-3 rounded-md border border-red-300 bg-red-50 dark:border-red-900/60 dark:bg-red-950/30 text-red-700 dark:text-red-300 text-body p-3">
+                                {storagePurchaseError}
+                              </div>
+                            )}
+                            {(() => {
+                              /* Dual-layout package picker. The PANE's own width decides the
+                                 form (container query `pn-storage`, index.css): tier CARDS in
+                                 the wide desktop shell, growth ROWS in the max-w-md modal and
+                                 on phones. Both variants render the same views/handlers; the
+                                 inactive one is display:none. docs/internal/design/ui-patterns.md sec 48. */
+                              const packages = getStoragePackages();
+                              const largestGb = packages.reduce((m, p) => Math.max(m, p.gb), 0);
+                              // Marketing math mirrors upgradeTotal: the Pro base is 0.5 GB.
+                              const nowGb = 0.5 + (activeStorageSub?.gb_count ?? 0);
+                              const fmtGb = (gb: number) =>
+                                gb < 1 ? t('quota.mb', { value: Math.round(gb * 1000) }) : t('quota.gb', { value: gb });
+                              /* Prices come from the store when there is one, and
+                                 ONLY as the store's own formatted string - we
+                                 never rebuild a currency amount ourselves. The
+                                 store sells whole tiers, so there is no API
+                                 string for the derived figures (per-GB rate,
+                                 struck-through base rate, "save X/yr"), and
+                                 formatting those with Intl would mean guessing
+                                 symbol and placement for a charge Apple or Google
+                                 is quoting differently two lines below. So on a
+                                 store build those three are simply not rendered:
+                                 the discount still reads, currency-free, off the
+                                 "-25% / Best value" badge that is already there.
+                                 The percentage is derived from the 1 GB tier's own
+                                 store price, so it stays true in every currency. */
+                              const storeFor = (gb: number): StorePrice | null =>
+                                storePrices?.[storageProductId(gb)] ?? null;
+                              const baseTier = storeFor(1);
+                              const baseRate = baseTier ? baseTier.amount : STORAGE_ADDON_PRICE;
+                              const views = packages.map((pkg) => {
+                                const owned = !!activeStorageSub && activeStorageSub.gb_count === pkg.gb;
+                                const isDowngrade = !!activeStorageSub && pkg.gb < activeStorageSub.gb_count;
+                                const store = storeFor(pkg.gb);
+                                const yearly = store ? store.amount : pkg.pricePerYear;
+                                const perGb = yearly / pkg.gb;
+                                return {
+                                  pkg,
+                                  owned,
+                                  isDowngrade,
+                                  isBest: pkg.gb === largestGb,
+                                  perGb,
+                                  /** Store builds never show derived web-price comparisons. */
+                                  fromStore: isNativeStoreBuild(),
+                                  priceLabel: store ? store.formatted : isNativeStoreBuild() ? '…' : `$${pkg.pricePerYear.toFixed(2)}`,
+                                  discounted: (!isNativeStoreBuild() || !!(baseTier && store)) && perGb < baseRate - 0.001,
+                                  saving: (baseRate - perGb) * pkg.gb,
+                                  pct: isNativeStoreBuild() && !(baseTier && store) ? 0 : Math.round((1 - perGb / baseRate) * 100),
+                                  actionable: !owned && !isDowngrade && !storageBusy && !storageActionBusy,
+                                };
+                              });
+                              type PkgView = (typeof views)[number];
+                              const selectPkg = (v: PkgView) => {
+                                if (!authed || !v.actionable) return;
+                                if (activeStorageSub) {
+                                  // Upgrades charge the card on file immediately (prorated).
+                                  // Never fire on a single click - require explicit confirmation.
+                                  setConfirmingUpgrade({ gb: v.pkg.gb, priceId: v.pkg.priceId, pricePerYear: v.pkg.pricePerYear, priceLabel: v.priceLabel });
+                                  return;
+                                }
+                                setStorageBusy(true);
+                                setStoragePurchaseError(null);
+                                startStorageCheckout(
+                                  authed.pubkey,
+                                  v.pkg.gb,
+                                  () => {
+                                    setBillingRefresh((run) => run + 1);
+                                  },
+                                  // Native IAP failure: surface it inline, a silent
+                                  // no-op reads as a dead button (Play internal test).
+                                  (reason) => setStoragePurchaseError(t(`billing:purchaseError.${reason}`)),
+                                )
+                                  .catch((err) => console.error('Storage checkout error:', err))
+                                  .finally(() => setStorageBusy(false));
+                              };
+                              // Cards center the floating badge on the top edge; rows keep the
+                              // pre-redesign left anchor.
+                              const badgePos = (compact: boolean) =>
+                                compact ? 'left-1/2 -translate-x-1/2' : 'left-3';
+                              const badgeFor = (v: PkgView, compact: boolean) =>
+                                v.owned ? (
+                                  <span className={`absolute -top-2 ${badgePos(compact)} text-meta px-2 py-px rounded bg-track text-accent whitespace-nowrap`}>
+                                    {activeStorageSub?.status === 'past_due' ? t('storage.pastDue') : t('storage.active')}
+                                  </span>
+                                ) : v.isBest ? (
+                                  <span className={`absolute -top-2 ${badgePos(compact)} text-meta px-2 py-px rounded bg-track text-success whitespace-nowrap`}>
+                                    {/* Card cells are ~160px in a narrow pane; the localized
+                                        best-value copy runs 3x that (fr), so cards get a
+                                        numeric badge and rows keep the full string. */}
+                                    {compact && v.pct > 0
+                                      ? `-${v.pct}%`
+                                      : v.pct > 0
+                                        ? t('storage.bestValueOff', { pct: v.pct })
+                                        : t('storage.bestValue')}
+                                  </span>
+                                ) : null;
+                              const renewLineFor = (v: PkgView) =>
+                                v.owned && activeStorageSub && (activeStorageSub.scheduled_cancel_at || activeStorageSub.current_period_ends_at) ? (
+                                  <div className="mt-1.5 px-1 text-meta text-pn-muted">
+                                    {activeStorageSub.scheduled_cancel_at
+                                      ? t('storage.cancelsOn', { date: formatInstant(activeStorageSub.scheduled_cancel_at, 'date') })
+                                      : t('storage.renewsOn', { date: formatInstant(activeStorageSub.current_period_ends_at as string, 'date') })}
+                                  </div>
+                                ) : null;
+                              const ctaLabel = (v: PkgView) =>
+                                v.owned
+                                  ? t('storage.currentAddon')
+                                  : !v.isDowngrade && activeStorageSub
+                                    ? t('storage.upgradeTitle', { gb: v.pkg.gb })
+                                    : t('storage.addGbCta', { gb: v.pkg.gb });
+                              return (
+                                <div className="pn-storage-picker pt-2">
+                                  {/* Wide pane: three tier cards side by side. */}
+                                  <div className="pn-storage-cards">
+                                    {views.map((v) => (
+                                      <div key={v.pkg.gb} className="flex flex-col">
+                                        <HoverLabel label={t('storage.downgradeUnavailable')} disabled={!v.isDowngrade} position="above" multiline className="flex-1">
+                                          <div
+                                            className={`relative flex h-full flex-col rounded-lg border ${
+                                              v.owned
+                                                ? 'border-accent border-2'
+                                                : v.isBest
+                                                  ? 'border-green-600/70 dark:border-green-600/50 border-2 bg-green-50/60 dark:bg-green-950/20'
+                                                  : 'border-divider'
+                                            } p-3.5 ${v.isDowngrade ? 'opacity-40' : ''}`}
+                                          >
+                                            {badgeFor(v, true)}
+                                            <div className="flex items-center justify-between gap-2">
+                                              <span className="rounded-md bg-track px-2 py-0.5 text-small font-medium text-pn whitespace-nowrap">
+                                                +{t('quota.gb', { value: v.pkg.gb })}
+                                              </span>
+                                              {!v.fromStore && v.saving > 0.005 && (
+                                                <span className="text-meta text-success truncate">
+                                                  {t('storage.savePerYear', { amount: v.saving.toFixed(2) })}
+                                                </span>
+                                              )}
+                                            </div>
+                                            <div className="mt-3 text-display-2 leading-none font-semibold tracking-tight text-pn">
+                                              {v.priceLabel}
+                                              <span className="text-small font-normal text-pn-muted">{t('storage.perYear')}</span>
+                                            </div>
+                                            {!v.fromStore && (
+                                              <div className="mt-1.5 text-meta text-pn-muted">
+                                                {v.discounted && (
+                                                  <span className="me-1 line-through text-pn-muted">
+                                                    ${STORAGE_ADDON_PRICE.toFixed(2)}
+                                                  </span>
+                                                )}
+                                                {t('storage.pricePerGb', { price: v.perGb.toFixed(2) })}
+                                              </div>
+                                            )}
+                                            <div className="mt-3 flex flex-1 flex-col gap-1.5 border-t border-divider pt-2.5">
+                                              <span className="flex items-start gap-1.5 text-small leading-snug text-pn-soft">
+                                                <Check className="mt-0.5 shrink-0 text-success" />
+                                                {t('storage.totalStorageFeat', { total: 0.5 + v.pkg.gb })}
+                                              </span>
+                                              <span className="flex items-start gap-1.5 text-small leading-snug text-pn-soft">
+                                                <Check className="mt-0.5 shrink-0 text-success" />
+                                                {t('storage.maxFileFeat', { mb: 100 })}
+                                              </span>
+                                            </div>
+                                            <button
+                                              type="button"
+                                              disabled={!v.actionable}
+                                              onClick={() => selectPkg(v)}
+                                              className={`mt-3 w-full rounded-md py-1.5 text-small transition disabled:opacity-50 ${
+                                                v.owned || v.isDowngrade
+                                                  ? 'border border-divider font-medium text-pn-muted cursor-default'
+                                                  : v.isBest
+                                                    ? 'bg-green-600 hover:bg-green-700 text-white font-semibold'
+                                                    : 'border border-divider font-medium hover:bg-surface-1'
+                                              }`}
+                                            >
+                                              {ctaLabel(v)}
+                                            </button>
+                                          </div>
+                                        </HoverLabel>
+                                        {renewLineFor(v)}
+                                      </div>
+                                    ))}
+                                  </div>
+                                  {/* Narrow pane: growth rows, current plan vs total after. */}
+                                  <div className="pn-storage-rows">
+                                    {views.map((v) => (
+                                      <div key={v.pkg.gb} className="flex flex-col">
+                                        <HoverLabel label={t('storage.downgradeUnavailable')} disabled={!v.isDowngrade} position="above" multiline>
+                                          <button
+                                            type="button"
+                                            disabled={!v.actionable}
+                                            onClick={() => selectPkg(v)}
+                                            className={`relative w-full flex flex-col gap-2 rounded-md border ${
+                                              v.owned
+                                                ? 'border-accent border-2'
+                                                : v.isBest
+                                                  ? 'border-green-600/70 dark:border-green-600/50 border-2'
+                                                  : 'border-divider'
+                                            } px-3.5 py-3 text-start transition ${
+                                              v.actionable
+                                                ? 'hover:bg-surface-1 cursor-pointer'
+                                                : 'cursor-default'
+                                            } ${v.isDowngrade ? 'opacity-40' : ''}`}
+                                          >
+                                            {badgeFor(v, false)}
+                                            <span className="flex items-baseline justify-between gap-2">
+                                              <span className="text-row font-medium text-pn whitespace-nowrap">
+                                                +{t('quota.gb', { value: v.pkg.gb })}
+                                              </span>
+                                              <span className="text-row font-medium text-pn whitespace-nowrap">
+                                                {v.priceLabel}
+                                                <span className="text-compact font-normal text-pn-muted">{t('storage.perYear')}</span>
+                                              </span>
+                                            </span>
+                                            <span className="flex h-2 overflow-hidden rounded-full bg-track" aria-hidden="true">
+                                              <span
+                                                className="bg-pn-muted"
+                                                style={{ width: `${Math.min(100, (nowGb / (0.5 + v.pkg.gb)) * 100)}%` }}
+                                              />
+                                              <span className="ms-px flex-1 bg-accent-fill" />
+                                            </span>
+                                            <span className="flex items-center justify-between gap-2 text-meta">
+                                              <span className="text-pn-muted">
+                                                {t('storage.growthNow', { size: fmtGb(nowGb) })}
+                                              </span>
+                                              <span className="text-pn-muted">
+                                                {'→ '}
+                                                <span className="font-medium">{t('storage.growthAfter', { size: fmtGb(0.5 + v.pkg.gb) })}</span>
+                                              </span>
+                                            </span>
+                                            {!v.fromStore && v.discounted && (
+                                              <span className="flex items-center justify-between gap-2 text-meta">
+                                                <span className="text-pn-muted">
+                                                  <span className="me-1 line-through text-pn-muted">
+                                                    ${STORAGE_ADDON_PRICE.toFixed(2)}
+                                                  </span>
+                                                  {t('storage.pricePerGb', { price: v.perGb.toFixed(2) })}
+                                                </span>
+                                                <span className="text-success whitespace-nowrap">
+                                                  {t('storage.savePerYear', { amount: v.saving.toFixed(2) })}
+                                                </span>
+                                              </span>
+                                            )}
+                                          </button>
+                                        </HoverLabel>
+                                        {renewLineFor(v)}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                            {confirmingUpgrade && (
+                              <div
+                                className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+                                onClick={() => { if (!storageActionBusy) setConfirmingUpgrade(null); }}
+                              >
+                                <div
+                                  className="relative w-[340px] max-w-full rounded-xl border border-divider bg-surface-2 p-6 text-center"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <CloseButton onClick={() => setConfirmingUpgrade(null)} disabled={storageActionBusy} className="absolute top-2.5 end-2.5" />
+                                  <div className="mx-auto mb-3 w-11 h-11 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                                    <IconUpgrade size={20} />
+                                  </div>
+                                  <div className="text-title font-medium text-pn">
+                                    {t('storage.upgradeTitle', { gb: confirmingUpgrade.gb })}
+                                  </div>
+                                  <div className="text-body text-pn-soft mt-0.5 mb-4">
+                                    {t('storage.upgradeTotal', { total: 0.5 + confirmingUpgrade.gb })}
+                                  </div>
+                                  <div className="rounded-md bg-track px-3 py-2.5 text-body text-start text-pn-soft leading-relaxed mb-4">
+                                    {(() => {
+                                      const amount = storeSheetUpgrade || upgradePreviewFailed
+                                        ? t('storage.proratedAmount')
+                                        : (upgradeDue?.dueToday ?? '…');
+                                      const renewPrice = confirmingUpgrade.priceLabel;
+                                      // Apple runs the opposite mechanic to the other two rails, so it
+                                      // needs its own sentence. Paddle and Play both charge the
+                                      // DIFFERENCE now and leave the renewal date alone (Play via
+                                      // PLAY_CHARGE_PRORATED_PRICE), which is what the two strings
+                                      // below describe. Apple charges the new price in FULL, refunds
+                                      // the unused remainder of the old term itself, and restarts the
+                                      // year today - so "charged X for the rest of your current year"
+                                      // is wrong on iOS in all three of its claims, and there is no
+                                      // "rest of your current year" left to bill for.
+                                      if (activeStorageSub?.source === 'apple') {
+                                        return t('storage.upgradeChargeApple', { price: renewPrice });
+                                      }
+                                      return activeStorageSub?.current_period_ends_at
+                                        ? t('storage.upgradeChargeUntil', { amount, date: formatInstant(activeStorageSub.current_period_ends_at, 'date'), price: renewPrice })
+                                        : t('storage.upgradeCharge', { amount, price: renewPrice });
+                                    })()}
+                                    {upgradePreviewFailed && (
+                                      <div role="alert" className="mt-2 text-small text-danger">
+                                        {t('storage.upgradeAmountFailed')}{' '}
+                                        <button
+                                          type="button"
+                                          onClick={() => setUpgradePreviewRun((n) => n + 1)}
+                                          className="font-medium text-accent hover:underline"
+                                        >
+                                          {t('auth:signIn.tryAgain')}
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-col gap-2">
+                                    <button
+                                      type="button"
+                                      disabled={storageActionBusy || (!storeSheetUpgrade && !upgradeDue)}
+                                      onClick={() => {
+                                        const target = { priceId: confirmingUpgrade.priceId, gb: confirmingUpgrade.gb, quote: upgradeDue?.quote };
+                                        setConfirmingUpgrade(null);
+                                        void handleStorageAction('switch', target);
+                                      }}
+                                      className="w-full rounded-md bg-blue-600 hover:bg-blue-700 text-white text-body font-medium py-2 transition disabled:opacity-50"
+                                    >
+                                      {storageActionBusy ? t('storage.upgrading') : t('storage.upgradeAndPay')}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={storageActionBusy}
+                                      onClick={() => setConfirmingUpgrade(null)}
+                                      className="w-full rounded-md border border-divider hover:bg-surface-1 text-body py-2 transition disabled:opacity-50"
+                                    >
+                                      {t('billing:donation.maybeLater')}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            {storageBusy && (
+                              <div className="text-meta text-pn-muted mt-1.5">{t('billing:upgrade.ctaOpening')}</div>
+                            )}
+                            {storageActionBusy && (
+                              <div className="text-meta text-pn-muted mt-1.5">{t('storage.updatingPlan')}</div>
+                            )}
+                            {error && (
+                              <div className="mt-2 rounded-md border border-red-300 bg-red-50 dark:border-red-900/60 dark:bg-red-950/30 text-red-700 dark:text-red-300 text-small p-2.5">
+                                {error}
+                              </div>
+                            )}
+                            {activeStorageSub && !activeStorageSub.scheduled_cancel_at && (
+                              cancelDone ? (
+                                <div className="mt-3 text-small text-success">
+                                  {t('storage.cancelScheduled')}
+                                </div>
+                              ) : confirmingCancel ? (
+                                <div className="mt-3 rounded-md border border-red-300 dark:border-red-900/60 px-2.5 py-2">
+                                  <div className="text-meta text-pn-soft mb-1.5 leading-relaxed">
+                                    {t('storage.cancelConfirm')}
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <button
+                                      type="button"
+                                      disabled={storageActionBusy}
+                                      onClick={() => {
+                                        setConfirmingCancel(false);
+                                        void handleStorageAction('cancel');
+                                      }}
+                                      className="text-small rounded-md bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 transition disabled:opacity-50"
+                                    >
+                                      {storageActionBusy ? t('storage.cancelling') : t('storage.yesCancel')}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={storageActionBusy}
+                                      onClick={() => setConfirmingCancel(false)}
+                                      className="text-small rounded-md border border-divider hover:bg-surface-1 px-2.5 py-1 transition disabled:opacity-50"
+                                    >
+                                      {t('storage.keepStorage')}
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={storageActionBusy}
+                                  onClick={() => setConfirmingCancel(true)}
+                                  className="mt-3 text-small text-danger hover:underline disabled:opacity-50"
+                                >
+                                  {t('storage.cancelStorage')}
+                                </button>
+                              )
+                            )}
+                            {/* Subscription terms plus the two legal links, on the
+                                surface where the subscription is actually bought.
+                                App Store guideline 3.1.2 wants title, length, price
+                                and both links visible at the point of purchase; the
+                                picker above carries title, price and "/yr", so this
+                                line completes it. Reuses the About modal's link
+                                labels rather than duplicating the strings.
+                                Spec: docs/internal/design-decisions.md (storage add-on packages) */}
+                            <p className="mt-4 text-meta text-pn-muted leading-relaxed">
+                              {t('storage.legalNote')}
+                              {' '}
+                              <a
+                                href="https://lifetimelabs.dev/terms/"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-accent hover:underline"
+                              >
+                                {t('landing:about.termsOfService')}
+                              </a>
+                              {' · '}
+                              <a
+                                href="https://lifetimelabs.dev/privacy/"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-accent hover:underline"
+                              >
+                                {t('landing:about.privacyPolicy')}
+                              </a>
+                            </p>
+                          </div>
+                        ) : null}
+                    </>
+                  ) : (
+                    <>
+                      <QuotaRing
+                        compact
+                        label={t('storage.quotaLabel')}
+                        usedBytes={quota.totalBytes + quota.imageBytes}
+                        maxBytes={quota.maxTotalBytes}
+                      />
+                      <p className={`${SETTINGS_HELP} -mt-3`}>
+                        {t('common:storageBar.cleanupInfo')}
+                        {onOpenImageSettings && (
+                          <>
+                            {' '}
+                            <button type="button" onClick={onOpenImageSettings} className="text-accent hover:underline">
+                              {t('storage.imageSettingsLink')}
+                            </button>
+                          </>
+                        )}
+                      </p>
+                      <div className="rounded-xl border border-divider bg-surface-2 p-5">
+                        <div className="text-title font-medium text-pn mb-3 flex items-center gap-2">
+                          <IconUpgrade size={18} />
+                          {t('storage.needMore')}
+                        </div>
+                        {/* Two steps: Pro first, then the add-ons it unlocks. A free
+                            user never sees the add-on cards, so this is the one
+                            place the ceiling and the add-on price are stated
+                            before the purchase. The price is the store's own
+                            string on a native build, pricing.ts otherwise. */}
+                        <div className="flex gap-3">
+                          <div className="flex flex-col items-center">
+                            <div className="w-6 h-6 rounded-full bg-amber-600 text-white text-small font-semibold flex items-center justify-center shrink-0">1</div>
+                            <div className="flex-1 w-px bg-divider my-1" />
+                          </div>
+                          <div className="flex-1 min-w-0 pb-4">
+                            <div className="text-body font-medium text-pn">{t('plan.upgradeToPro')}</div>
+                            <p className="text-body text-pn-soft leading-relaxed mt-0.5">{t('storage.stepProBody')}</p>
+                            {isBetaPricing() && !isNativeStoreBuild() ? (
+                              <div className="mt-2 flex flex-wrap items-center gap-2.5">
+                                <span className="text-display-2 font-bold tracking-tight text-amber-900 dark:text-amber-100">${EARLY_PRICE}</span>
+                                <span className="text-heading font-semibold line-through text-warning">${PRO_PRICE}</span>
+                                <span className="text-meta font-semibold text-amber-900 dark:text-amber-100 bg-amber-200 dark:bg-amber-800/70 rounded-full px-2.5 py-0.5">
+                                  {t('storage.earlyAdopterSave', { amount: PRO_PRICE - EARLY_PRICE })}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="mt-2 flex items-baseline gap-2">
+                                <span className="text-display-2 font-bold tracking-tight text-amber-900 dark:text-amber-100">{storePrices?.[PRO_PRODUCT_ID]?.formatted ?? (isNativeStoreBuild() ? '…' : `$${PRO_PRICE}`)}</span>
+                                <span className="text-body font-medium text-amber-700/70 dark:text-amber-300/70">{t('billing:upgrade.oneTime')}</span>
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              onClick={onOpenUpgrade}
+                              disabled={!onOpenUpgrade}
+                              className="mt-2 inline-flex items-center justify-center gap-2 rounded-md bg-amber-600 hover:bg-amber-700 text-white text-body font-semibold px-5 py-2 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                              <IconUpgrade size={16} onFill />
+                              {t('plan.upgradeToPro')}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex gap-3">
+                          <div className="w-6 h-6 rounded-full border border-divider text-pn-soft text-small font-semibold flex items-center justify-center shrink-0">2</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-body font-medium text-pn-soft">{t('storage.stepAddonTitle')}</div>
+                            <p className="text-body text-pn-soft leading-relaxed mt-0.5">
+                              {t('storage.stepAddonBody', {
+                                price: storePrices?.[storageProductId(1)]?.formatted ?? (isNativeStoreBuild() ? '…' : `$${STORAGE_ADDON_PRICE.toFixed(2)}`),
+                                total: 0.5 + STORAGE_PACKAGES.reduce((m, p) => Math.max(m, p.gb), 0),
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+            <HelpChip surface="storage" />
+          </>
+        )}
+
+        {/* ── Plan tab: devices ── */}
+        {tab === 'plan' && accountSection === 'overview' && (
+          <>
+            {/* Active devices */}
+            <div>
+              <SectionEyebrow setting="plan.devices" className="mb-2" icon={Devices}>
+                {t('devices.heading')}
+              </SectionEyebrow>
+              {devices === null ? (
+                <div className="text-body text-pn-muted">{t('common:state.loading')}</div>
+              ) : slots.length === 0 ? (
+                <div className={SETTINGS_HELP}>
+                  {t('devices.empty')}
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {slots.map((slot) => (
+                    slot.rows.length === 1 ? (
+                      <li
+                        key={slot.key}
+                        className="flex items-center justify-between gap-3 rounded-md border border-divider px-3 py-2"
+                      >
+                        <DeviceRowLabel row={slot.rows[0]} isSelf={slot.isSelf} label={deviceLabelOf(deviceLabels, slot.rows[0].device_id)} onRename={onRenameDevice} />
+                        <button
+                          type="button"
+                          onClick={() => setConfirm({ slot, rows: slot.rows })}
+                          disabled={busy !== null}
+                          className={REMOVE_BUTTON}
+                        >
+                          {t('common:actions.remove')}
+                        </button>
+                      </li>
+                    ) : (
+                      /* Several rows share one slot: a reinstall, a second
+                         browser, or a second machine the fingerprint merged.
+                         Each row keeps its own Remove; the whole slot is the
+                         explicit second action. */
+                      <li key={slot.key} className="rounded-md border border-divider px-3 pt-2 pb-1.5">
+                        <div className="text-meta text-pn-muted">
+                          {t('devices.sharedSlot', { count: slot.rows.length })}
+                        </div>
+                        <ul className="divide-y divide-divider">
+                          {slot.rows.map((row) => (
+                            <li key={row.device_id} className="flex items-center justify-between gap-3 py-2">
+                              <DeviceRowLabel row={row} isSelf={authed?.deviceId === row.device_id} label={deviceLabelOf(deviceLabels, row.device_id)} onRename={onRenameDevice} />
+                              <button
+                                type="button"
+                                onClick={() => setConfirm({ slot, rows: [row] })}
+                                disabled={busy !== null}
+                                className={REMOVE_BUTTON}
+                              >
+                                {t('common:actions.remove')}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                        <div className="flex justify-end border-t border-divider pt-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setConfirm({ slot, rows: slot.rows })}
+                            disabled={busy !== null}
+                            className="text-small text-pn-muted hover:text-pn transition disabled:opacity-50"
+                          >
+                            {t('devices.removeAll')}
+                          </button>
+                        </div>
+                      </li>
+                    )
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* Recently removed devices - informational, do not occupy a slot. */}
+            {cooldownDevices.length > 0 && !isPro && (
+              <div>
+                <SectionEyebrow className="mb-2">
+                  {t('devices.recentlyRemoved')}
+                </SectionEyebrow>
+                <ul className="space-y-2">
+                  {cooldownDevices.map((d) => (
+                    <li
+                      key={d.device_id}
+                      className="flex items-center justify-between gap-3 rounded-md border border-divider/60 px-3 py-2 opacity-60"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-body font-medium truncate text-pn-muted">
+                          <span dir="auto">{deviceLabelOf(deviceLabels, d.device_id) ?? d.device_name}</span>
+                          <span className="text-meta font-normal ms-2"><DeviceId id={d.device_id} /></span>
+                        </div>
+                        <div className="text-meta text-pn-muted">
+                          {t('devices.removedAt', { time: formatRelative(d.revoked_at!) })}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {error && (
+              <div className="rounded-md border border-red-300 bg-red-50 dark:border-red-900/60 dark:bg-red-950/30 text-red-700 dark:text-red-300 text-body p-3">
+                {error}
+              </div>
+            )}
+
+            {/* Upgrade CTA (free users only) */}
+            {!isPro && authed && (
+              <button
+                type="button"
+                data-setting="plan.upgrade"
+                onClick={onOpenUpgrade}
+                disabled={!onOpenUpgrade}
+                className={`w-full ${SETTINGS_BTN_UPGRADE}`}
+              >
+                <IconUpgrade size={16} onFill />
+                {t('plan.upgradeToPro')}
+              </button>
+            )}
+
+            {/* Sign out */}
+            {authed && onSignOut && (
+              <button
+                type="button"
+                data-setting="plan.signOut"
+                onClick={() => {
+                  onClose();
+                  onSignOut();
+                }}
+                className={`w-full ${SETTINGS_BTN}`}
+              >
+                <SignOut className="text-accent" />
+                {t('account.signOut')}
+              </button>
+            )}
+
+            {/* Danger zone - lives with the account actions, right below
+                sign out, deliberately not in the sync readout. */}
+            {authed && <DangerZone onDeleteStarted={() => { /* page reloads after wipe */ }} />}
+
+            <HelpChip surface={isPro ? 'devicesPro' : 'devices'} />
+          </>
+        )}
+
+        {/* ── Sync tab ── */}
+        {tab === 'sync' && <SyncPanel onSyncNow={onSyncNow} supabase={supabase} onOpenNote={onOpenNote} />}
+
+        {/* ── Me tab (ID & Sync - the full sync readout) ── */}
+        {tab === 'me' && (meSection === 'overview' || !authed) && (
+          <>
+            <SyncPanel pubkey={authed?.pubkey} onSyncNow={onSyncNow} supabase={supabase} autoVerify={autoVerify} onOpenNote={onOpenNote} />
+            <HelpChip surface="me" />
+          </>
+        )}
+        {tab === 'me' && meSection === 'dms' && authed && <DmsPanel />}
+
+        </PaneBody>
+    </Modal>
+
+      {confirm && authed && (
+        <RevokeConfirm
+          target={confirm}
+          labels={deviceLabels}
+          isPro={isPro}
+          busy={busy}
+          selfDeviceId={authed.deviceId}
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => void handleRevoke(confirm)}
+        />
+      )}
+    </>
+  );
+}
+
+const RATE_BUTTON =
+  'shrink-0 rounded-md border border-divider bg-surface-2 hover:bg-track px-2.5 py-1.5 text-small font-medium text-pn transition';
+
+const REMOVE_BUTTON =
+  'text-small rounded-md border border-red-300 text-red-700 hover:bg-red-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/30 px-2.5 py-1.5 transition disabled:opacity-50';
+
+/**
+ * Name line plus the meta that tells two identically named rows apart. The
+ * name is the label the person gave the device when it has one, and the
+ * server's name then moves into the meta line.
+ */
+export function DeviceRowLabel({
+  row,
+  isSelf,
+  label,
+  onRename,
+  meta,
+  badge,
+}: {
+  row: DeviceRow;
+  isSelf: boolean;
+  label: string | null;
+  onRename?: (deviceId: string, name: string, serverName: string) => void;
+  /** The line under the name, for a row that is not a device (an extension). */
+  meta?: ReactNode;
+  /** A mark after the name, for a row that is not a device (a new extension). */
+  badge?: ReactNode;
+}) {
+  const { t } = useTranslation('settings');
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState('');
+  // The settings window closes on a capture-phase Escape; while the field is
+  // open it is the topmost overlay, so Escape cancels the rename instead.
+  useEscapeToClose(() => setEditing(false), editing);
+
+  const start = () => {
+    setValue(label ?? row.device_name);
+    setEditing(true);
+  };
+  const commit = () => {
+    setEditing(false);
+    onRename?.(row.device_id, value, row.device_name);
+  };
+
+  const behind = isBelowFloor(row.app_version, deviceVersionFloor());
+  const versionChip = row.app_version ? (
+    <span
+      dir="ltr"
+      className={`shrink-0 rounded border px-1.5 py-0.5 font-mono text-meta whitespace-nowrap ${behind ? 'border-warning/40 bg-warning/10 text-warning' : 'border-divider text-pn-muted'}`}
+    >
+      {behind ? `v${row.app_version} · ${t('devices.update')}` : `v${row.app_version}`}
+    </span>
+  ) : (
+    <span className="shrink-0 text-meta text-pn-muted/75 whitespace-nowrap">{t('devices.versionUnknown')}</span>
+  );
+
+  return (
+    <div className="min-w-0 flex-1 flex items-center gap-3">
+      <DeviceIcon row={row} />
+      <div className="min-w-0 flex-1">
+        <div className="text-body font-medium flex items-center gap-2 min-w-0">
+          {editing ? (
+            <InlineRenameField
+              value={value}
+              onValueChange={setValue}
+              onCommit={commit}
+              onCancel={() => setEditing(false)}
+              // Opens selected: a new name usually replaces the old one whole.
+              onFocus={(e) => e.currentTarget.select()}
+              maxLength={DEVICE_LABEL_MAX}
+              placeholder={row.device_name}
+              aria-label={t('devices.renameField')}
+              className="min-w-0 flex-1 bg-transparent border-b border-accent/50 focus:border-accent outline-none text-body font-medium text-pn"
+            />
+          ) : (
+            <>
+              <span className="truncate" dir="auto">{label ?? row.device_name}</span>
+              {onRename && (
+                <HoverLabel label={t('common:actions.rename')}>
+                  <button
+                    type="button"
+                    onClick={start}
+                    aria-label={t('common:actions.rename')}
+                    className="shrink-0 -m-1.5 p-1.5 rounded text-pn-muted hover:text-pn hover:bg-surface-1 transition"
+                  >
+                    <PencilSimple aria-hidden="true" />
+                  </button>
+                </HoverLabel>
+              )}
+            </>
+          )}
+          {badge}
+          {isSelf && (
+            <span className="shrink-0 text-meta uppercase tracking-wide text-accent">
+              {t('devices.thisDevice')}
+            </span>
+          )}
+        </div>
+        <div className="text-meta text-pn-muted">
+          {meta ?? (
+            <>
+              {/* An app names itself ("Desktop app on macOS"); a browser row is
+                  named by its OS only, so it says Browser here. */}
+              {label && <><span dir="auto">{row.device_name}</span>{' · '}</>}
+              {row.platform === 'web' && `${t('devices.browser')} · `}
+              <DeviceId id={row.device_id} />
+              {` · ${t('devices.added', { time: formatRelative(row.created_at) })}`}
+              {` · ${t('devices.lastActive', { time: formatRelative(row.last_seen_at) })}`}
+            </>
+          )}
+        </div>
+        {/* A phone has no room beside the name, so the chip drops below it. */}
+        <div className="sm:hidden mt-1 flex">{versionChip}</div>
+      </div>
+      <div className="hidden sm:flex shrink-0">
+        {behind ? <HoverLabel label={t('devices.updateHint')}>{versionChip}</HoverLabel> : versionChip}
+      </div>
+    </div>
+  );
+}
+
+/** The short device id with its label, so the code reads as an id. */
+function DeviceId({ id }: { id: string }) {
+  const { t } = useTranslation('settings');
+  return (
+    <span className="whitespace-nowrap">
+      {t('devices.idLabel')} <span dir="ltr" className="font-mono">{shortDeviceId(id)}</span>
+    </span>
+  );
+}
+
+// ------------------------------------------------------------------
+// Revoke-device confirmation sub-modal
+// ------------------------------------------------------------------
+
+function RevokeConfirm({
+  target,
+  labels,
+  isPro,
+  busy,
+  selfDeviceId,
+  onCancel,
+  onConfirm,
+}: {
+  target: RevokeTarget;
+  labels: DeviceLabels;
+  isPro: boolean | null;
+  busy: string | null;
+  selfDeviceId: string | null;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const { t } = useTranslation('settings');
+
+  const { slot, rows } = target;
+  // A whole-slot removal frees the slot; a single row out of several does not.
+  const wholeSlot = rows.length === slot.rows.length;
+  const removesSelf = rows.some((row) => row.device_id === selfDeviceId);
+  const row = rows[0];
+  const othersLeft = slot.rows.length - rows.length;
+  const name = deviceLabelOf(labels, row.device_id) ?? row.device_name;
+
+  return (
+    <Modal onClose={onCancel} layer="z-[60]" title={wholeSlot ? t('revoke.title', { name }) : t('revoke.titleInstall')} className="max-w-sm p-6 space-y-4">
+        {!wholeSlot && (
+          <p className="text-body text-pn-soft">
+            <span dir="auto">{name}</span>
+            {' · '}
+            <DeviceId id={row.device_id} />
+            {` · ${t('devices.added', { time: formatRelative(row.created_at) })} · ${t('devices.lastActive', { time: formatRelative(row.last_seen_at) })}`}
+          </p>
+        )}
+        <p className="text-body text-pn-muted leading-relaxed">
+          {removesSelf
+            ? `${t('revoke.bodySelf')}${rows.length > 1 ? ` ${t('revoke.bodyRemoveAll', { count: rows.length })}` : ''}`
+            : wholeSlot
+              ? `${t('revoke.bodyOther')}${rows.length > 1 ? ` ${t('revoke.bodyRemoveAll', { count: rows.length })}` : ''}`
+              : `${t('revoke.bodyInstall')} ${t('revoke.bodyInstallOthers', { count: othersLeft })}`}
+        </p>
+        {!isPro && !removesSelf && (
+          <p className="text-small text-pn-muted leading-relaxed">
+            {wholeSlot ? t('revoke.freeNote') : t('revoke.freeNoteKept')}
+          </p>
+        )}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={busy !== null}
+            className="flex-1 rounded-md border border-divider hover:bg-surface-1 px-3 py-2 text-body transition"
+          >
+            {t('common:actions.cancel')}
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={busy !== null}
+            className="flex-1 rounded-md bg-red-600 hover:bg-red-700 text-white px-3 py-2 text-body transition disabled:opacity-50"
+          >
+            {busy === slot.key ? t('security:deviceLimit.removing') : t('common:actions.remove')}
+          </button>
+        </div>
+    </Modal>
+  );
+}
+
+/** The scroll area under the pane title and tabs when the pane sits in the
+ *  settings window; the standalone dialog scrolls as a whole. */
+function PaneBody({ embedded, children }: { embedded: boolean; children: ReactNode }) {
+  if (!embedded) return <>{children}</>;
+  return <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6 pt-4 space-y-5">{children}</div>;
+}

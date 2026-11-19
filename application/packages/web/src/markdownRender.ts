@@ -1,0 +1,1842 @@
+/**
+ * Markdown → HTML renderer - single source of truth for all non-editor
+ * rendering: Burn-After-Reading viewer, HTML export, and PDF (print).
+ *
+ * The editor produces a well-known subset (tiptap starter-kit +
+ * tiptap-markdown): headings, bold/italic/strike, inline code, fenced
+ * code, blockquotes, ul/ol (incl. GFM task lists), hr, links, images,
+ * paragraphs. That's what we handle. Unknown syntax falls through as
+ * plain paragraph text.
+ *
+ * Deliberately no new dependency - the subset is small enough that a
+ * scoped hand-rolled renderer is less churn than pulling in marked / etc.
+ */
+
+import { joinParagraphLinesHtml } from './paragraphLines';
+import { parseFenceInfo, parseFenceSize } from './codeFenceInfo';
+import { DOODLE_FENCE, looksLikeDoodle } from './doodle/doodleFence';
+import { MAP_FENCE, formatCoordinates, osmUrl, parseMapFence } from './noteLocation';
+import type { LineSpacing } from './theme';
+import { faviconUrl } from './favicon';
+import { attachmentLinks, unescapeMarkdownText } from './fileNames';
+import { RENDER_LINK, RENDER_PICTURE, SRC_PICTURE, markdownLinks, replaceMatches } from './linkScan';
+import { getFavicons } from './theme';
+import { widthsFromTableLines } from './tableColumnWidths';
+import { fillAt, tableFillsFromMarker, tableWidthFromMarker } from './tableDelimiterRow';
+import { cellFillColor } from './editorColors';
+import { noteLinkDisplayText } from './noteLinks';
+import { orderFootnotes, replaceMarkers, scanFootnotes } from './footnoteScan';
+import { isSameOriginPath } from './sameOriginPath';
+import { allowedImageSource } from './markdownFolder/assetSource';
+import { calloutColorOf, canonicalCalloutType, type CalloutType } from './calloutKeywords';
+import { evaluateTable, formatFormulaValue, isFormulaText } from './tableFormula';
+import { INLINE_ICON_RE, inlineIconId } from './editorIconSyntax';
+import { firstLetter, letterDirection, listNumerals, writesPersian } from './textDirection';
+import { escapeHtml } from './escapeHtml';
+
+// ─── Callout types ──────────────────────────────────────────────────────
+//
+// A blockquote whose first line is `[!type]` renders as a collapsible
+// callout (<details>). Keywords and colors come from calloutKeywords.ts, the
+// table the editor reads too; the label below is the default title used when
+// a callout has none.
+
+const CALLOUT_LABELS: Record<CalloutType, string> = {
+  fold: 'Fold', box: 'Box', panel: 'Panel', info: 'Info', note: 'Note', update: 'Update', tip: 'Tip',
+  idea: 'Idea', important: 'Important',
+  warning: 'Warning', caution: 'Caution', danger: 'Danger', success: 'Success', failure: 'Failure',
+  bug: 'Bug', todo: 'Todo', goal: 'Goal', decision: 'Decision', time: 'Time', steps: 'Steps', place: 'Place', quote: 'Quote', example: 'Example',
+  abstract: 'Abstract', question: 'Question', definition: 'Definition', seealso: 'See also',
+  kanban: 'Kanban board', column: 'Column',
+};
+
+// A Kanban board lays its columns side by side and wraps them on a narrow
+// page; each column is a callout of its own inside the board.
+const KANBAN_BODY_STYLE = 'padding:0.15em 0.85em 0.7em;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:0 0.7em;align-items:start';
+
+// Phosphor caret-down / caret-right (bold weight, 256 viewBox): the fold
+// control at the start of the exported summary, as in the editor. The
+// :not([open]) rules in export.ts and index.css show the one that fits, and
+// the right caret mirrors in a right-to-left document.
+const CALLOUT_CARET_DOWN = 'M216.49,104.49l-80,80a12,12,0,0,1-17,0l-80-80a12,12,0,0,1,17-17L128,159l71.51-71.52a12,12,0,0,1,17,17Z';
+const CALLOUT_CARET_RIGHT = 'M184.49,136.49l-80,80a12,12,0,0,1-17-17L159,128,87.51,56.49a12,12,0,1,1,17-17l80,80A12,12,0,0,1,184.49,136.49Z';
+
+/**
+ * Allowlist a CSS color for the inline color spans emitted by the
+ * editor's text-color feature. Returns the trimmed value if it is a plain
+ * hex or rgb/rgba/hsl/hsla color, otherwise null. Intentionally strict:
+ * it rejects semicolons, url(), and anything that could append a second
+ * CSS declaration, so a malicious note can't smuggle styles through the
+ * one span we let past the HTML escaper. This matters because this
+ * renderer also powers the burn-after-reading viewer, which renders
+ * untrusted sender-supplied markdown.
+ */
+function sanitizeColor(input: string): string | null {
+  const c = input.trim();
+  if (/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(c)) return c;
+  if (/^(?:rgb|rgba|hsl|hsla)\([0-9.,%\s/]+\)$/i.test(c)) return c;
+  return null;
+}
+
+/**
+ * The other two things a `textStyle` span can carry (editorColors.ts):
+ * a font size in `em`, and one of three generic family stacks. Same
+ * strictness as sanitizeColor - no semicolons, no url(), no parens - so
+ * neither can append a second declaration.
+ */
+function sanitizeFontSize(input: string): string | null {
+  const v = input.trim();
+  return /^\d+(?:\.\d+)?(?:em|rem|px|%)$/i.test(v) ? v : null;
+}
+
+function sanitizeFontFamily(input: string): string | null {
+  const v = input.trim();
+  return /^[a-zA-Z0-9 ,'-]+$/.test(v) ? v : null;
+}
+
+/** One of the four keywords TextAlign can store, or null. */
+function sanitizeAlign(input: string): string | null {
+  const v = input.trim().toLowerCase();
+  return v === 'left' || v === 'center' || v === 'right' || v === 'justify' ? v : null;
+}
+
+/**
+ * Reject URL schemes that can execute script when clicked. Applies to
+ * `<a href>` values specifically - burn notes render untrusted
+ * sender-provided markdown, so we must neuter `javascript:`,
+ * `vbscript:`, and any `data:` payload (which can be text/html).
+ *
+ * Accept same-origin paths, absolute http(s), mailto, tel, and
+ * fragment links. Everything else collapses to `#`.
+ */
+/**
+ * Normalize a URL the way the browser's parser will, BEFORE deciding whether
+ * it is safe. The parser strips leading C0 controls and spaces, and removes
+ * ASCII tab, newline and carriage return from anywhere in the string.
+ * JavaScript does neither: `trim()` leaves U+0001-U+0008 and U+000E-U+001F in
+ * place, and `\s` does not match them either. So a scheme test run against the
+ * raw attribute sees `\u0001javascript:alert(1)` as having no scheme, lets it
+ * through as a relative path, and the parser then executes it.
+ *
+ * Two values come out of this. `cleaned` has every control character removed
+ * and is what may be emitted, so nothing downstream ever sees one. `probe` also
+ * has whitespace removed and is what the scheme test runs against. Spaces are
+ * kept in `cleaned` because they are legitimate inside a path.
+ */
+function stripUrlControls(value: string): string {
+  return value.replace(/[\u0000-\u001F\u007F]/g, '');
+}
+
+function sanitizeLinkHref(href: string): string {
+  const cleaned = stripUrlControls(href).trim();
+  if (cleaned === '') return '#';
+  const probe = cleaned.replace(/\s/g, '');
+  if (/^[a-z][a-z0-9+.-]*:/i.test(probe)) {
+    if (/^(https?|mailto|tel):/i.test(probe)) return cleaned;
+    return '#';
+  }
+  // No scheme - relative, root-relative, fragment, or query.
+  return cleaned;
+}
+
+/**
+ * Same idea for `<img src>`. Allow http(s), relative paths, our own
+ * `pn:img/` scheme, and `data:image/…` (used by the inliner). Reject
+ * everything else, and a desktop asset address the Markdown folder resolver
+ * did not make (`markdownFolder/assetSource.ts`, beta issue 86).
+ */
+function sanitizeImageSrc(src: string): string | null {
+  const trimmed = src.trim();
+  if (trimmed === '') return null;
+  if (!allowedImageSource(trimmed)) return null;
+  if (/^data:image\//i.test(trimmed)) return trimmed;
+  if (/^pn:img\//i.test(trimmed)) return trimmed;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return null;
+  return trimmed;
+}
+
+/**
+ * Extract a hostname from a (possibly HTML-escaped) href for favicon lookup.
+ * Returns null for non-http(s), relative, or unparseable URLs.
+ */
+function domainFromHref(href: string): string | null {
+  try {
+    const raw = href.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+    const url = new URL(raw);
+    if (url.protocol === 'http:' || url.protocol === 'https:') return url.hostname;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Math rendering for exports, the burn viewer and print.
+ *
+ * The editor stores math as `$..$` / `$$..$$` LaTeX, and this renderer had
+ * no case for either, so every formula exported as its literal source - the
+ * same class of bug underline and alignment once had, missed then because
+ * math had shipped as a node type rather than a mark.
+ *
+ * KaTeX is asked for MATHML rather than its usual HTML. That output needs no
+ * stylesheet and no fonts, which is the whole reason it works here: an
+ * exported .html is a standalone file opened from disk with no external
+ * calls, and embedding KaTeX's CSS plus its woff2 faces would add a quarter
+ * of a megabyte to every export. Browsers render MathML natively, print
+ * included.
+ *
+ * The import is DYNAMIC and only happens for markdown that actually contains
+ * a `$`. KaTeX is ~82 KB gz and today lives only in the editor chunk; a
+ * static import here would put it in the burn viewer's chunk too, which is
+ * the one page a stranger loads from a link. See docs/contrib/bundle-size.md.
+ *
+ * Callers await prepareMath(body) before renderMarkdown(body). Skipping that
+ * is not fatal: renderTex returns null and the formula falls back to the
+ * literal source it printed before, which is why the loader can stay off the
+ * synchronous render path.
+ */
+type KatexRender = (tex: string, options: Record<string, unknown>) => string;
+let katexRender: KatexRender | null = null;
+
+async function prepareMath(md: string): Promise<void> {
+  if (katexRender || !md.includes('$')) return;
+  const mod = await import('katex');
+  katexRender = mod.default.renderToString as unknown as KatexRender;
+}
+
+/**
+ * renderMarkdown, degraded to escaped source if it throws.
+ *
+ * For the burn viewer, whose row is consumed before the page paints: the app
+ * carries no error boundary, so a throw under it blanks the screen and the
+ * one-time note is gone. Plain text the reader can still copy beats nothing.
+ * Nothing in the renderer is known to throw, which is what a net is for.
+ */
+/**
+ * A note body as HTML for a page that leaves the editor (the burn viewer, the
+ * HTML and PDF export), laid out for the given line spacing: on Compact and
+ * Tight a run of paragraphs is one paragraph with a break per line, so a copy
+ * out of the page keeps the note's blank lines. Spec: paragraphLines.ts
+ */
+export function renderNoteBody(html: string, spacing: LineSpacing): string {
+  return spacing === 'normal' ? html : joinParagraphLinesHtml(html);
+}
+
+export function renderMarkdownSafe(md: string): string {
+  try {
+    return renderMarkdown(md);
+  } catch (err) {
+    console.error('[render] falling back to plain text:', err);
+    return `<pre>${escapeHtml(md)}</pre>`;
+  }
+}
+
+function renderTex(tex: string, display: boolean): string | null {
+  if (!katexRender || !tex.trim()) return null;
+  try {
+    // throwOnError renders bad LaTeX in red rather than throwing, matching
+    // what the editor shows for the same source (Editor.tsx katexOptions).
+    return katexRender(tex, { output: 'mathml', displayMode: display, throwOnError: false });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Syntax highlighting for fenced code, the same shape as the KaTeX loader
+ * above: a DYNAMIC import behind a prepare call, because a highlighter has
+ * no business in the burn viewer's chunk for notes without code - and the
+ * import goes through markdownHighlight.ts rather than the 'lowlight'
+ * package directly, because a dynamic namespace import keeps every grammar
+ * alive (the module header there has the full story). Skipping
+ * prepareRender degrades to the plain uncolored block this renderer always
+ * produced.
+ */
+let highlightCode: ((code: string, lang: string) => string | null) | null = null;
+
+async function prepareCodeHighlight(md: string): Promise<void> {
+  // A fence with a language is ``` followed by a tag character; a bare
+  // fence has nothing to highlight and must not cost the download.
+  if (highlightCode || !/```[^\s`]/.test(md)) return;
+  const mod = await import('./markdownHighlight');
+  highlightCode = mod.highlightCode;
+}
+
+/** The paths of the `:icon[id]` icons the body holds, loaded by
+ *  prepareRender: the renderer itself is synchronous. */
+const inlineIconPaths = new Map<string, readonly string[]>();
+
+async function prepareInlineIcons(md: string): Promise<void> {
+  const ids = [...new Set([...md.matchAll(INLINE_ICON_RE)].map((m) => inlineIconId(m[1]!, m[2]!)))];
+  if (ids.length === 0) return;
+  const { loadLookPaths } = await import('./looks/lookIconsLoader');
+  const paths = await loadLookPaths(ids);
+  for (const [id, p] of paths) inlineIconPaths.set(id, p);
+}
+
+/** Everything the three export paths and the burn viewer await before renderMarkdown. */
+export async function prepareRender(md: string): Promise<void> {
+  await Promise.all([prepareMath(md), prepareCodeHighlight(md), prepareInlineIcons(md), prepareDoodles(md)]);
+}
+
+/** A doodle block's drawing, loaded by prepareRender only for a body that
+ *  holds one: the stroke engine stays off the boot path. Without it a block
+ *  prints as its name. */
+let doodleHtml: ((text: string, height: number | null) => string | null) | null = null;
+
+async function prepareDoodles(md: string): Promise<void> {
+  if (doodleHtml || !md.includes('```' + DOODLE_FENCE)) return;
+  doodleHtml = (await import('./doodle/doodleExport')).doodleHtml;
+}
+
+function renderFenceCode(code: string, lang: string): string | null {
+  if (!highlightCode || !lang) return null;
+  return highlightCode(code, lang);
+}
+
+/**
+ * Inline `$..$`, mirroring `inlineMathRule` in editorInlineSyntax.ts guard for
+ * guard: no `$$`, no space just inside either delimiter, no newline, and no
+ * digit after the closing `$` so "$5 and $10" stays prose. Written as a
+ * scanner rather than a regex for one reason - the editor's version is a
+ * scanner, and the two drifting apart is exactly how a price becomes a
+ * formula in someone's PDF.
+ *
+ * Runs before the backslash-escape pass in renderInline, which would
+ * otherwise eat the `\{`, `\}` and `\\` that LaTeX is made of.
+ */
+function extractInlineMath(raw: string, keep: (html: string, source: string) => string): string {
+  let out = '';
+  let i = 0;
+  while (i < raw.length) {
+    const open = raw.indexOf('$', i);
+    if (open < 0) { out += raw.slice(i); break; }
+
+    // A code span outranks a math delimiter, the same way markdown-it's own
+    // code rule outranks the editor's math rule. Without this, `echo $HOME`
+    // and `$var = 1` on one line pair their two dollars across the backticks
+    // and render a formula inside the code - shell variables in inline code
+    // being about the most ordinary thing a note can contain. Backtick runs
+    // are matched the same single-backtick way the code-span pass below does,
+    // so the two agree on what a code span is.
+    const tick = raw.indexOf('`', i);
+    if (tick >= 0 && tick < open) {
+      const closeTick = raw.indexOf('`', tick + 1);
+      if (closeTick > tick) {
+        out += raw.slice(i, closeTick + 1);
+        i = closeTick + 1;
+        continue;
+      }
+    }
+
+    out += raw.slice(i, open);
+    if (raw[open + 1] === '$' || /\s/.test(raw[open + 1] ?? '') || open + 1 >= raw.length) {
+      out += '$';
+      i = open + 1;
+      continue;
+    }
+    // Closing delimiter, skipping any escaped \$.
+    let search = open + 1;
+    let close = -1;
+    while (search < raw.length) {
+      const idx = raw.indexOf('$', search);
+      if (idx < 0) break;
+      if (raw[idx - 1] === '\\') { search = idx + 1; continue; }
+      close = idx;
+      break;
+    }
+    const tex = close > open + 1 ? raw.slice(open + 1, close) : '';
+    const ok =
+      close > open + 1 &&
+      !/\s/.test(raw[close - 1] ?? '') &&
+      !/\d/.test(raw[close + 1] ?? '') &&
+      !tex.includes('\n');
+    const html = ok ? renderTex(tex, false) : null;
+    if (!html) {
+      out += '$';
+      i = open + 1;
+      continue;
+    }
+    out += keep(html, raw.slice(open, close + 1));
+    i = close + 1;
+  }
+  return out;
+}
+
+// The references the editor writes for a typed `&`, `<` or `>`, plus the two
+// quotes. Only these: each names a character that can never spell a URL
+// scheme, a markdown mark or one of the renderer's control-byte sentinels.
+const SAVED_REF = /&amp;(amp|lt|gt|quot|apos);/g;
+const SAVED_CHAR: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+
+function renderInline(raw: string): string {
+  // The editor serializes empty paragraphs as the literal entity &nbsp;
+  // (see EmptyParagraphSerializer). escapeHtml() below would turn it into
+  // visible "&nbsp;" text in HTML/PDF export, so decode it to a real
+  // non-breaking space up front - escapeHtml leaves U+00A0 untouched.
+  // Spec: GitHub #103.
+  raw = raw.replace(/&nbsp;/g, '\u00A0');
+
+  // Inline math comes out FIRST: its LaTeX is made of the very characters
+  // the backslash-escape pass below consumes, and its rendered MathML is
+  // made of the tags escapeHtml would turn into visible text. Held behind a
+  // sentinel until every pass has run, then restored raw.
+  const mathHtml: string[] = [];
+  const mathSource: string[] = [];
+  raw = extractInlineMath(raw, (html: string, source: string) => {
+    const idx = mathHtml.length;
+    mathHtml.push(html);
+    mathSource.push(source);
+    return `\x01M${idx}\x01`;
+  });
+
+  // Inline code and backslash escapes in one pass over the source, left to
+  // right: a code span is taken whole, so a backslash inside it stays
+  // literal (`\d+\.txt` lost its `\.` while the escapes ran first), and an
+  // escaped backtick is an escape, not the start of a span. Both go behind
+  // sentinels that survive every pass below; the code is HTML-escaped as it
+  // is taken, the escapes when they come back.
+  const codeSpans: string[] = [];
+  const bsEscapes: string[] = [];
+  const preprocessed = raw.replace(/`([^`]+)`|\\([\\`*_{}[\]()#+\-.!|~>])/g, (_m: string, code: string | undefined, c: string | undefined) => {
+    if (code !== undefined) {
+      const idx = codeSpans.length;
+      codeSpans.push(escapeHtml(code));
+      return `\x01C${idx}\x01`;
+    }
+    const idx = bsEscapes.length;
+    bsEscapes.push(c ?? '');
+    return `\x01E${idx}\x01`;
+  });
+
+  let t = escapeHtml(preprocessed);
+
+  // An attribute value holds text, never markup. Math or a code span inside
+  // an image's alt or a link's target goes back as its own source there,
+  // because the MathML or <code> restored at the end would close the
+  // attribute early (GitHub #659).
+  const attrText = (s: string): string => s
+    .replace(/\x01M(\d+)\x01/g, (_m: string, i: string) => escapeHtml(mathSource[Number(i)] ?? ''))
+    .replace(/\x01C(\d+)\x01/g, (_m: string, i: string) => `\`${codeSpans[Number(i)] ?? ''}\``);
+
+  // The editor saves a typed `&`, `<` or `>` as an entity reference, which a
+  // markdown reader decodes outside code. Escaped once above, a reference
+  // reads `&amp;lt;` here. Its character joins the backslash escapes: held
+  // behind a sentinel, it is literal text to every pass below and comes back
+  // escaped at the end, so it can never become markup or syntax.
+  t = t.replace(SAVED_REF, (_m: string, ref: string) => {
+    const idx = bsEscapes.length;
+    bsEscapes.push(SAVED_CHAR[ref]!);
+    return `\x01E${idx}\x01`;
+  });
+
+  // Emitted <a>/<img> tags contain `_blank` and other characters that
+  // the emphasis passes below would chew through. Stash completed
+  // tags behind a sentinel and splice them back in at the end.
+  const tagBuf: string[] = [];
+  const stash = (html: string): string => {
+    const idx = tagBuf.length;
+    tagBuf.push(html);
+    return `\x01T${idx}\x01`;
+  };
+
+  // Images ![alt](src) or ![alt](src){width=N} - must come before link
+  // handling since the syntax is similar. Optional {width=N} suffix from
+  // tiptap-markdown is captured and applied as an inline style.
+  t = replaceMatches(t, markdownLinks(t, RENDER_PICTURE),
+    ({ text: rawAlt, target: src, suffix: attrs }) => {
+      const alt = attrText(rawAlt);
+      const clean = sanitizeImageSrc(attrText(src));
+      if (clean === null) return null; // leave raw - safer than emitting a broken <img>
+      // The escapes come back after this pass, so `\\\\asset.localhost\\x.png`
+      // reaches the page as `\\asset.localhost\x.png`, which the web view reads
+      // as `//asset.localhost/x.png`. Ask again of what the page will get.
+      if (!allowedImageSource(clean.replace(/\x01E(\d+)\x01/g, (_m: string, i: string) => bsEscapes[Number(i)] ?? ''))) return null;
+      // Parse width from {width=N} attribute block if present. The editor
+      // stores image width as a percentage of the container (any whole
+      // percent from 10 to 100, imageWidth.ts) and serializes it as a bare
+      // number, e.g. {width=50}.
+      // A unit-less value is therefore a percentage, not pixels - emitting
+      // px here made XS/S/M collapse to 25/50/75px (near-identical thumbs)
+      // in HTML/PDF export. Spec: GitHub #103.
+      const widthMatch = attrs?.match(/width=["']?(\d+%?)["']?/);
+      const w = widthMatch?.[1];
+      const widthStyle = w ? `width:${w.endsWith('%') ? w : `${w}%`};` : '';
+      // `align=X` in the same suffix. An image is an inline element inside
+      // its paragraph, so the alignment has to become a block box with auto
+      // margins - putting text-align on the <img> itself does nothing.
+      const align = sanitizeAlign(attrs?.match(/align=["']?([a-z]+)["']?/)?.[1] ?? '');
+      const alignStyle =
+        align === 'center' ? 'display:block;margin-left:auto;margin-right:auto;'
+        : align === 'right' ? 'display:block;margin-left:auto;margin-right:0;'
+        : '';
+      return stash(`<img src="${clean}" alt="${alt}" style="max-width:100%;border-radius:4px;${widthStyle}${alignStyle}" />`);
+    },
+  );
+
+  // Encrypted file attachments [name|size|mime](pn:file/<uuid>) - render
+  // as a descriptive label since the encrypted blob can't be resolved
+  // outside the app. Includes a tooltip explaining why.
+  t = replaceMatches(t, attachmentLinks(t, { acrossLines: true }),
+    ({ name: rawName, size }) => {
+      // Raw body text, so the name arrives markdown-escaped.
+      const name = unescapeMarkdownText(rawName);
+      return stash(`<span title="This attachment is encrypted and only accessible within PrivacyNotes. Use the full backup (zip) export to include file attachments." style="display:inline-flex;align-items:center;gap:0.4em;padding:0.15em 0.5em;background:#f3f3f3;border-radius:4px;font-size:0.9em;cursor:help">&#128206; ${name} (${size})</span>`);
+    },
+  );
+
+  // :icon[name] and :logo[name] - the icon in the text's color, at the
+  // text's size, when prepareRender loaded it; an unknown one drops out, as
+  // in a list preview.
+  t = t.replace(INLINE_ICON_RE, (_run: string, kind: string, name: string) => {
+    const paths = inlineIconPaths.get(inlineIconId(kind, name));
+    if (!paths) return '';
+    const d = paths.map((p) => `<path d="${escapeHtml(p)}"/>`).join('');
+    return stash(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="1.1em" height="1.1em" fill="currentColor" style="vertical-align:-0.18em" aria-hidden="true">${d}</svg>`);
+  });
+
+  // Note-links [[target]] or [[target|label]] - render as plain text
+  // since note-to-note links can't work outside the app.
+  // The second branch of each keeps a `[[` that opens none, up to where one
+  // opening inside it would fail the same way, so a run of `[` is not read
+  // again from every bracket (external report, 2026-10-24).
+  t = t.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]|\[\[[^\]|]*/g, (run: string, _target?: string, label?: string) =>
+    label === undefined ? run : `<em>${label}</em>`);
+  t = t.replace(/\[\[([^\]]+)\]\]|\[\[[^\]]*/g, (run: string, target?: string) =>
+    target === undefined ? run : `<em>${noteLinkDisplayText(target)}</em>`);
+
+  // Links [text](url). URL itself is already HTML-escaped by the
+  // initial pass, which is fine for href attribute safety.
+  // Includes a favicon image when the href is an http(s) URL.
+  //
+  // Only the open and close tags are stashed. The label stays in the
+  // stream, the way the textStyle span and the mark below also hold their
+  // inner text there, so a label the editor wrote as `**bold**`, `==lit==`
+  // or `<u>x</u>` reaches the passes that turn those into real tags. A
+  // label stashed whole reaches none of them and shows its markers as
+  // literal text. The label arrives HTML-escaped and stays that way: the
+  // only passes that let a tag back through rebuild it from a fixed list
+  // and validate every value, so a burn note cannot smuggle markup in
+  // through a link label. Spec: GitHub #328.
+  // A link's hover text, `[text](url "hover text")` (GitHub #702), as the
+  // serializer quotes it: in "" or, when it holds a ", in ''. RENDER_LINK
+  // reads the target to the first space, so the title moves out first and
+  // its place in the target holds a sentinel the link pass reads back. It
+  // arrives HTML-escaped, so it is safe inside the attribute. Bounded, so a
+  // line of unclosed titles costs no more than its length.
+  const linkTitles: string[] = [];
+  t = t.replace(/\]\(([^\s)\]]+) (?:&quot;((?:(?!&quot;\))[^\n]){0,500})&quot;|'((?:(?!'\))[^\n]){0,500})')\)/g,
+    (_m: string, href: string, dq: string | undefined, sq: string | undefined) => {
+      linkTitles.push((dq ?? sq ?? '').replace(/\\(&quot;|')/g, '$1'));
+      return `](${href}\x01L${linkTitles.length - 1}\x01)`;
+    });
+  t = replaceMatches(t, markdownLinks(t, RENDER_LINK),
+    ({ text: label, target: rawTarget }) => {
+      const titled = /\x01L(\d+)\x01$/.exec(rawTarget);
+      const rawHref = titled ? rawTarget.slice(0, titled.index) : rawTarget;
+      const titleAttr = titled ? ` title="${linkTitles[Number(titled[1])] ?? ''}"` : '';
+      const href = attrText(rawHref);
+      const domain = domainFromHref(href);
+      const fav = domain && getFavicons() ? faviconUrl(domain) : '';
+      const favicon = fav
+        ? `<img src="${fav}" width="14" height="14" style="display:inline-block;vertical-align:middle;margin:0 3px 0 0;border-radius:2px;max-width:none" onerror="this.style.display='none'" />`
+        : '';
+      return (
+        stash(`<a href="${sanitizeLinkHref(href)}"${titleAttr} target="_blank" rel="noopener noreferrer">${favicon}`) +
+        label +
+        stash('</a>')
+      );
+    }
+  );
+  // A titled target the link pass did not take (no link text) drops its title.
+  if (linkTitles.length) t = t.replace(/\x01L\d+\x01/g, '');
+
+  // Autolinks <http://…>. They come in HTML-escaped as &lt;http…&gt;, which
+  // means every `&` inside the URL reads `&amp;` here - so the character
+  // class must let `&amp;` through or the match dies at the first query
+  // parameter, the URL stays literal text, and its `utm_source`-style
+  // underscores get chewed into <em> by the emphasis passes below.
+  t = t.replace(
+    /&lt;(https?:\/\/(?:[^&\s]|&amp;)+)&gt;/g,
+    (_m: string, url: string) => {
+      const href = attrText(url);
+      const domain = domainFromHref(href);
+      const fav = domain && getFavicons() ? faviconUrl(domain) : '';
+      const favicon = fav
+        ? `<img src="${fav}" width="14" height="14" style="display:inline-block;vertical-align:middle;margin:0 3px 0 0;border-radius:2px;max-width:none" onerror="this.style.display='none'" />`
+        : '';
+      // The icon is a box of its own, and CSS offers a line break right
+      // after one. The text here is a whole URL, which is a single word, so
+      // a column too narrow to hold it takes that break and strands the icon
+      // on the line above. The first character carries the icon inside one
+      // unbreakable span instead, which is safe on this branch alone: the
+      // pattern guarantees the URL opens with `h`, never with a markdown
+      // marker that a split would tear in half. Spec: GitHub #328.
+      const text = favicon
+        ? `<span style="white-space:nowrap">${favicon}${href.slice(0, 1)}</span>${href.slice(1)}`
+        : href;
+      return stash(`<a href="${sanitizeLinkHref(href)}" target="_blank" rel="noopener noreferrer">${text}</a>`);
+    }
+  );
+
+  // Email autolinks <user@host>. CommonMark implies the mailto:, and the
+  // serializer strips it back off (the autolink form is written whenever the
+  // link text equals the href minus its scheme), so this is exactly the
+  // shape a linkified email address is stored as. The character classes
+  // admit nothing that needs escaping inside an href attribute.
+  t = t.replace(
+    /&lt;([A-Za-z0-9._%+-]+@[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?\.[A-Za-z]{2,})&gt;/g,
+    (_m: string, addr: string) => stash(`<a href="mailto:${addr}">${addr}</a>`),
+  );
+
+  // Inline style spans from the editor's Font popover: color, size and
+  // family all hang off the one textStyle mark, so a span can carry any
+  // combination of the three (`<span style="color: X; font-size: Y">`).
+  // escapeHtml() above already turned the literal tags into their
+  // &lt;/&quot;/&gt; forms, so we match the escaped form. Each declaration
+  // is re-emitted only if its own sanitizer clears it and everything else
+  // in the style is dropped, so this can't inject arbitrary HTML/CSS even
+  // for untrusted burn-after-reading content. The inner text stays in the
+  // stream so nested emphasis/links still render; the open/close tags are
+  // stashed so the passes below leave them alone.
+  //
+  // Matching the whole style at once matters: the previous pattern ended
+  // at the closing quote right after the color, so a run that was BOTH
+  // colored and resized rendered as visible escaped tags, and font size
+  // and family never rendered in an export at all.
+  t = t.replace(
+    /&lt;span style=&quot;([^&]*)&quot;&gt;([\s\S]*?)&lt;\/span&gt;/gi,
+    (_m: string, style: string, inner: string) => {
+      const decls: string[] = [];
+      for (const part of style.split(';')) {
+        const [rawProp, ...rest] = part.split(':');
+        const prop = (rawProp ?? '').trim().toLowerCase();
+        const value = rest.join(':');
+        if (!prop || !value) continue;
+        const safe =
+          prop === 'color' ? sanitizeColor(value)
+          : prop === 'font-size' ? sanitizeFontSize(value)
+          : prop === 'font-family' ? sanitizeFontFamily(value)
+          : null;
+        if (safe) decls.push(`${prop}:${safe}`);
+      }
+      if (decls.length === 0) return inner;
+      return stash(`<span style="${decls.join(';')}">`) + inner + stash('</span>');
+    }
+  );
+
+  // Marks the editor writes as bare inline HTML: underline, superscript
+  // and subscript. No attributes to sanitize - the tag name IS the whole
+  // meaning - so they are simply let back through the escaper. Without
+  // this an underlined word exported as the literal text `<u>word</u>`.
+  t = t.replace(/&lt;(\/?)(u|sup|sub)&gt;/gi, (_m: string, slash: string, tag: string) =>
+    stash(`<${slash}${tag.toLowerCase()}>`),
+  );
+  // A line break inside a table cell, a heading or a callout title: the
+  // editor writes it as a bare <br>, which came out as the text `<br>`.
+  t = t.replace(/&lt;br\s*\/?&gt;/gi, () => stash('<br>'));
+
+  // Colored highlights. `==text==` cannot carry a color, so the editor
+  // writes those runs as inline <mark style="background-color: ...">
+  // (HighlightWithMarkdown). Same escaped-form matching and the same
+  // single-declaration rebuild as the textStyle span above: the value is
+  // re-validated through sanitizeColor and everything else in the style
+  // is dropped, so an untrusted burn note cannot smuggle CSS through the
+  // tag we let past the escaper. Runs before the `==` pass below, which
+  // would otherwise never see these, and before the emphasis passes.
+  t = t.replace(
+    /&lt;mark style=&quot;([^&]*)&quot;&gt;([\s\S]*?)&lt;\/mark&gt;/gi,
+    (_m: string, style: string, inner: string) => {
+      const [rawProp, ...rest] = style.split(':');
+      const prop = (rawProp ?? '').trim().toLowerCase();
+      const safe = prop === 'background-color' ? sanitizeColor(rest.join(':')) : null;
+      if (!safe) return stash('<mark>') + inner + stash('</mark>');
+      return stash(`<mark style="background-color:${safe}">`) + inner + stash('</mark>');
+    }
+  );
+
+  // ==highlight== (Obsidian syntax, HighlightWithMarkdown). Runs before
+  // the emphasis passes so the doubled `=` can never be chewed up.
+  t = t.replace(/==([^=]+)==/g, (_m: string, inner: string) =>
+    stash('<mark>') + inner + stash('</mark>'),
+  );
+
+  // ||spoiler|| (editorSpoiler.ts, same guard). Focusable, so a click or a
+  // tab shows it with no script: the CSS reveals a focused spoiler.
+  t = t.replace(
+    /(^|[^|\\])\|\|(?![\s|])([^\n]*?\S)\|\|(?!\|)/g,
+    (_m: string, pre: string, inner: string) =>
+      pre +
+      stash('<span class="pn-spoiler" tabindex="0"><span class="pn-spoiler-text">') +
+      inner +
+      stash('</span></span>'),
+  );
+
+  // Strong+em (three asterisks), strong, em, strike. Underscores follow
+  // CommonMark's intraword rule - a `_` flanked by word characters opens
+  // nothing, so `utm_source=a&utm_medium=b` and `snake_case_names` stay
+  // literal the way markdown-it keeps them in the editor. Asterisks are
+  // deliberately NOT restricted the same way: intraword `**bold**` is
+  // valid CommonMark and the editor renders it.
+  t = t.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
+  t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  t = t.replace(/(^|[^*])\*([^*\s][^*]*?)\*(?!\*)/g, '$1<em>$2</em>');
+  t = t.replace(/(^|\W)__([^_]+)__(?!\w)/g, '$1<strong>$2</strong>');
+  t = t.replace(/(^|\W)_([^_\s][^_]*?)_(?!\w)/g, '$1<em>$2</em>');
+  t = t.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+
+  // Restore stashed tags.
+  t = t.replace(/\x01T(\d+)\x01/g, (_m: string, i: string) => tagBuf[Number(i)] ?? '');
+
+  // Restore inline code last so its contents stay literal.
+  t = t.replace(/\x01C(\d+)\x01/g, (_m: string, i: string) => {
+    const span = codeSpans[Number(i)] ?? '';
+    // Content was escaped when the span was taken from the source.
+    return `<code>${span}</code>`;
+  });
+
+  // Restore backslash-escaped characters very last - they're literal
+  // text that should not be interpreted by any pass above.
+  t = t.replace(/\x01E(\d+)\x01/g, (_m: string, i: string) => escapeHtml(bsEscapes[Number(i)] ?? ''));
+
+  // Math last of all: the MathML carries the original LaTeX in its
+  // <annotation> element, so restoring it any earlier would hand the
+  // emphasis passes a string full of underscores and asterisks.
+  t = t.replace(/\x01M(\d+)\x01/g, (_m: string, i: string) => mathHtml[Number(i)] ?? '');
+
+  return t;
+}
+
+/**
+ * Neutralize an HTML block before it is passed through to the page.
+ *
+ * The editor writes real HTML for the things markdown cannot express -
+ * tables it cannot draw as a pipe table, aligned blocks, an aligned task
+ * list - and this renderer hands those straight to the burn viewer's
+ * `dangerouslySetInnerHTML` and to the exported .html file. The block is
+ * SENDER-supplied for a burn note (anyone can type raw HTML into the
+ * markdown source view), so it is scrubbed on the way through.
+ *
+ * On the app origin the CSP does the heavy lifting already: `script-src`
+ * carries no `unsafe-inline`, so an `onclick` never fires there. An exported
+ * .html file carries its own policy (`export.ts`, `default-src 'none'`), so
+ * the scrub is the second wall there, and the only one in a viewer that
+ * ignores a meta policy. It is also the one defence against what no CSP
+ * stops: a `position: fixed` overlay impersonating the app's own UI.
+ *
+ * Deliberately a denylist rather than an allowlist. Everything here is
+ * something no editor feature emits; an allowlist would silently drop the
+ * next attribute a TipTap upgrade starts writing (colwidth, colspan,
+ * data-*) and break a feature quietly, which is the failure mode this
+ * whole audit exists to fix.
+ */
+// Properties that let inline content reposition or overlay other content,
+// which is how a crafted note or a stranger's burn note would build a
+// clickjacking overlay on the origin that holds the phrase. `inset` is the
+// shorthand for top/right/bottom/left; `translate`/`rotate`/`scale` are the
+// individual transform properties (CSS Transforms Level 2) that do what
+// `transform` does; the `offset` family (CSS Motion Path) moves a static
+// element along a path, which is a transform under another name. The test
+// runs on the name as the CSS tokenizer reads it, with a vendor prefix
+// stripped, because `-webkit-transform` is the same property. `margin` is
+// deliberately NOT here: the renderer emits `margin` in its own favicon image
+// styles, and a nudge is not an overlay; the positioning vectors above are
+// the real risk.
+const UNSAFE_CSS_PROPS =
+  /^(position|z-index|top|right|bottom|left|inset|transform|translate|rotate|scale|offset|offset-path|offset-distance|offset-position|offset-anchor|offset-rotate|pointer-events)$/i;
+
+/**
+ * A declaration as the CSS tokenizer reads it: a backslash escape (`\70`,
+ * `\70 `, `\p`) is one character, so `pos\69 tion` reaches the engine as
+ * `position`, and the name test has to see that form rather than the bytes
+ * in the attribute. One pass, on purpose: an escape that decodes to a
+ * backslash is a literal backslash to the engine and never a second escape,
+ * so a second pass here would see `position` where the browser does not.
+ */
+function cssUnescape(text: string): string {
+  return text.replace(
+    /\\(?:([0-9a-f]{1,6})(?:\r\n|[ \t\n\r\f])?|([^\n\r\f]))/gi,
+    (_m: string, hex: string | undefined, ch: string | undefined) => {
+      if (hex === undefined) return ch ?? '';
+      const cp = parseInt(hex, 16);
+      return cp === 0 || cp > 0x10ffff || (cp >= 0xd800 && cp <= 0xdfff)
+        ? '\uFFFD'
+        : String.fromCodePoint(cp);
+    },
+  );
+}
+
+// The only classes a rendered surface styles inside passed-through HTML: a
+// spoiler the editor wrote into a table cell or an aligned block. Every other
+// class goes, because the burn viewer runs on the app origin with the app's
+// stylesheet loaded, and its utilities (`fixed`, `inset-0`, `z-50`) build the
+// same overlay the style denylist refuses.
+const KEPT_CLASSES = new Set(['pn-spoiler', 'pn-spoiler-text']);
+
+// Attributes that open an element in the browser's top layer, above every
+// container, so `contain: paint` on the burn card does not hold them: a
+// stranger's note covered the whole page after one click. The editor writes
+// none of them.
+const TOP_LAYER_ATTRS = new Set(['popover', 'popovertarget', 'popovertargetaction', 'command', 'commandfor', 'interestfor']);
+
+// How often a block is cleaned before it is given up on. An editor block is
+// stable after the first pass, so the second one only confirms it.
+const CLEAN_PASSES = 8;
+
+/**
+ * The page parses the returned string again, so a block is cleaned until a
+ * pass changes nothing: the tree that is drawn is then the tree that was
+ * cleaned. A block that does not settle is shown as text.
+ */
+function sanitizeEditorHtml(html: string): string {
+  let current = html;
+  for (let pass = 0; pass < CLEAN_PASSES; pass++) {
+    const next = cleanEditorHtml(current);
+    if (next === current) return next;
+    current = next;
+  }
+  return escapeHtml(html);
+}
+
+function cleanEditorHtml(html: string): string {
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+  // `noscript` is here for a reason the others are not: this parser runs with
+  // scripting disabled, so it reads the element's content as markup and an
+  // attribute inside it as an attribute, while the browser that renders the
+  // serialized output reads the same bytes as text. Anything left inside one
+  // therefore re-parses differently on the other side, handlers included.
+  //
+  // `template` too: its content is a separate fragment the walk below never
+  // enters, and a file opened from disk activates a declarative shadow root,
+  // so a form or a handler inside one came back whole in an HTML export.
+  // `dialog` opens in the top layer like a popover.
+  //
+  // The second line holds what the editor never writes in a block: foreign
+  // content (`svg`, `math`), the elements whose content is read as text
+  // (`xmp`, `noembed`, `noframes`, `plaintext`, `textarea`, `title`), and an
+  // image map, whose `area` is a link that is not an `a`.
+  doc.body
+    .querySelectorAll(
+      'script,style,iframe,object,embed,link,meta,base,form,input[type="image"],noscript,template,dialog,' +
+        'svg,math,xmp,noembed,noframes,plaintext,textarea,title,map,area',
+    )
+    .forEach((el) => el.remove());
+  doc.body.querySelectorAll('*').forEach((el) => {
+    for (const attr of [...el.attributes]) {
+      const name = attr.name.toLowerCase();
+      if (name.startsWith('on') || name === 'usemap' || TOP_LAYER_ATTRS.has(name)) {
+        el.removeAttribute(attr.name);
+      } else if (
+        (name === 'href' || name === 'src' || name === 'xlink:href') &&
+        // Test the parser-normalized form, never the raw attribute. See
+        // stripUrlControls above for why the raw string cannot be trusted:
+        // both an embedded tab and a leading control character defeat a
+        // scheme test that the browser's own parser would see straight
+        // through.
+        /^(?:javascript|vbscript|data:text)/i.test(
+          stripUrlControls(attr.value).replace(/\s/g, ''),
+        )
+      ) {
+        el.removeAttribute(attr.name);
+      } else if (name === 'style') {
+        // Comments come out first, from the whole attribute, because the
+        // engine drops them wherever they sit: `/**/position` is `position`,
+        // and a `;` inside one is no separator, so a comment left in place
+        // would be joined back around a declaration the filter never saw.
+        // Each surviving declaration is emitted as written; only the
+        // decision reads the unescaped form.
+        const kept = attr.value
+          .replace(/\/\*[\s\S]*?\*\//g, '')
+          .split(';')
+          .filter((decl) => {
+            const seen = cssUnescape(decl);
+            const prop = (seen.split(':')[0] ?? '').trim().toLowerCase().replace(/^-[a-z]+-/, '');
+            return prop !== '' && !UNSAFE_CSS_PROPS.test(prop) && !/url\s*\(/i.test(seen);
+          })
+          .join(';');
+        if (kept.trim()) el.setAttribute('style', kept);
+        else el.removeAttribute('style');
+      } else if (name === 'class') {
+        const kept = attr.value.split(/\s+/).filter((c) => KEPT_CLASSES.has(c));
+        if (kept.length) el.setAttribute('class', kept.join(' '));
+        else el.removeAttribute('class');
+      }
+    }
+    // `rel="opener"` hands the page a link opens a handle on this tab, which
+    // it can send to a copy of the sign-in. Every link gets the rel the
+    // renderer writes on its own.
+    if (el.tagName === 'A') el.setAttribute('rel', 'noopener noreferrer');
+  });
+  return doc.body.innerHTML;
+}
+
+/**
+ * The editor's checkbox, restated as inline styles for the export and the
+ * burn viewer: an appearance:none rounded box (the editor's 1.45em /
+ * 0.33em / 1.5px proportions), filled with the brand accent and a white
+ * check when checked. The box centres on the first line of text, as the
+ * editor's label does (1lh is the line height it inherits through
+ * `font:inherit`); a baseline nudge put it a third of a line too high.
+ * The editor fills with the active theme's accent; a
+ * standalone exported file has no theme, so it gets the brand default.
+ * Checked task TEXT dims and strikes through exactly as in the editor -
+ * on an inner span only, so a nested sub-list under a checked task does
+ * not inherit the strike (the editor scopes it the same way).
+ * Spec: docs/internal/design-decisions.md (brand accent)
+ */
+const TASK_CHECK_SVG =
+  "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><path d=%22M3.5 8.5l3 3 6-7%22 fill=%22none%22 stroke=%22%23fff%22 stroke-width=%222.4%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/></svg>')";
+
+const TASK_DONE_TEXT = 'text-decoration:line-through;color:#a3a3a3';
+
+function taskCheckboxHtml(checked: boolean): string {
+  const base =
+    'appearance:none;-webkit-appearance:none;flex-shrink:0;font:inherit;width:1.45em;height:1.45em;margin:calc((1lh - 1.45em) / 2) 0 0;border-radius:0.33em;border:1.5px solid #a3a3a3;background:transparent';
+  const fill = `background-color:#1e40af;border-color:#1e40af;background-image:${TASK_CHECK_SVG};background-size:0.82em;background-position:center;background-repeat:no-repeat`;
+  return `<input type="checkbox" disabled${checked ? ' checked' : ''} style="${base}${checked ? `;${fill}` : ''}" />`;
+}
+
+/** Task text, struck through and dimmed when done - sub-lists stay outside. */
+function taskTextHtml(checked: boolean, body: string, subHtml: string): string {
+  const text = checked ? `<span style="${TASK_DONE_TEXT}">${body}</span>` : body;
+  return `<span>${text}${subHtml}</span>`;
+}
+
+/**
+ * Re-render an aligned task list into the same inline-styled markup the
+ * markdown path produces for `- [ ] item`.
+ *
+ * A task list with an aligned item is stored as one HTML block (see
+ * TaskListWithMarkdown in editorTasks.ts). Passing that through raw
+ * would export a checklist that only looks right with the app's own CSS
+ * loaded - a bullet, a checkbox and the text on separate lines. Returns
+ * null for any other list, which then takes the ordinary path.
+ */
+function renderTaskListHtml(block: string): string | null {
+  const doc = new DOMParser().parseFromString(`<body>${block}</body>`, 'text/html');
+  const list = doc.body.querySelector('ul[data-type="taskList"]');
+  if (!list) return null;
+  const items = [...list.children].map((li) => {
+    const checked = li.getAttribute('data-checked') === 'true';
+    const holder = li.querySelector('div');
+    const para = holder?.querySelector('p');
+    const align = sanitizeAlign(para?.style.textAlign ?? '');
+    const inner = sanitizeEditorHtml((para ?? holder)?.innerHTML ?? '');
+    const justify =
+      align === 'center' ? ';justify-content:center'
+      : align === 'right' ? ';justify-content:flex-end'
+      : '';
+    return (
+      `<li${dirAttr(firstLetterOfHtml(inner))} style="list-style:none;display:flex;align-items:flex-start;gap:0.5em;margin:0.2em 0${justify}">` +
+        taskCheckboxHtml(checked) +
+        taskTextHtml(checked, inner, '') +
+      `</li>`
+    );
+  });
+  // The start margin too: this path only runs for a list that HAS an aligned
+  // item, and the surrounding stylesheet's own list indent would otherwise
+  // shift the centring axis (see parseListBlock's closing tags for the long form).
+  const body = items.join('');
+  return `<ul${dirAttr(firstLetterOfHtml(body))} style="list-style:none;padding-inline-start:0;margin-inline-start:0">${body}</ul>`;
+}
+
+/**
+ * The list gutter an ALIGNED item's negative margin has to cancel exactly.
+ * Only lists that contain one state it (see parseListBlock), so ordinary
+ * exported lists keep whatever indent the surrounding stylesheet gives them.
+ *
+ * `rem`, NOT `em`, and that is the whole point: the padding is set on the
+ * list and the negative margin on the item, and an `em` resolves against
+ * whichever element it sits on. Wherever those two font sizes differ - they
+ * do in the editor, 18px on the list and 15px on the item - an em-for-em
+ * cancel leaves the item a few px off centre, which is exactly what the
+ * first attempt at this shipped. rem is the same length in both places.
+ * 1.828rem is Tailwind prose's own 1.625em at the list's 18px.
+ */
+const LIST_GUTTER = '1.828rem';
+
+// ─── Block direction ──────────────────────────────────────────────────
+//
+// A list, quote, callout or the footnotes read the way their own text
+// does, as in the editor (editorDirection.ts): a Persian list puts its
+// bullets on the right in an English export, and an English list keeps
+// them on the left in the burn viewer of an Arabic app. A task row turns
+// on its own too, and inline code does not count, the same as there. The list gutters below are logical
+// (padding-inline-start), so they follow the dir.
+// Spec: docs/internal/design/patterns/061-070.md (section 67)
+
+// Whether the note being rendered writes Persian, set by the outermost
+// renderMarkdown call: a quote or callout renders its body with a nested
+// call, and a numbered list there counts the same way as one outside.
+let notePersian: boolean | null = null;
+
+const CODE_SPAN = /<code\b[^>]*>[\s\S]*?<\/code>/gi;
+const TAG = /<[^>]*>/g;
+const ENTITY = /&#?\w+;/g;
+
+/** The text of rendered HTML: tags, entities and inline code dropped. */
+function textOfHtml(html: string): string {
+  return html.replace(CODE_SPAN, ' ').replace(TAG, ' ').replace(ENTITY, ' ');
+}
+
+function firstLetterOfHtml(html: string): string | null {
+  return firstLetter(textOfHtml(html));
+}
+
+/** ` dir="rtl"` or ` dir="ltr"` from a first letter, or nothing without one. */
+function dirAttr(letter: string | null): string {
+  return letter ? ` dir="${letterDirection(letter)}"` : '';
+}
+
+// ─── Nested list parser ───────────────────────────────────────────────
+//
+// tiptap-markdown serializes nested lists with indentation (2 spaces per
+// level). The old flat parser only matched items at column 0 and dropped
+// everything else into the paragraph collector. This recursive version
+// handles arbitrary nesting depth.
+
+interface ParsedListItem {
+  indent: number;
+  ordered: boolean;
+  content: string;
+  isTask: boolean;
+  checked: boolean;
+}
+
+function detectListItem(line: string): ParsedListItem | null {
+  const indent = line.length - line.trimStart().length;
+  const trimmed = line.trimStart();
+
+  const ulMatch = trimmed.match(/^[-*+]\s+(.*)/);
+  if (ulMatch) {
+    const content = ulMatch[1]!;
+    const taskMatch = content.match(/^\[([ xX])\]\s+(.*)/s);
+    if (taskMatch) {
+      return { indent, ordered: false, content: taskMatch[2]!, isTask: true, checked: taskMatch[1]!.toLowerCase() === 'x' };
+    }
+    return { indent, ordered: false, content, isTask: false, checked: false };
+  }
+
+  const olMatch = trimmed.match(/^\d+\.\s+(.*)/);
+  if (olMatch) {
+    return { indent, ordered: true, content: olMatch[1]!, isTask: false, checked: false };
+  }
+
+  return null;
+}
+
+/**
+ * Recursively parse a list block starting at `startI`. Items at
+ * `baseIndent` are siblings; deeper-indented items form sub-lists.
+ * Returns [html, nextIndex].
+ */
+function parseListBlock(lines: string[], startI: number, baseIndent: number): [string, number] {
+  const first = detectListItem(lines[startI]!);
+  if (!first) return ['', startI];
+
+  const isOrdered = first.ordered;
+  const firstIsTask = first.isTask;
+  let hasTask = false;
+  // Set by an aligned item below: the negative margin that pulls it out of
+  // the gutter is only exact if the gutter itself is a known number, and
+  // out here it is whatever the consumer's CSS says (Tailwind prose in the
+  // burn viewer, the export stylesheet in a saved .html, the UA default in
+  // neither). So a list that contains an aligned item states its own.
+  let gutterPinned = false;
+  const items: string[] = [];
+  // A blank line between two items of this list. The editor writes every
+  // list that way, so the HTML stays tight; `data-loose` only lets a view
+  // whose text a person typed (a vault item's Notes, .pn-detail-notes) keep
+  // the space they put between items. Spec: docs/internal/issues/0634.md
+  let loose = false;
+  let i = startI;
+
+  while (i < lines.length) {
+    // A blank line between items makes the list LOOSE, not two lists. The
+    // editor writes tight lists normally, so this went unnoticed until
+    // alignment: a list holding an aligned item is always serialized loose,
+    // and every item became its own <ol> - which restarted the numbering at
+    // 1 on every line of an exported numbered list.
+    if ((lines[i] ?? '').trim() === '') {
+      let ahead = i;
+      while (ahead < lines.length && (lines[ahead] ?? '').trim() === '') ahead++;
+      const next = ahead < lines.length ? detectListItem(lines[ahead]!) : null;
+      if (!next || next.indent !== baseIndent || next.ordered !== isOrdered || next.isTask !== firstIsTask) break;
+      loose = true;
+      i = ahead;
+      continue;
+    }
+    const item = detectListItem(lines[i]!);
+    if (!item || item.indent < baseIndent) break;
+    // Skip items indented deeper than expected (shouldn't happen at
+    // this level - they're handled by recursion from the parent item).
+    if (item.indent > baseIndent) break;
+    // A marker of a different kind starts a NEW list, exactly as the editor
+    // splits them into separate nodes: `1.` after a bullet used to be
+    // swallowed into the <ul> and render as a bullet, and a task item after
+    // a plain bullet turned the whole list marker-less.
+    if (item.ordered !== isOrdered || item.isTask !== firstIsTask) break;
+
+    i++;
+
+    // A hard break inside an item: the editor writes a trailing `\` and the
+    // next line indented under the marker. Those lines belong to the item.
+    // Read one line each, the continuation ended the list, came out as a
+    // paragraph of its own, and the next item started a new list at 1.
+    const continuation: string[] = [];
+    while (i < lines.length) {
+      const line = lines[i]!;
+      if (line.trim() === '' || detectListItem(line)) break;
+      if (line.length - line.trimStart().length <= baseIndent) break;
+      continuation.push(line.trim());
+      i++;
+    }
+
+    // Check for a sub-list: the next ITEM at a deeper indent belongs to the
+    // item just emitted. The search skips blank lines, because the editor
+    // serializes lists LOOSE - a blank line between every item, the nested
+    // ones included - so the line directly after a parent is almost always
+    // empty. A lookahead that read only `lines[i]` therefore found no child,
+    // the loop returned to the blank-line branch above, that branch saw an
+    // indent it did not expect and ended the list, and the orphaned child
+    // fell through to the paragraph collector and rendered as the literal
+    // text `- [ ] child` in the .html, the PDF and the burn viewer. Nested
+    // checklists made in the editor were unreadable everywhere outside it.
+    // The scan stops at the first non-blank line, so a paragraph between two
+    // lists still separates them.
+    let subHtml = '';
+    {
+      let ahead = i;
+      while (ahead < lines.length && (lines[ahead] ?? '').trim() === '') ahead++;
+      const next = ahead < lines.length ? detectListItem(lines[ahead]!) : null;
+      if (next && next.indent > baseIndent) {
+        const [sub, newI] = parseListBlock(lines, ahead, next.indent);
+        subHtml = sub;
+        i = newI;
+      }
+    }
+
+    // An aligned item arrives as `- <p style="text-align: center">text</p>`,
+    // because alignment has no markdown syntax and the editor writes the
+    // block as HTML. Lift the alignment onto the <li> and render what was
+    // inside the wrapper - it is already HTML (marks come out of the editor
+    // as <strong>/<a>), so it is sanitized rather than parsed as markdown.
+    const wrapped = item.content.match(
+      /^<p style="text-align:\s*([a-z]+);?"\s*>([\s\S]*)<\/p>\s*$/i,
+    );
+    const align = wrapped ? sanitizeAlign(wrapped[1] ?? '') : null;
+    const body = wrapped && align
+      ? sanitizeEditorHtml(wrapped[2] ?? '')
+      : [item.content, ...continuation].map((l) => renderInline(l.replace(/\\$/, ''))).join('<br />');
+    // Same three-part treatment as the editor (ui-patterns.md section 65):
+    // the marker moves inside the content box so it can share the text's
+    // line, the alignment goes on the item, and the gutter it no longer
+    // needs comes back out via a negative margin - without that the item
+    // sits half a gutter right of a centred heading. The wrapper paragraph
+    // is already stripped above, so nothing here has to be made inline.
+    const itemAlign =
+      align === 'center' || align === 'right'
+        ? `;list-style-position:inside;text-align:${align};margin-inline-start:-${LIST_GUTTER}`
+        : align === 'justify' ? ';text-align:justify'
+        : '';
+    if (align === 'center' || align === 'right') gutterPinned = true;
+
+    if (item.isTask) {
+      hasTask = true;
+      items.push(
+        `<li${dirAttr(firstLetterOfHtml(body))} style="list-style:none;display:flex;align-items:flex-start;gap:0.5em;margin:0.2em 0${
+          align === 'center' ? ';justify-content:center' : align === 'right' ? ';justify-content:flex-end' : ''
+        }">` +
+          taskCheckboxHtml(item.checked) +
+          taskTextHtml(item.checked, body, subHtml) +
+        `</li>`
+      );
+    } else {
+      items.push(`<li style="margin:0.15em 0${itemAlign}">${body}${subHtml}</li>`);
+    }
+  }
+
+  // `margin-inline-start:0` is not decoration. The export stylesheet indents lists
+  // with `margin: 0 0 1em 1.5em` and Tailwind prose has its own; an aligned
+  // item can only cancel the PADDING it can see, so whatever margin the
+  // surrounding stylesheet adds shifts the centring axis right by that much
+  // and the item lands off centre in the .html and the PDF while looking
+  // correct in the editor. Pinned only for a list that holds an aligned
+  // item, so ordinary exported lists keep the indent they have always had.
+  const body = items.join('');
+  const letter = firstLetterOfHtml(body);
+  const dir = dirAttr(letter) + (loose ? ' data-loose' : '');
+  const styles = gutterPinned ? [`padding-inline-start:${LIST_GUTTER}`, 'margin-inline-start:0'] : [];
+  if (isOrdered) {
+    if (letter && letterDirection(letter) === 'rtl' && listNumerals(letter, () => textOfHtml(body), () => notePersian === true)) {
+      styles.push('list-style-type:persian');
+    }
+    return [`<ol${dir}${styles.length ? ` style="${styles.join(';')}"` : ''}>${body}</ol>`, i];
+  }
+  if (hasTask) {
+    const taskStyle = `list-style:none;padding-inline-start:0${gutterPinned ? ';margin-inline-start:0' : ''}`;
+    return [`<ul${dir} style="${taskStyle}">${body}</ul>`, i];
+  }
+  return [`<ul${dir}${styles.length ? ` style="${styles.join(';')}"` : ''}>${body}</ul>`, i];
+}
+
+/**
+ * Render a markdown string to HTML. Covers the editor's output subset.
+ * Inline styles are used for task-list styling so the HTML renders
+ * correctly in both the standalone export .html (no Tailwind) and
+ * inside the Burn viewer (Tailwind prose) without style coordination.
+ */
+let footnoteRenders = 0;
+
+export function renderMarkdown(md: string): string {
+  // Strip control characters used as internal sentinels to prevent
+  // crafted input from colliding with the stash/restore mechanism.
+  const text = md.replace(/\r\n?/g, '\n').replace(/[\x01\x02]/g, '');
+  const render = () => (/\[\^|\^\[/.test(text) ? renderWithFootnotes(text) : renderBlocks(text));
+  if (notePersian !== null) return render();
+  notePersian = writesPersian(text);
+  try {
+    return render();
+  } finally {
+    notePersian = null;
+  }
+}
+
+/**
+ * Footnotes, the way the editor reads them (footnotes.ts): markers numbered
+ * in the order they appear, the definitions in a numbered list at the end,
+ * links both ways. Each marker becomes a sentinel before the blocks render,
+ * because renderInline escapes everything it does not know. The ids carry a
+ * per-render prefix, so two notes in one HTML export never share `#fn-1`.
+ * Spec: docs/internal/specs/footnotes.md (section 8)
+ */
+function renderWithFootnotes(text: string): string {
+  const scan = scanFootnotes(text);
+  const { used, unused } = orderFootnotes(scan);
+  if (!used.length && !unused.length) return renderBlocks(text);
+  const prefix = `fn${++footnoteRenders}`;
+  const numbers = new Map(used.map((d, i) => [d.label, i + 1]));
+  const counts = new Map<string, number>();
+  const slots: string[] = [];
+  const mark = (md: string) =>
+    replaceMarkers(md, (label) => {
+      const n = numbers.get(label);
+      if (n === undefined) return `\\[^${label}\\]`;
+      const k = (counts.get(label) ?? 0) + 1;
+      counts.set(label, k);
+      slots.push(`<sup class="footnote-ref"><a href="#${prefix}-${n}" id="${prefix}-ref-${n}-${k}">${n}</a></sup>`);
+      return `\x01N${slots.length - 1}\x01`;
+    });
+  const restore = (html: string) => html.replace(/\x01N(\d+)\x01/g, (_m: string, i: string) => slots[Number(i)] ?? '');
+  const bodyHtml = renderBlocks(mark(scan.body));
+  const items = [...used, ...unused].map((d, i) => {
+    const n = i + 1;
+    let html = renderBlocks(mark(d.body));
+    if (numbers.has(d.label)) {
+      const back = ` <a href="#${prefix}-ref-${n}-1" class="footnote-backref" role="doc-backlink">\u21a9\uFE0E</a>`;
+      html = /<\/p>\s*$/.test(html) ? html.replace(/<\/p>\s*$/, `${back}</p>`) : html + back;
+    }
+    return `<li id="${prefix}-${n}">${html}</li>`;
+  });
+  const notes = items.join('\n');
+  return restore(`${bodyHtml}\n<section class="footnotes" role="doc-endnotes"${dirAttr(firstLetterOfHtml(notes))}><hr>\n<ol>\n${notes}\n</ol>\n</section>`);
+}
+
+/** A table row split on each `|` that no backslash escapes. A backslash
+ *  escapes the character after it, so `\\|` is a literal backslash and then
+ *  a real cell border. */
+function splitUnescapedPipes(row: string): string[] {
+  const cells: string[] = [];
+  let start = 0;
+  for (let i = 0; i < row.length; i++) {
+    if (row[i] === '\\') { i++; continue; }
+    if (row[i] === '|') {
+      cells.push(row.slice(start, i));
+      start = i + 1;
+    }
+  }
+  cells.push(row.slice(start));
+  return cells;
+}
+
+/** The text a table cell shows once its inline markdown is rendered. */
+function shownText(cell: string): string {
+  return new DOMParser().parseFromString(`<body>${renderInline(cell)}</body>`, 'text/html').body.textContent ?? '';
+}
+
+function renderBlocks(text: string): string {
+
+  // Pull fenced code blocks out of the flow first so nothing inside
+  // them gets treated as markdown. A language tag goes through lowlight
+  // when prepareRender has loaded it (hljs token spans, the same classes
+  // the editor emits); a bare fence, an unknown language, or an unloaded
+  // highlighter all fall back to the plain escaped block.
+  const fences: string[] = [];
+  // The markdown each placeholder stood for, for a callout or a quote whose
+  // body goes through renderMarkdown again: that call drops the sentinel
+  // bytes, so it is handed the fence itself instead.
+  const fenceSource: string[] = [];
+  const unplace = (md: string) => md.replace(/\x02F(\d+)\x02/g, (_m: string, n: string) => fenceSource[Number(n)] ?? '');
+  const withoutFences = text.replace(
+    /```([^\n]*)\n([\s\S]*?)```/g,
+    (_m: string, lang: string, body: string, offset: number) => {
+      const idx = fences.length;
+      // A fence inside a list item, a task, a callout or a card is written
+      // with the container's prefix (`  `, `> `) on every line: take it off
+      // the code, as the editor shows it.
+      const prefix = text.slice(text.lastIndexOf('\n', offset - 1) + 1, offset);
+      const lines = body.replace(/\n$/, '').split('\n');
+      const dedent = /^[ \t>]+$/.test(prefix) && lines.every((l) => l.startsWith(prefix) || l.trim() === '');
+      const code = dedent ? lines.map((l) => l.slice(prefix.length)).join('\n') : lines.join('\n');
+      fenceSource.push('```' + lang + '\n' + code + '\n```');
+      // A title (```bash title="x", codeFenceInfo.ts) heads the panel, set
+      // off by a rule as in the editor. A block saved closed prints open:
+      // a page cannot be clicked.
+      const info = parseFenceInfo(lang);
+      // A map from Insert > Location prints as a link to the place: a page,
+      // an export and a burn note load no map (note-location.md, section 4b).
+      // A doodle block prints as its drawing (doodleExport.ts), never as its
+      // stroke data; a fence that is no doodle prints as code.
+      const doodle = info.language === DOODLE_FENCE && looksLikeDoodle(code)
+        ? (doodleHtml ? doodleHtml(code, parseFenceSize(lang).height) : '<p><em>Doodle</em></p>')
+        : null;
+      if (doodle) {
+        fences.push(doodle);
+        return `\x02F${idx}\x02`;
+      }
+      const place = info.language === MAP_FENCE ? parseMapFence(code) : undefined;
+      if (place) {
+        const at = formatCoordinates(place);
+        const text = place.label ? `${escapeHtml(place.label)} (${at})` : at;
+        fences.push(`<p><a href="${escapeHtml(osmUrl(place.lat, place.lng))}">${text}</a></p>`);
+        return `\x02F${idx}\x02`;
+      }
+      const highlighted = renderFenceCode(code, info.language ?? '');
+      const title = info.title
+        ? `<span class="code-title" style="display:block;font-weight:600;padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid #3a3a3a">${escapeHtml(info.title)}</span>`
+        : '';
+      fences.push(`<pre>${title}<code>${highlighted ?? escapeHtml(code)}</code></pre>`);
+      return `\x02F${idx}\x02`;
+    }
+  );
+
+  // Display math `$$..$$`, both the one-line form our serializer writes and
+  // the multi-line form Obsidian and pandoc write (blockMathRule in
+  // editorInlineSyntax.ts reads both, so this has to as well). It runs AFTER
+  // the fence pass, so a `$$` inside a code block is already behind a
+  // sentinel and stays literal. The result is pushed into the same `fences`
+  // array: both are block HTML that is finished before the line loop starts,
+  // so the placeholder the loop already understands is the whole mechanism.
+  const withoutMath = withoutFences.replace(
+    /^\$\$([\s\S]*?)\$\$[ \t]*$/gm,
+    (whole: string, tex: string) => {
+      const html = renderTex(tex.trim(), true);
+      if (!html) return whole;
+      const idx = fences.length;
+      // A block-level wrapper, centred inline because the exported document
+      // has no stylesheet of ours to lean on.
+      fences.push(`<div style="text-align:center;margin:1em 0">${html}</div>`);
+      fenceSource.push(whole);
+      return `\x02F${idx}\x02`;
+    }
+  );
+
+  const lines = withoutMath.split('\n');
+  const out: string[] = [];
+  let i = 0;
+
+  const isTableRow = (line: string): boolean => /^\|.+\|$/.test(line.trim());
+  const isTableSep = (line: string): boolean => /^\|[\s:|-]+\|$/.test(line.trim());
+
+  // Block-level HTML the editor writes for what markdown cannot express.
+  // p / h1-6 / ul / ol joined the original four when alignment shipped:
+  // an aligned block is stored as `<p style="text-align: center">…</p>`
+  // and an aligned checklist as one `<ul data-type="taskList">` block, and
+  // without them here both exported as their own literal tags.
+  const isHtmlBlock = (line: string): boolean =>
+    /^<(table|div|details|figure|p|h[1-6]|ul|ol)\b/i.test(line.trim());
+
+  const isOrphanClose = (line: string): boolean =>
+    /^\s*<\/(table|div|details|figure|thead|tbody|tfoot|tr|th|td)>\s*$/i.test(line);
+
+  const isBlockStart = (line: string): boolean =>
+    /^(#{1,6})\s+/.test(line) ||
+    /^>\s?/.test(line) ||
+    /^\s*[-*+]\s+/.test(line) ||
+    /^\s*\d+\.\s+/.test(line) ||
+    /^\s*(---+|\*\*\*+|___+)\s*$/.test(line) ||
+    /^\x02F\d+\x02$/.test(line) ||
+    isTableRow(line) ||
+    isHtmlBlock(line) ||
+    isOrphanClose(line);
+
+  while (i < lines.length) {
+    const line = lines[i] ?? '';
+
+    // Fence placeholder - emit as-is, it's already rendered.
+    const fenceMatch = line.match(/^\x02F(\d+)\x02$/);
+    if (fenceMatch && fenceMatch[1]) {
+      out.push(fences[Number(fenceMatch[1])] ?? '');
+      i++;
+      continue;
+    }
+
+    // HTML block pass-through (e.g. tables serialized as HTML by tiptap-markdown).
+    if (isHtmlBlock(line)) {
+      const tagMatch = line.trim().match(/^<(\w+)/);
+      const tag = tagMatch?.[1]?.toLowerCase() ?? '';
+      const closeRe = new RegExp(`</${tag}>`, 'i');
+      const htmlBuf: string[] = [line];
+      if (!closeRe.test(line)) {
+        i++;
+        while (i < lines.length) {
+          htmlBuf.push(lines[i] ?? '');
+          if (closeRe.test(lines[i] ?? '')) { i++; break; }
+          i++;
+        }
+      } else {
+        i++;
+      }
+      let block = sanitizeEditorHtml(htmlBuf.join('\n'));
+      // An aligned checklist comes through here as one <ul> block; give it
+      // the same inline-styled markup the `- [ ] item` path produces so it
+      // exports as a checklist rather than as app-CSS-dependent markup.
+      if (tag === 'ul') {
+        const tasks = renderTaskListHtml(block);
+        if (tasks) {
+          out.push(tasks);
+          continue;
+        }
+      }
+      // Add inline border styles to HTML tables that lack them - tiptap
+      // serializes tables as raw HTML without styling. The export CSS
+      // covers it via class selectors, but the burn viewer (Tailwind
+      // prose) needs inline styles for consistent dark-mode borders.
+      // A colored cell (data-fill, #616) already carries a style, its
+      // background, so the border goes in front of it there.
+      if (tag === 'table') {
+        block = block
+          .replace(/<table(?![^>]*style)/gi, '<table style="border-collapse:collapse;width:100%;margin:1em 0"')
+          .replace(/<th(?![^>]*style)/gi, '<th style="border:1px solid #d4d4d4;padding:6px 10px;text-align:left;font-weight:600"')
+          .replace(/<td(?![^>]*style)/gi, '<td style="border:1px solid #d4d4d4;padding:6px 10px"')
+          .replace(/(<th\b[^>]*\bdata-fill="[a-z]+"[^>]*\bstyle=")(?!border)/gi, '$1border:1px solid #d4d4d4;padding:6px 10px;text-align:left;font-weight:600;')
+          .replace(/(<td\b[^>]*\bdata-fill="[a-z]+"[^>]*\bstyle=")(?!border)/gi, '$1border:1px solid #d4d4d4;padding:6px 10px;');
+      }
+      out.push(block);
+      continue;
+    }
+
+    // Orphaned closing HTML block tags (e.g. </table> left over when
+    // tiptap-markdown serializes tables and the closing tag lands outside
+    // the block collector above). Strip silently - they have no semantic
+    // value and would otherwise render as visible escaped text.
+    if (isOrphanClose(line)) {
+      i++;
+      continue;
+    }
+
+    // Heading.
+    const h = line.match(/^(#{1,6})\s+(.*)$/);
+    if (h && h[1] && h[2] !== undefined) {
+      const level = h[1].length;
+      out.push(`<h${level}>${renderInline(h[2].trim())}</h${level}>`);
+      i++;
+      continue;
+    }
+
+    // Horizontal rule (allow leading whitespace - tiptap-markdown indents
+    // HRs inside list items by the list continuation indent).
+    if (/^\s*(---+|\*\*\*+|___+)\s*$/.test(line)) {
+      out.push('<hr />');
+      i++;
+      continue;
+    }
+
+    // Blockquote (recursively render the quoted content). A blockquote
+    // whose first de-prefixed line is `[!type]` is an Obsidian callout and
+    // renders as a collapsible <details> instead.
+    if (/^>\s?/.test(line)) {
+      const buf: string[] = [];
+      while (i < lines.length) {
+        const cur = lines[i] ?? '';
+        if (!/^>\s?/.test(cur)) break;
+        buf.push(cur.replace(/^>\s?/, ''));
+        i++;
+      }
+      const callout = buf[0]?.match(/^\[!([\w-]+)(?:\|([\w-]+))?\]([+-]?)\s?(.*)$/);
+      if (callout) {
+        const canon = canonicalCalloutType(callout[1]!);
+        const { color, rgb } = calloutColorOf(canon, callout[2]);
+        const tint = rgb.replace(/ /g, ',');
+        const title = callout[4]!.trim();
+        const titleHtml = title ? renderInline(title) : escapeHtml(CALLOUT_LABELS[canon]);
+        const bodyMd = unplace(buf.slice(1).join('\n'));
+        const bodyHtml = bodyMd.trim() === '' ? '' : renderMarkdown(bodyMd);
+        // Fold has no box and no accent: the caret and the title in the text
+        // color. Box frames it with a gray title strip over a plain body;
+        // Panel frames it with one soft wash. A neutral gray reads on a light
+        // and a dark export alike.
+        const frame = 'margin:1em 0;border:1px solid rgba(128,128,128,0.35);border-radius:6px;overflow:hidden';
+        const detailsStyle = canon === 'fold'
+          ? 'margin:1em 0'
+          : canon === 'box'
+            ? frame
+            : canon === 'panel' || canon === 'kanban'
+              ? `${frame};background:rgba(128,128,128,0.06)`
+              : `margin:1em 0;border:1px solid rgba(${tint},0.35);border-inline-start:3px solid ${color};border-radius:6px;background:rgba(${tint},0.09);overflow:hidden`;
+        const summaryStrip = canon === 'box' ? ';background:rgba(128,128,128,0.09)' : '';
+        const summaryStyle = `cursor:pointer;list-style:none;display:flex;align-items:center;gap:0.4em;padding:${canon === 'fold' ? '0.15em 0' : '0.4em 0.85em'};font-weight:600${color ? `;color:${color}` : ''}${summaryStrip}`;
+        const caret = `<span class="pn-callout-caret" style="flex-shrink:0;line-height:0" aria-hidden="true"><svg class="pn-caret-down" viewBox="0 0 256 256" width="14" height="14" fill="currentColor"><path d="${CALLOUT_CARET_DOWN}"/></svg><svg class="pn-caret-right" viewBox="0 0 256 256" width="14" height="14" fill="currentColor" style="display:none"><path d="${CALLOUT_CARET_RIGHT}"/></svg></span>`;
+        // The `-` suffix carries the fold state into the export and the burn
+        // viewer, the same as the editor: a folded callout starts closed and
+        // the reader clicks it open (the :not([open]) rules swap the caret).
+        // Print is the exception and handles itself in CSS: the export
+        // stylesheet's print block force-shows every callout body, because
+        // paper cannot be clicked.
+        const folded = callout[3] === '-';
+        out.push(
+          `<details class="pn-callout pn-callout-${canon}"${folded ? '' : ' open'}${dirAttr(firstLetterOfHtml(title ? `${titleHtml} ${bodyHtml}` : bodyHtml))} style="${detailsStyle}">` +
+            `<summary class="pn-callout-summary" style="${summaryStyle}">${caret}<span>${titleHtml}</span></summary>` +
+            `<div class="pn-callout-body" style="${canon === 'fold' ? 'padding-inline-start:1.4em' : canon === 'box' ? 'padding:0.5em 0.85em 0.55em;border-top:1px solid rgba(128,128,128,0.25)' : canon === 'kanban' ? KANBAN_BODY_STYLE : 'padding:0.15em 0.85em 0.55em'}">${bodyHtml}</div>` +
+          `</details>`
+        );
+        continue;
+      }
+      const quoted = renderMarkdown(unplace(buf.join('\n')));
+      out.push(`<blockquote${dirAttr(firstLetterOfHtml(quoted))}>${quoted}</blockquote>`);
+      continue;
+    }
+
+    // List (unordered, ordered, or task) - recursive, handles nesting.
+    const listItem = detectListItem(line);
+    if (listItem && listItem.indent === 0) {
+      const [listHtml, newI] = parseListBlock(lines, i, 0);
+      out.push(listHtml);
+      i = newI;
+      continue;
+    }
+
+    // Indented code block (4 spaces or a tab), the other spelling of a code
+    // block an imported file or a burn note can carry. Guarded on the nearest
+    // preceding non-blank line NOT being a list item: a nested item's
+    // continuation text is indented this deep too, and per CommonMark it
+    // belongs to the list, not to a code block. An indented line directly
+    // after a paragraph never reaches here either - the paragraph collector
+    // below absorbs it, which is also CommonMark's rule.
+    if (/^(?: {4}|\t)/.test(line) && line.trim() !== '') {
+      let prev: string | null = null;
+      for (let k = i - 1; k >= 0; k--) {
+        const s = lines[k] ?? '';
+        if (s.trim() !== '') { prev = s; break; }
+      }
+      if (prev === null || !detectListItem(prev)) {
+        const buf: string[] = [];
+        while (i < lines.length) {
+          const cur = lines[i] ?? '';
+          if (/^(?: {4}|\t)/.test(cur)) { buf.push(cur.replace(/^(?: {4}|\t)/, '')); i++; continue; }
+          if (cur.trim() === '') {
+            // A blank line stays inside the block only when more indented
+            // code follows; otherwise the block ends before it.
+            let ahead = i;
+            while (ahead < lines.length && (lines[ahead] ?? '').trim() === '') ahead++;
+            if (ahead < lines.length && /^(?: {4}|\t)/.test(lines[ahead] ?? '')) {
+              for (let k = i; k < ahead; k++) buf.push('');
+              i = ahead;
+              continue;
+            }
+          }
+          break;
+        }
+        out.push(`<pre><code>${escapeHtml(buf.join('\n'))}</code></pre>`);
+        continue;
+      }
+    }
+
+    // GFM pipe table.
+    if (isTableRow(line)) {
+      const rows: string[] = [line];
+      i++;
+      while (i < lines.length && isTableRow(lines[i] ?? '')) {
+        rows.push(lines[i] ?? '');
+        i++;
+      }
+      // Parse cells: split on an unescaped `|`, trim, drop empty first/last.
+      // An escaped `\|` is a pipe inside the cell, and it is unescaped before
+      // the inline passes run, as markdown-it does - so `||spoiler||` written
+      // into a cell as `\|\|spoiler\|\|` renders as a spoiler here too.
+      const parseCells = (row: string): string[] =>
+        splitUnescapedPipes(row)
+          .map((c) => c.trim().replace(/\\\|/g, '|'))
+          .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
+
+      // Row 2 is the separator (|---|---|) - detect it.
+      const hasSep = rows.length >= 2 && isTableSep(rows[1]!);
+      const headerRow = parseCells(rows[0]!);
+      const bodyRows = hasSep ? rows.slice(2) : rows.slice(1);
+
+      // Column alignment rides on the separator's colons (`:---:` center,
+      // `---:` right). It used to be dropped whole: every th hardcoded
+      // text-align:left and every td inherited the stylesheet's left, so an
+      // aligned column looked right in the editor and left in the PDF.
+      const aligns: (string | null)[] = hasSep
+        ? parseCells(rows[1]!).map((sep) => {
+            const colonLeft = sep.startsWith(':');
+            const colonRight = sep.endsWith(':');
+            return colonLeft && colonRight ? 'center' : colonRight ? 'right' : null;
+          })
+        : [];
+
+      // Widths the editor stored as dash counts (tableColumnWidths.ts). The
+      // fixed layout goes inline because the burn viewer has no stylesheet
+      // rule for it, and without it the cols are only a hint.
+      const widths = hasSep ? widthsFromTableLines(rows[0]!, rows[1]!) : null;
+      // A table narrower than the note carries its width on the next line,
+      // and a table with colored cells their names on the line after it.
+      const tableWidth = tableWidthFromMarker(lines[i] ?? '');
+      if (tableWidth) i++;
+      const fills = tableFillsFromMarker(lines[i] ?? '');
+      if (fills) i++;
+      // data-fill lets the export stylesheet keep the color in print.
+      const fillAttr = (row: number, col: number): string => {
+        const name = fillAt(fills, row, col);
+        const color = cellFillColor(name);
+        return color ? ` data-fill="${name}"` : '';
+      };
+      const fillStyle = (row: number, col: number): string => {
+        const color = cellFillColor(fillAt(fills, row, col));
+        return color ? `;background-color:${color}` : '';
+      };
+      const width = `width:${tableWidth ?? 100}%`;
+      const tableHtml: string[] = [
+        widths
+          ? `<table style="border-collapse:collapse;${width};margin:1em 0;table-layout:fixed"><colgroup>${widths.map((w) => `<col style="width:${w}%">`).join('')}</colgroup>`
+          : `<table style="border-collapse:collapse;${width};margin:1em 0">`,
+      ];
+      if (hasSep) {
+        tableHtml.push('<thead><tr>');
+        headerRow.forEach((cell, idx) => {
+          tableHtml.push(`<th${fillAttr(0, idx)} style="border:1px solid #d4d4d4;padding:6px 10px;text-align:${aligns[idx] ?? 'left'};font-weight:600${fillStyle(0, idx)}">${renderInline(cell)}</th>`);
+        });
+        tableHtml.push('</tr></thead>');
+      }
+      tableHtml.push('<tbody>');
+      const startRows = hasSep ? bodyRows : rows;
+      // Formulas. The editor paints the number over the formula with a
+      // decoration, and this file never loads TipTap, so it has to ask the
+      // same engine the same question or an exported note would read
+      // `=SUM(B2:B7)` where the app reads `1,575`. The grid is every row
+      // INCLUDING the header, because a reference counts the header as row 1.
+      const bodyCells = startRows.map(parseCells);
+      const grid = hasSep ? [headerRow, ...bodyCells] : bodyCells;
+      // The engine reads what a cell SHOWS, as the editor does with its
+      // textContent: the raw line held `**1,200**`, `[12](...)` and the
+      // serializer's `\-50`, which no number check accepts, so the export's
+      // totals left them out while the app counted them (external report,
+      // 2026-10-24, bug report 27).
+      const computed = grid.some((row) => row.some(isFormulaText))
+        ? evaluateTable(grid.map((row) => row.map((cell) => (isFormulaText(cell) ? cell : shownText(cell)))))
+        : null;
+      const headerOffset = hasSep ? 1 : 0;
+      startRows.forEach((row, rowIdx) => {
+        const cells = bodyCells[rowIdx] ?? [];
+        tableHtml.push('<tr>');
+        cells.forEach((cell, idx) => {
+          const align = aligns[idx] ? `;text-align:${aligns[idx]}` : '';
+          const result = computed?.[rowIdx + headerOffset]?.[idx];
+          // A formula with no number shows its own text, exactly as it does
+          // in the editor and exactly as a free account sees it.
+          // No locale argument on purpose: this file holds no i18n import,
+          // and the number is grouped for whichever browser renders it. The
+          // editor passes the app language; an export is read wherever it
+          // lands.
+          const body = result && 'value' in result ? escapeHtml(formatFormulaValue(result.value)) : renderInline(cell);
+          const row = rowIdx + headerOffset;
+          tableHtml.push(`<td${fillAttr(row, idx)} style="border:1px solid #d4d4d4;padding:6px 10px${align}${fillStyle(row, idx)}">${body}</td>`);
+        });
+        tableHtml.push('</tr>');
+      });
+      tableHtml.push('</tbody></table>');
+      out.push(tableHtml.join(''));
+      continue;
+    }
+
+    // Blank line - paragraph break.
+    if (line.trim() === '') {
+      i++;
+      continue;
+    }
+
+    // Paragraph - collect consecutive non-empty, non-block-start lines.
+    const para: string[] = [line];
+    i++;
+    while (i < lines.length) {
+      const cur = lines[i] ?? '';
+      if (cur.trim() === '' || isBlockStart(cur)) break;
+      para.push(cur);
+      i++;
+    }
+    // EVERY line boundary inside a paragraph is a hard break, because that
+    // is what the editor shows: it parses with breaks:true (Editor.tsx), so
+    // a bare source newline is a visible new line there, and this renderer
+    // joining continuation lines with a space reflowed every never-edited
+    // import (and every multi-line blockquote) into one long paragraph in
+    // the PDF. The explicit markers are stripped before the break so they
+    // never show: a trailing `\` is what the serializer writes, trailing
+    // two-spaces is what an imported file carries verbatim.
+    // Sentinel \x02B survives renderInline passes without interference.
+    const withBreaks = para.map((l, idx) => {
+      if (idx < para.length - 1) {
+        if (l.endsWith('\\') && !l.endsWith('\\\\')) return l.slice(0, -1) + '\x02B';
+        return l.replace(/[ \t]+$/, '') + '\x02B';
+      }
+      return l;
+    }).join(' ');
+    out.push(`<p>${renderInline(withBreaks).replace(/\x02B/g, '<br />')}</p>`);
+  }
+
+  // A placeholder that did not stand on a line of its own (a fence inside a
+  // list item, a task, a callout or a Kanban card) reached the paragraph path
+  // and printed as `F0` in place of the code (external report, 2026-10-24,
+  // bug report 26). Every one left goes back as its block here.
+  return out.join('\n').replace(/\x02F(\d+)\x02/g, (_m: string, n: string) => fences[Number(n)] ?? '');
+}
+
+// ─── Same-origin image inlining ────────────────────────────────────────
+//
+// Exports / burn payloads that embed markdown images with absolute paths
+// like `/onboarding/japan.jpg` work fine when viewed on privacynotes.app
+// but break when the .html file is opened from disk (file:// has no
+// way to resolve a root-relative path). Pre-walking the body and
+// replacing same-origin paths with data URIs makes the output
+// self-contained.
+//
+// We skip `pn:img/<uuid>` (those have their own resolver pipeline) and
+// anything that isn't same-origin (leave the URL; user chose it).
+
+function isSameOriginSrc(src: string): boolean {
+  if (src.startsWith('data:')) return false;
+  // A blob: URL carries its creator's origin, so it would read as ours. It
+  // never comes from a stored note body; leave it alone.
+  if (src.startsWith('blob:')) return false;
+  if (src.startsWith('pn:img/')) return false;
+  if (src.startsWith('/')) return isSameOriginPath(src);
+  try {
+    const u = new URL(src, window.location.origin);
+    return u.origin === window.location.origin;
+  } catch {
+    return false;
+  }
+}
+
+function blobToDataUri(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result ?? ''));
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Fetch every same-origin `![alt](src)` image and replace with a data
+ * URI. Anything that fails to fetch or isn't same-origin is left
+ * untouched.
+ *
+ * @param maxTotalBytes optional cap - if inlining would push the body
+ *   past this many bytes, skip the remaining images and leave them as
+ *   URL refs. Useful for the burn payload's 32KB limit.
+ */
+export async function inlineSameOriginImages(
+  body: string,
+  maxTotalBytes?: number,
+): Promise<string> {
+  const pictures = markdownLinks(body, SRC_PICTURE);
+  const seen = new Set<string>();
+  const targets: string[] = [];
+  for (const { target: src } of pictures) {
+    if (seen.has(src)) continue;
+    if (!isSameOriginSrc(src)) continue;
+    seen.add(src);
+    targets.push(src);
+  }
+  if (targets.length === 0) return body;
+
+  const resolved = new Map<string, string>();
+  await Promise.all(
+    targets.map(async (src) => {
+      try {
+        const res = await fetch(src);
+        if (!res.ok) return;
+        const blob = await res.blob();
+        const dataUri = await blobToDataUri(blob);
+        resolved.set(src, dataUri);
+      } catch {
+        // Silent - leave the URL ref in place.
+      }
+    }),
+  );
+
+  if (resolved.size === 0) return body;
+
+  let projected = body.length;
+  return replaceMatches(body, pictures, ({ index, end, target: src }) => {
+    const data = resolved.get(src);
+    if (!data) return null;
+    const delta = data.length - src.length;
+    if (maxTotalBytes !== undefined && projected + delta > maxTotalBytes) {
+      return null; // would overflow the cap - keep the URL ref
+    }
+    projected += delta;
+    return body.slice(index, end).replace(src, data);
+  });
+}
+
+// Spec: packages/web/worker.ts (RASTER_TYPES, the types the icon route serves)
+const INLINE_ICON_URI = /^data:image\/(?:x-icon|vnd\.microsoft\.icon|png|jpeg|gif|webp);base64,[A-Za-z0-9+/]*={0,2}$/;
+
+/**
+ * Inline `/favicon?domain=...` images in rendered HTML as data URIs.
+ * Used by the HTML export and print paths so files are self-contained.
+ * No-op if no favicon images are present in the HTML.
+ */
+export async function inlineRenderedFavicons(html: string): Promise<string> {
+  const re = /src="[^"]*\/favicon\?domain=([^"]+)"/g;
+  const domains = new Set<string>();
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    domains.add(decodeURIComponent(m[1]!));
+  }
+  if (domains.size === 0) return html;
+
+  const resolved = new Map<string, string>();
+  await Promise.all(
+    [...domains].map(async (domain) => {
+      try {
+        const res = await fetch(faviconUrl(domain));
+        if (!res.ok) return;
+        const blob = await res.blob();
+        const dataUri = await blobToDataUri(blob);
+        // Written into `src="..."` as it is, so it has to be one of the
+        // raster types the Worker serves and plain base64: a type that holds a
+        // quote would otherwise end the attribute and add markup to the export.
+        if (!INLINE_ICON_URI.test(dataUri)) return;
+        resolved.set(domain, dataUri);
+      } catch {
+        // Silent - leave the URL ref.
+      }
+    }),
+  );
+
+  if (resolved.size === 0) return html;
+
+  return html.replace(
+    /src="[^"]*\/favicon\?domain=([^"]+)"/g,
+    (match: string, encoded: string) => {
+      const domain = decodeURIComponent(encoded);
+      const dataUri = resolved.get(domain);
+      if (!dataUri) return match;
+      return `src="${dataUri}"`;
+    }
+  );
+}

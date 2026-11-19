@@ -1,0 +1,1296 @@
+{
+  "page": {
+    "importTitle": "Importar para o PrivacyNotes",
+    "importSteps": [
+      "Abra o PrivacyNotes e vá em Configurações > Transferência.",
+      "Escolha **{{app}}** como origem.",
+      "Arraste o arquivo que você acabou de exportar, ou clique para procurar.",
+      "Veja o que a prévia anuncia e depois inicie a importação."
+    ],
+    "otherGuides": "Outros guias de importação"
+  },
+  "guides": {
+    "1password": {
+      "app": "1Password",
+      "title": "Exporte o seu cofre do 1Password",
+      "metaTitle": "Como exportar o seu cofre do 1Password - PrivacyNotes",
+      "lead": "O app 1Password exporta a sua conta em um único arquivo .1pux, e o PrivacyNotes transforma os logins, cartões, notas e identidades em itens do Cofre e em notas.",
+      "sections": [
+        {
+          "h": "Exporte do 1Password",
+          "steps": [
+            "Abra o app 1Password no computador e desbloqueie-o.",
+            "Escolha File > Export e selecione a sua conta.",
+            "Digite a senha da sua conta, mantenha o formato 1PUX e salve o arquivo."
+          ]
+        },
+        {
+          "h": "1PUX ou CSV",
+          "p": [
+            "Escolha 1PUX. A exportação em CSV guarda só os logins: sem cartões, notas nem identidades, e sem campos personalizados."
+          ]
+        },
+        {
+          "h": "Onde as coisas aterrissam",
+          "p": [
+            "Cada login vira um [login do Cofre](/br/help/vault) com a sua chave 2FA, então [seus códigos continuam funcionando](/br/help/vault-totp), e os sites extras e os campos personalizados vêm junto. Um cartão vira um cartão, e uma nota segura ou uma identidade vira uma nota. As etiquetas continuam etiquetas, as aninhadas também, os favoritos chegam fixados e os itens arquivados vão para o Arquivo. Os arquivos anexados ficam para trás: salve-os pelo 1Password e anexe-os aqui.",
+            "O arquivo exportado contém suas senhas em texto puro. Importe, confira se chegou tudo e depois apague o arquivo."
+          ]
+        }
+      ]
+    },
+    "google-calendar": {
+      "app": "Google Calendar",
+      "title": "Exporte o seu Google Calendar",
+      "metaTitle": "Como exportar o Google Calendar - PrivacyNotes",
+      "lead": "O Google Calendar exporta todos os calendários que você gerencia em um único .zip, pelas configurações, em um computador. O PrivacyNotes lê esse .zip como ele é, sem precisar descompactar.",
+      "sections": [
+        {
+          "h": "Exporte todos os seus calendários de uma vez",
+          "steps": [
+            "Abra o [Google Calendar](https://calendar.google.com) em um navegador, em um computador. O app de celular não tem exportação.",
+            "Clique na engrenagem no canto superior direito e depois em \"Settings\".",
+            "Na lista à esquerda, clique em \"Import & export\".",
+            "Em \"Export\", clique em \"Export\". O navegador baixa um .zip com um arquivo .ics para cada calendário.",
+            "Deixe o .zip exatamente como está."
+          ],
+          "p": [
+            "O .zip contém todos os calendários em que você tem a permissão \"Make changes and manage sharing\", inclusive o seu próprio. Calendários que você só pode ver, como feriados ou o calendário de um colega, não entram. Em uma conta de trabalho ou escola, o administrador pode restringir a exportação."
+          ]
+        },
+        {
+          "h": "Ou exporte um só calendário",
+          "steps": [
+            "Na lista à esquerda, em \"My calendars\", aponte para o nome do calendário, clique em \"More\" (os três pontos) e depois em \"Settings and sharing\".",
+            "Em \"Calendar settings\", clique em \"Export calendar\". O navegador baixa um .zip com o arquivo .ics desse calendário. Deixe-o como está."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "Cada evento chega com o dia, o horário e a duração, inclusive os eventos de vários dias. Os eventos repetidos mantêm a regra de repetição, e uma ocorrência que você moveu ou excluiu no Google continua movida ou excluída. Cada calendário vira uma pasta.",
+            "Os lembretes que você definiu em um evento também chegam, inclusive os lembretes por e-mail: [eles viram lembretes do app](/br/help/reminders), que precisam do PrivacyNotes Pro para tocar. Um evento que usava os lembretes padrão do seu calendário chega sem lembrete, porque o Google não grava os padrões no arquivo. O local, o link da videochamada, os convidados e a descrição vão para o texto do evento. [Os horários aparecem como estavam neste dispositivo no momento da importação](/br/help/calendar-time-zones).",
+            "Um único arquivo .ics de qualquer app de calendário também funciona, inclusive do Apple Calendar e do Outlook.",
+            "Importe o mesmo arquivo de novo mais tarde e os eventos que já estão aqui são pulados, então só os novos são adicionados."
+          ]
+        }
+      ]
+    },
+    "google-keep": {
+      "app": "Google Keep",
+      "title": "Exporte as suas notas do Google Keep",
+      "metaTitle": "Exportar o Google Keep com o Takeout - PrivacyNotes",
+      "lead": "O Google Keep não tem botão de exportar dentro do próprio app; a saída oficial é o Google Takeout. Leva uns cinco minutos, e o PrivacyNotes lê o arquivo do Takeout diretamente, sem descompactar.",
+      "sections": [
+        {
+          "h": "Exporte suas notas do Google Keep",
+          "steps": [
+            "Acesse [takeout.google.com](https://takeout.google.com) e entre com a conta Google dona das suas notas.",
+            "Clique em \"Deselect all\" (desmarcar tudo) e, na lista de produtos, marque apenas \"Keep\".",
+            "Clique em \"Next step\" e mantenha os padrões: exportação única, arquivo .zip.",
+            "Clique em \"Create export\". O Google prepara o arquivo e envia um link de download por e-mail; só com o Keep isso costuma levar minutos, não horas.",
+            "Baixe o .zip. Pode deixá-lo exatamente como está."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "Títulos, texto das notas e formatação chegam intactos. As listas de verificação do Keep viram [listas de tarefas nativas do PrivacyNotes](/br/help/tasks), e os marcadores do Keep chegam como etiquetas.",
+            "Arraste o .zip inteiro do Takeout para o importador. Se você já descompactou, um arquivo .json avulso da pasta Takeout/Keep também funciona."
+          ]
+        }
+      ]
+    },
+    "apple-notes": {
+      "app": "Apple Notes",
+      "title": "Exporte as suas notas do Apple Notes",
+      "metaTitle": "Exportar o Apple Notes para Markdown - PrivacyNotes",
+      "lead": "O Apple Notes não tem exportação em massa própria, então o caminho prático no Mac é o app gratuito Exporter, que grava suas notas em Markdown. O PrivacyNotes lê essa exportação diretamente, imagens incluídas.",
+      "sections": [
+        {
+          "h": "Exporte suas notas em um Mac",
+          "steps": [
+            "Instale o app gratuito \"Exporter\" da Mac App Store.",
+            "Abra-o e exporte suas notas. Você recebe uma pasta de arquivos Markdown, organizada por conta e pasta, com as imagens ao lado.",
+            "No Finder, clique com o botão direito nessa pasta e escolha \"Comprimir\" para transformá-la em um .zip."
+          ]
+        },
+        {
+          "h": "Vindo do iPhone ou iPad",
+          "p": [
+            "Zips por nota compartilhados do iOS (um pequeno .zip com o Markdown da nota mais uma pasta Attachments) também são aceitos: arraste-os um por vez. Para uma biblioteca inteira, o caminho do Mac acima é bem mais rápido."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "Estrutura de pastas, texto das notas e imagens incorporadas sobrevivem à mudança. As notas mantêm seus títulos, e os anexos aterrissam no [armazenamento criptografado de arquivos](/br/help/attachment-limits) ao lado da sua nota."
+          ]
+        }
+      ]
+    },
+    "bear": {
+      "app": "Bear",
+      "title": "Exporte as suas notas do Bear",
+      "metaTitle": "Como exportar suas notas do Bear - PrivacyNotes",
+      "lead": "O Bear exporta a biblioteca inteira como um único arquivo de backup, e é esse o arquivo que você deve trazer: ele guarda todas as notas, inclusive as arquivadas e as da lixeira.",
+      "sections": [
+        {
+          "h": "Faça um backup do Bear",
+          "steps": [
+            "Abra o Bear no seu Mac.",
+            "Escolha File > Backup Notes...",
+            "Salve o arquivo. Você recebe um único arquivo .bear2bk com a biblioteca inteira.",
+            "Solte esse .bear2bk do jeito que está."
+          ]
+        },
+        {
+          "h": "O backup traz mais do que uma exportação",
+          "p": [
+            "File > Export Notes... grava apenas as notas da visualização que está aberta, então as notas arquivadas e as da lixeira ficam de fora. O backup guarda todas elas e lembra quais notas estavam fixadas, arquivadas, na lixeira ou somente leitura.",
+            "Se você só tem uma exportação em Markdown ou Text Bundle, compacte-a em um zip e solte o zip. Seu texto, suas etiquetas e seus anexos chegam, mas o Arquivo, a Lixeira e as notas fixadas não, porque essas exportações nunca gravam isso.",
+            "Vai exportar do Bear à mão? Selecione pelo menos duas notas. Uma nota isolada abre uma janela de salvamento que pode dar ao arquivo a extensão errada."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "Suas etiquetas vêm como etiquetas. As etiquetas aninhadas, como #work/projects, também são reconstruídas como pastas, e cada nota vai para a pasta da sua etiqueta mais profunda. [Os links entre notas viram links entre notas do PrivacyNotes](/br/help/note-links), e um link para um título aponta para esse título.",
+            "A formatação sobrevive: títulos, negrito, itálico, sublinhado, tachado, destaques nas cores do Bear, listas de tarefas, tabelas, blocos de código, citações, avisos, fórmulas e notas de rodapé. As imagens abrem em largura total, e os títulos recolhidos chegam abertos.",
+            "As notas fixadas continuam fixadas, [as arquivadas vão para o Arquivo](/br/help/archive), as da lixeira vão para a Lixeira, as somente leitura continuam somente leitura, e cada nota mantém suas datas originais.",
+            "As imagens e os arquivos anexados às suas notas são importados para o seu armazenamento. Uma nota que aponta para um arquivo que o backup não contém ainda assim é importada, e a prévia da importação diz quantos links isso afeta."
+          ]
+        }
+      ]
+    },
+    "obsidian": {
+      "app": "Obsidian",
+      "title": "Exporte o seu vault do Obsidian",
+      "metaTitle": "Exportar um vault do Obsidian - PrivacyNotes",
+      "lead": "O Obsidian não tem etapa de exportação e nem precisa: um vault já é uma pasta de arquivos Markdown. É a migração mais fácil de todas. Compacte o vault, arraste para dentro.",
+      "sections": [
+        {
+          "h": "Exporte seu vault",
+          "steps": [
+            "Encontre a pasta do vault no disco. Se não souber onde ela mora, o Obsidian mostra o caminho quando você clica no nome do vault no seletor de vaults.",
+            "Compacte a pasta em .zip: clique direito > Comprimir no macOS, ou Enviar para > Pasta compactada no Windows.",
+            "Esse zip é o arquivo de importação. Sem plugins nem exportações."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "Sua estrutura de pastas é reconstruída como pastas de verdade, não achatada em etiquetas, não importa a profundidade do aninhamento. Uma nota em Work/Projects vai parar em uma pasta Work > Projects. Se você reimportar o mesmo vault, as pastas já criadas são reutilizadas em vez de duplicadas.",
+            "No plano gratuito você pode navegar por essas pastas na hora; [criar, renomear e mover pastas é um recurso Pro](/br/help/folders), então uma importação do Obsidian é uma boa forma de experimentar antes de fazer upgrade.",
+            "O frontmatter YAML é entendido: `tags`, `aliases` e datas de criação são respeitados, e as #hashtags no corpo são mescladas ao campo de etiquetas. Na importação você também pode marcar \"Também etiquetar as notas por pasta\" para adicionar o nome de cada pasta como etiqueta, útil se você também gosta de filtrar por etiqueta.",
+            "Seus links [[...]] continuam funcionando: [o PrivacyNotes os exibe como links entre notas](/br/help/note-links), então as conexões entre notas sobrevivem à mudança. A pasta de configuração .obsidian e a .trash são puladas automaticamente."
+          ]
+        }
+      ]
+    },
+    "siyuan": {
+      "app": "SiYuan",
+      "title": "Exporte suas notas do SiYuan",
+      "metaTitle": "Como exportar suas notas do SiYuan como Data.zip - PrivacyNotes",
+      "lead": "O SiYuan exporta o workspace inteiro como um único Data.zip. Esse arquivo traz todos os cadernos, com seus documentos aninhados, etiquetas, referências de bloco, arquivos anexos e datas.",
+      "sections": [
+        {
+          "img": {
+            "src": "/help/img/siyuan-export.webp",
+            "alt": "A janela Data migration do SiYuan com a linha Data.zip selecionada e o botão Export em destaque.",
+            "width": 1576,
+            "height": 1076
+          },
+          "h": "Exporte o workspace como Data.zip",
+          "steps": [
+            "Abra o SiYuan no seu computador.",
+            "Clique no menu SiYuan, no canto superior esquerdo, e escolha \"Data migration\".",
+            "Em SiYuan, aponte para \"Data.zip\" e clique em Export.",
+            "Escolha uma pasta. O SiYuan grava um único .zip com todos os cadernos do workspace.",
+            "Solte esse .zip do jeito que está."
+          ],
+          "p": [
+            "Para levar só um caderno, clique nele com o botão direito no painel Documents e escolha Export > \"SiYuan .sy.zip\". Lemos esse arquivo da mesma forma."
+          ]
+        },
+        {
+          "h": "Desbloqueie os cadernos criptografados e exporte-os separadamente",
+          "p": [
+            "O Data.zip mantém um caderno criptografado como está, então não conseguimos lê-lo. Nós o pulamos e a prévia da importação o menciona pelo nome. Desbloqueie o caderno no SiYuan, exporte-o como \"SiYuan .sy.zip\" e solte esse arquivo também: essa exportação é legível."
+          ]
+        },
+        {
+          "h": "Escolha Data.zip, não Markdown",
+          "p": [
+            "A exportação em .zip de Markdown mantém o texto, mas deixa de fora as etiquetas e as datas dos documentos, e grava as referências de bloco como texto simples ou notas de rodapé. Lemos esse arquivo se for tudo o que você tem, e cada nota recebe a data da importação."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "Cada caderno vira uma pasta, e os documentos aninhados viram pastas aninhadas. Um documento que tem subdocumentos e texto próprio vira uma nota dentro da pasta de mesmo nome. Cada nota mantém suas etiquetas e as datas de criação e de atualização que o SiYuan guardou.",
+            "Títulos, listas, listas de tarefas, citações, código com a sua linguagem, tabelas com o alinhamento, fórmulas, avisos, destaques e cores de texto chegam como estavam. [As referências de bloco viram links entre notas](/br/help/note-links), as imagens e os arquivos são importados para o seu armazenamento, e os documentos marcados chegam fixados.",
+            "Um banco de dados vira uma tabela com as colunas visíveis, as abas viram seções recolhíveis e um mapa mental vira uma lista aninhada. Os flashcards ficam como texto simples, e uma consulta incorporada é mantida como código. O SiYuan não tem lixeira nas exportações, então os documentos excluídos ficam no histórico dele."
+          ]
+        }
+      ]
+    },
+    "standard-notes": {
+      "app": "Standard Notes",
+      "title": "Exporte as suas notas do Standard Notes",
+      "metaTitle": "Exportar um backup do Standard Notes - PrivacyNotes",
+      "lead": "O Standard Notes exporta sua conta inteira em um único backup descriptografado. Ele traz as notas Super com a formatação, além de listas de verificação, etiquetas e códigos 2FA.",
+      "sections": [
+        {
+          "h": "Exporte suas notas do Standard Notes",
+          "steps": [
+            "Abra o Standard Notes (na web em app.standardnotes.com, ou no app de desktop) e faça login.",
+            "Clique no ícone da conta no canto inferior esquerdo e depois em Account settings > Backups.",
+            "Em Data backups, escolha Decrypted e clique em Download backup. Esse único arquivo contém todas as notas, inclusive as notas Super.",
+            "Você recebe um .zip contendo um arquivo chamado \"Standard Notes Backup and Import File.txt\". Mantenha o zip como está."
+          ]
+        },
+        {
+          "h": "Notas Super, listas de verificação e códigos 2FA mantêm o formato",
+          "p": [
+            "As notas Super mantêm a formatação: títulos, listas, listas de verificação, tabelas, blocos de código, destaques, cores, alinhamento de texto e seções recolhíveis. [Um link para outra nota vira um link entre notas](/br/help/note-links), e uma #hashtag no texto vira uma etiqueta da nota. As listas de verificação vão para Tarefas, as planilhas viram tabelas e [as entradas do autenticador viram logins no Cofre, com a chave 2FA](/br/help/vault-totp). Etiquetas aninhadas viram pastas, e cada nota mantém também as suas etiquetas.",
+            "Os arquivos que você enviou ao Standard Notes ficam no servidor deles, então o backup guarda apenas os nomes. Cada nota importada marca onde havia um arquivo. Baixe esses arquivos do Standard Notes e adicione-os à nota de novo."
+          ]
+        },
+        {
+          "h": "Backups criptografados não são suportados",
+          "p": [
+            "Um backup criptografado do Standard Notes é texto cifrado que só a sua senha do Standard Notes consegue abrir, então o importador não consegue lê-lo. Se você exportou a variante criptografada, exporte de novo escolhendo descriptografado. Como o arquivo contém suas notas em texto puro, apague-o quando a importação terminar.",
+            "Arraste o .zip inteiro para o importador, ou só o arquivo .txt se você já descompactou."
+          ]
+        }
+      ]
+    },
+    "simplenote": {
+      "app": "Simplenote",
+      "title": "Exporte as suas notas do Simplenote",
+      "metaTitle": "Exportar notas do Simplenote - PrivacyNotes",
+      "lead": "O Simplenote tem uma exportação embutida e limpa que leva três cliques, e o PrivacyNotes lê o zip resultante diretamente.",
+      "sections": [
+        {
+          "h": "Exporte suas notas do Simplenote",
+          "steps": [
+            "Faça login em [app.simplenote.com](https://app.simplenote.com) (ou abra o app de desktop).",
+            "Abra o menu lateral e vá em Settings.",
+            "Em Account, escolha \"Export Notes\". Um .zip baixa na hora."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "O zip contém um notes.json de referência com todas as suas notas e seus metadados: as etiquetas vêm junto, e as datas de criação são preservadas. Arraste o .zip inteiro, do jeito que está, para o importador."
+          ]
+        }
+      ]
+    },
+    "samsung-notes": {
+      "app": "Samsung Notes",
+      "title": "Exporte as suas notas do Samsung Notes",
+      "metaTitle": "Exportar o Samsung Notes para Word - PrivacyNotes",
+      "lead": "O Samsung Notes exporta um arquivo por nota, em dois sabores. Prefira a exportação para Microsoft Word (.docx): ela mantém sua formatação, enquanto a de texto puro a perde.",
+      "sections": [
+        {
+          "h": "Exporte suas notas do Samsung Notes",
+          "steps": [
+            "No Samsung Notes, toque e segure para selecionar as notas que quiser (ou Select all).",
+            "Toque no menu de três pontos e escolha \"Save as file\".",
+            "Escolha \"Microsoft Word file\" (.docx) para notas formatadas, ou \"Text file\" (.txt) para texto puro.",
+            "O Samsung salva um arquivo por nota no armazenamento do dispositivo. Junte-os num único .zip (selecione no gerenciador de arquivos e compacte) se forem mais do que alguns."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "Dos .docx: negrito, itálico, sublinhado, tachado, listas com marcadores e numeradas, e caixas de seleção (que viram [listas de tarefas nativas](/br/help/tasks)) sobrevivem todos. Dos .txt: o texto, e nada mais.",
+            "As imagens incorporadas numa nota do Samsung precisam ser transferidas manualmente: o importador sinaliza cada nota que tinha uma, então você sabe exatamente onde recolocá-las. O texto, os títulos e as datas chegam todos na mesma passada."
+          ]
+        }
+      ]
+    },
+    "bitwarden": {
+      "app": "Bitwarden",
+      "title": "Exporte o seu cofre do Bitwarden",
+      "metaTitle": "Exportar um cofre do Bitwarden - PrivacyNotes",
+      "lead": "O Bitwarden exporta o seu cofre inteiro em um único arquivo .json não criptografado, e o PrivacyNotes arquiva cada item no seu lugar: logins, cartões, chaves SSH e notas seguras.",
+      "sections": [
+        {
+          "h": "Exporte seu cofre do Bitwarden",
+          "steps": [
+            "Abra o cofre web do Bitwarden (ou o app de desktop) e faça login.",
+            "Vá em Tools e depois \"Export vault\".",
+            "Escolha o formato de arquivo .json (o simples, não \".json (Encrypted)\").",
+            "Confirme com sua senha mestra e baixe o arquivo."
+          ]
+        },
+        {
+          "h": "Onde as coisas aterrissam",
+          "p": [
+            "Logins viram [entradas de Login do Cofre](/br/help/vault) (com os ícones dos sites), cartões viram entradas de cartão, chaves SSH viram entradas de chave SSH, e notas seguras mais identidades chegam como notas legíveis. Pastas do Bitwarden viram etiquetas, e favoritos chegam com estrela. As chaves de autenticação (TOTP) vêm junto, então [seus códigos 2FA continuam funcionando](/br/help/vault-totp).",
+            "O arquivo exportado contém suas senhas em texto puro, então importe, confira se chegou tudo e depois apague o arquivo de vez. Dentro do PrivacyNotes tudo volta a ser criptografado, no seu dispositivo e a caminho do servidor."
+          ]
+        }
+      ]
+    },
+    "enpass": {
+      "app": "Enpass",
+      "title": "Exporte o seu cofre do Enpass",
+      "metaTitle": "Como exportar o seu cofre do Enpass - PrivacyNotes",
+      "lead": "O Enpass exporta um cofre em um único arquivo .json, e o PrivacyNotes transforma os logins, cartões, notas e identidades em itens do Cofre e em notas.",
+      "sections": [
+        {
+          "h": "Exporte do Enpass",
+          "steps": [
+            "Abra o Enpass no computador e desbloqueie-o.",
+            "Escolha File > Export, selecione o cofre e o formato .json.",
+            "Salve o arquivo e depois digite a sua senha mestra. Exporte cada cofre separadamente."
+          ]
+        },
+        {
+          "h": "Onde as coisas aterrissam",
+          "p": [
+            "Cada login vira um [login do Cofre](/br/help/vault) com a sua chave 2FA, então [seus códigos continuam funcionando](/br/help/vault-totp), e os sites extras e os campos personalizados vêm junto. Um cartão vira um cartão, e uma nota segura ou uma identidade vira uma nota. As pastas viram etiquetas, as aninhadas também, os favoritos chegam fixados e os itens arquivados vão para o Arquivo. Os itens da lixeira do Enpass e os arquivos anexados ficam para trás.",
+            "O arquivo exportado contém suas senhas em texto puro. Importe, confira se chegou tudo e depois apague o arquivo."
+          ]
+        }
+      ]
+    },
+    "evernote": {
+      "app": "Evernote",
+      "title": "Exporte as suas notas do Evernote",
+      "metaTitle": "Exportar notas do Evernote em ENEX - PrivacyNotes",
+      "lead": "O Evernote exporta um caderno por vez, e só pelo app de desktop. Escolha o formato ENEX e suas notas chegam inteiras: formatação, etiquetas, anexos, recortes da web e os links entre elas.",
+      "sections": [
+        {
+          "img": {
+            "src": "/help/img/evernote-export-menu.webp",
+            "alt": "O menu de contexto de um caderno no app de desktop do Evernote, com \"Export notebook...\" em destaque.",
+            "width": 1576,
+            "height": 652
+          },
+          "h": "Exporte um caderno",
+          "steps": [
+            "Abra o Evernote no Mac ou no Windows. A versão web e os apps de celular não conseguem gravar arquivos .enex.",
+            "Clique com o botão direito no caderno da barra lateral e escolha \"Export notebook...\".",
+            "Marque \"ENEX format (.enex)\" e deixe ligadas todas as caixas de Export note attributes: são elas que carregam suas etiquetas, datas, lembretes e as URLs dos recortes da web.",
+            "Salve o arquivo. O Evernote dá a ele o nome do caderno, e esse nome vira a pasta aqui do lado de cá, então não mexa nele.",
+            "Solte esse .enex do jeito que está. Se você tem mais de um caderno, repita a exportação em cada um, depois junte os arquivos .enex num zip só e solte esse zip de uma vez."
+          ]
+        },
+        {
+          "img": {
+            "src": "/help/img/evernote-export-format.webp",
+            "alt": "A caixa de diálogo de exportação do Evernote com \"ENEX format (.enex)\" marcado e todos os atributos de nota selecionados.",
+            "width": 1576,
+            "height": 1120
+          },
+          "h": "Escolha ENEX, não as exportações em HTML ou PDF",
+          "p": [
+            "Os outros três formatos não sobrevivem à viagem. As duas exportações em HTML incham cada nota com uma cópia da mesma folha de estilo e perdem o nome do arquivo e o link de download de todo anexo que não seja imagem, e a exportação em PDF funde o caderno num documento único, sem nenhuma divisão entre as notas. Solte um desses aqui por engano e a gente avisa, em vez de importar meio caderno.",
+            "Deixe \"Split file size by\" desligado, a menos que o caderno guarde gigabytes de digitalizações."
+          ]
+        },
+        {
+          "h": "Um caderno por vez",
+          "p": [
+            "Não existe exportação da conta inteira, e uma pilha não pode ser exportada como um bloco. Escolher notas na mão trava em 100 por exportação, então clicar com o botão direito no caderno é mais rápido e é o único jeito de furar esse limite. As pilhas também não vão para dentro do arquivo, então suas pastas chegam sem hierarquia.",
+            "Quem está no plano gratuito também consegue exportar, com um porém: o nível gratuito permite um único dispositivo conectado, e isso aqui exige o app de desktop."
+          ]
+        },
+        {
+          "h": "O que vem junto, e o que fica para trás",
+          "p": [
+            "Tabelas, blocos de código, destaques, sublinhado, cor do texto e fórmulas sobrevivem todos. [As listas de verificação viram listas de tarefas](/br/help/tasks), os lembretes de nota viram uma tarefa no topo da nota, anexos e imagens são recriptografados dentro do seu armazenamento, os recortes da web mantêm a URL de origem, e as notas de voz mantêm a transcrição. [Os links internos viram links entre notas](/br/help/note-links), casados pelo título da nota apontada, já que o Evernote não exporta nenhum id de nota.",
+            "As tarefas não atravessam: no lugar de cada bloco de tarefas a exportação deixa um marcador \"Content not supported\", sem títulos, sem prazos e sem estado de conclusão para ler. Os blocos criptografados continuam criptografados, então descriptografe-os no Evernote antes. Fontes personalizadas, alinhamento do texto e hierarquia de etiquetas aninhadas são descartados."
+          ]
+        },
+        {
+          "h": "Se a exportação parar no meio",
+          "p": [
+            "O Evernote guarda suas notas nos servidores dele e vai baixando enquanto escreve a exportação, então um caderno grande pode parar em 13%, depois em 40%, e só então terminar. Rode a mesma exportação de novo: cada tentativa deixa mais coisa em cache local e vai mais longe que a anterior."
+          ]
+        }
+      ]
+    },
+    "markdown": {
+      "app": "Markdown",
+      "title": "Importar arquivos Markdown",
+      "metaTitle": "Importar arquivos Markdown para o PrivacyNotes",
+      "lead": "O caminho genérico para todo o resto: qualquer app que exporte Markdown pode se mudar para o PrivacyNotes. Arquivos .md avulsos funcionam, e um .zip de uma pasta inteira também.",
+      "sections": [
+        {
+          "h": "Prepare seus arquivos",
+          "steps": [
+            "Exporte ou reúna seus arquivos .md. Qualquer origem serve: outro app de notas, um site estático, uma pasta de READMEs.",
+            "Com mais do que um punhado de arquivos, coloque a pasta num .zip.",
+            "Arraste o zip (ou arquivos .md individuais) para o importador."
+          ]
+        },
+        {
+          "h": "Como os arquivos são lidos",
+          "p": [
+            "O frontmatter YAML é respeitado quando existe: os campos `title`, `created`, `updated` e `tags` são usados direto, o que faz deste também [o caminho de restauração das exportações Markdown do próprio PrivacyNotes](/br/help/export). Também lemos as etiquetas escritas como #hashtags no texto. Arquivos simples sem frontmatter usam o nome do arquivo como título e o conteúdo como corpo. A leitura é deliberadamente tolerante: aceitamos .md, .markdown, .mdown, .mkd e .txt.",
+            "Compacte a pasta inteira e a estrutura vem junto. As subpastas são reconstruídas como pastas de verdade, em qualquer profundidade, e as imagens e arquivos para onde as suas notas apontam são importados junto. O que ninguém referencia fica para trás e é contado, então uma pasta cheia de prints antigos não come o seu armazenamento."
+          ]
+        }
+      ]
+    },
+    "notesnook": {
+      "app": "Notesnook",
+      "title": "Exporte as suas notas do Notesnook",
+      "metaTitle": "Exportar notas do Notesnook - PrivacyNotes",
+      "lead": "O Notesnook consegue despejar a sua conta inteira como uma pasta de arquivos. Escolha a exportação em HTML e nada fica para trás: formatação, cadernos, etiquetas, anexos e os links entre as suas notas sobrevivem todos à mudança.",
+      "sections": [
+        {
+          "img": {
+            "src": "/help/img/notesnook-export.webp",
+            "alt": "Configurações do Notesnook, página Backup & export, com o menu Export as aberto e HTML selecionado.",
+            "width": 1576,
+            "height": 963
+          }
+        },
+        {
+          "h": "Exporte suas notas",
+          "steps": [
+            "Abra o Notesnook e vá em Settings > Backup & export.",
+            "Ache \"Export all notes\" e abra o menu \"Export as\".",
+            "Escolha HTML. Isso importa: é o único formato que o Notesnook escreve sem antes tirar a sua formatação.",
+            "O Notesnook salva um único .zip com um arquivo por nota mais uma pasta attachments. Esse zip é o seu arquivo de importação."
+          ]
+        },
+        {
+          "h": "Escolha HTML, não Markdown",
+          "p": [
+            "O menu de exportação do Notesnook oferece Text, Markdown, Markdown + Frontmatter e HTML. Só o HTML guarda tudo.",
+            "As duas opções de Markdown achatam as suas notas antes de escrevê-las: sublinhado, tamanhos de fonte e alinhamento do texto somem antes de o arquivo sequer chegar até nós. A opção Markdown pura também não escreve etiquetas nem datas originais, então cada nota importada chegaria sem etiquetas e carimbada com a data de hoje. Ainda assim aceitamos as duas, e vamos dizer o que se perdeu, mas HTML é a que se deve escolher.",
+            "A exportação em Text não tem estrutura para ler e não é aceita."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "[Seus cadernos são reconstruídos como pastas de verdade](/br/help/folders), não achatados em etiquetas, na mesma profundidade em que o Notesnook os aninhou. Uma nota em Work > Projects vai parar em uma pasta Work > Projects.",
+            "Notas fixadas e favoritas continuam marcadas. O Notesnook mantém Pin e Favorite como duas propriedades separadas; o PrivacyNotes tem uma única lista de Fixados, então uma nota que fosse qualquer uma das duas vai parar lá.",
+            "Destaques, cores de texto, tamanhos de fonte, sobrescrito, subscrito, fórmulas e alinhamento do texto são preservados: cada cor passa para a cor mais próxima da nossa paleta, um tamanho de fonte que você escolheu vira Pequeno, Grande ou Muito grande, as fórmulas voltam a ser renderizadas como fórmulas, e blocos centralizados ou alinhados à direita mantêm o alinhamento. Fontes personalizadas não têm equivalente aqui, então a fonte é descartada e o texto é mantido."
+          ]
+        },
+        {
+          "h": "Um arquivo de backup não é uma exportação",
+          "p": [
+            "O Notesnook também pode salvar um arquivo de backup terminado em .nnbackupz. Isso é outra coisa: ele guarda cada anexo no formato criptografado do próprio Notesnook, que só o Notesnook abre. Solte um aqui e a gente vai avisar em vez de importar pela metade. Use \"Export all notes\" em HTML no lugar."
+          ]
+        }
+      ]
+    },
+    "apple-journal": {
+      "app": "Apple Journal",
+      "title": "Exporte as suas entradas do Apple Journal",
+      "metaTitle": "Exportar as entradas do Apple Journal - PrivacyNotes",
+      "lead": "O Apple Journal (Diário) exporta um arquivo HTML por entrada, mais uma pasta com todas as fotos, vídeos e memorandos de voz. O PrivacyNotes lê toda a exportação e reconstrói cada uma como entrada de diário, datada do dia em que você a escreveu.",
+      "sections": [
+        {
+          "h": "Exporte seu diário em um Mac",
+          "steps": [
+            "Abra o Diário e escolha Arquivo > Exportar na barra de menus.",
+            "Escolha um destino. O Diário grava uma pasta chamada AppleJournalEntries, com uma pasta Entries e uma pasta Resources dentro.",
+            "Clique com o botão direito nessa pasta e escolha Comprimir. Aparece AppleJournalEntries.zip ao lado, e esse é o arquivo a importar."
+          ]
+        },
+        {
+          "h": "Exporte de um iPhone ou iPad",
+          "steps": [
+            "Abra o Diário. Embaixo do título Diários, toque no seu diário para abri-lo (chama-se Diário a menos que você tenha renomeado, e mostra quantas entradas ele tem).",
+            "Na lista de entradas, toque no botão … no canto superior direito, escolha Exportar, e confirme com o botão Exportar.",
+            "Salve-o no celular.",
+            "Abra o app Arquivos e encontre a pasta que ele criou, chamada AppleJournalEntries.",
+            "Toque e segure essa pasta e escolha Comprimir. O .zip que aparece ao lado é o arquivo a importar."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "[Cada entrada vai parar em Diários](/br/help/journal) em vez de em Notas, datada do dia que o Diário mostra acima dela, então seu histórico mantém a forma.",
+            "Fotos e Live Photos são importadas como imagens, vídeos e memorandos de voz como anexos. A Apple entrega as fotos em HEIC, que a maioria dos navegadores não consegue exibir, então [o PrivacyNotes converte cada uma para JPEG na entrada](/br/help/image-quality). Essa é a parte lenta de uma importação grande: algumas centenas de fotos podem levar vários minutos, e a linha de progresso conta elas para você.",
+            "Negrito, itálico, sublinhado, tachado, cores de texto, listas com marcadores e numeradas, e citações em bloco sobrevivem todos."
+          ]
+        },
+        {
+          "h": "Fotos, vídeos e seu armazenamento",
+          "p": [
+            "Um diário cheio de fotos é bem maior do que um diário cheio de texto, e [conta contra seu armazenamento como qualquer outra coisa](/br/help/storage-usage). A prévia da importação soma tudo antes de você confirmar, e se recusa a começar se não couber."
+          ]
+        },
+        {
+          "h": "Para onde vão suas localizações",
+          "p": [
+            "O Diário registra onde aconteceu uma entrada. Um local registrado com coordenadas vira um mapa numa parte Places no final da entrada, e o primeiro é também o local da própria entrada, no chip de localização.",
+            "Um local que o Diário só nomeou não tem o que marcar, então vira um link que busca esse nome no OpenStreetMap. Os mapas carregam do nosso próprio servidor, maps.privacynotes.app, quando você abre a entrada. Um link de busca não envia nada até você clicar nele."
+          ]
+        },
+        {
+          "h": "Estado de Espírito",
+          "p": [
+            "Se você fez um registro em State of Mind, [o PrivacyNotes preenche os rastreadores de humor e emoção](/br/help/choose-trackers) dessa entrada sempre que o vocabulário da Apple corresponde a um dos nossos. Tudo o que não tem correspondência, e as áreas de vida que você marcou, ficam guardados como uma linha de texto para que nada se perca."
+          ]
+        },
+        {
+          "h": "O que não vem junto",
+          "p": [
+            "Os cartões de sugestão do Diário para treinos, contatos e mídia que você reproduziu mantêm o texto mas não a imagem. Os memorandos de voz chegam como gravações, mas não com a transcrição da Apple: o exportador remove todos os espaços dela, então o que ele escreve é uma sequência ininterrupta de caracteres. Ela fica de fora em vez de ser importada ilegível.",
+            "Os memorandos de voz de uma exportação do Mac são arquivos CAF, que nenhum navegador consegue reproduzir. Eles são importados e baixados sem problemas, mas você não vai ouvi-los no app. Uma exportação do iPhone grava as mesmas gravações em M4A, que toca diretamente, então use o celular se puder escolher."
+          ]
+        }
+      ]
+    },
+    "upnote": {
+      "app": "UpNote",
+      "title": "Exporte as suas notas do UpNote",
+      "metaTitle": "Exportar notas do UpNote - PrivacyNotes",
+      "lead": "No UpNote, a exportação se chama backup: grava a sua conta inteira em uma pasta no disco, inclusive no plano gratuito. Compacte essa pasta e tudo vem junto: notas com a formatação completa, cadernos, etiquetas, notas fixadas, links entre notas, imagens e anexos.",
+      "sections": [
+        {
+          "img": {
+            "src": "/help/img/upnote-backup.webp",
+            "alt": "Configurações do UpNote, página Backup, com Backup attachments, Backup now e View backup folder visíveis.",
+            "width": 1576,
+            "height": 1070
+          },
+          "h": "Crie um backup local",
+          "steps": [
+            "Abra o UpNote no computador e vá em Settings > Backup.",
+            "Ative \"Backup attachments\". A opção vem desligada por padrão, e sem ela suas imagens e arquivos ficam para trás.",
+            "Clique em \"Backup now\" e espere a linha \"Last backup at\" atualizar.",
+            "Clique em \"View backup folder\". O UpNote abre a pasta que acabou de gravar."
+          ]
+        },
+        {
+          "img": {
+            "src": "/help/img/upnote-folder.webp",
+            "alt": "A pasta de backup do UpNote com as pastas data, files, Markdown e revisions selecionadas e o menu do clique direito aberto em Comprimir.",
+            "width": 1576,
+            "height": 642
+          },
+          "h": "Compacte tudo o que está nessa pasta",
+          "steps": [
+            "Selecione tudo na pasta de backup: data, files e o que mais estiver ao lado.",
+            "Compacte a seleção: clique direito > Comprimir no macOS, ou Enviar para > Pasta compactada no Windows.",
+            "Esse .zip é o seu arquivo de importação."
+          ],
+          "p": [
+            "Compacte a pasta inteira, não só a pasta Markdown dentro dela. Essas cópias em markdown são uma versão achatada: sublinhado, cores, destaques, seções recolhíveis e alinhamento do texto já sumiram delas. A formatação completa das suas notas mora na pasta data, e é ela que nós lemos. Solte um zip sem ela e a gente vai avisar em vez de importar as cópias achatadas."
+          ]
+        },
+        {
+          "img": {
+            "src": "/help/img/upnote-export-menu.webp",
+            "alt": "O menu Export do UpNote no iOS, oferecendo Export to Text, PDF, Markdown e HTML.",
+            "width": 1576,
+            "height": 1235
+          },
+          "h": "No iPhone ou Android: exporte as notas uma a uma",
+          "steps": [
+            "Os apps de celular do UpNote não conseguem gravar um backup. Em vez disso, abra uma nota e toque nos três pontos no canto superior.",
+            "Escolha Export > \"Export to HTML\". Não Markdown: o UpNote achata os avisos, as cores de texto, o alinhamento e o subscrito e sobrescrito antes de escrever seu Markdown, enquanto o HTML mantém tudo.",
+            "Compartilhe o resultado com o app Arquivos ou envie para você mesmo, e então solte-o aqui sem modificar.",
+            "Vai transferir várias notas? Salve os arquivos exportados no app Arquivos, selecione todos e escolha Comprimir: esse zip único importa tudo de uma vez."
+          ],
+          "p": [
+            "A exportação em HTML traz sua formatação por inteiro. O que nenhuma exportação por nota carrega é a estrutura da biblioteca: cadernos, notas fixadas e datas só vivem no backup, então assim que você chegar a um computador, o caminho do backup acima completa a mudança. Exportações em Markdown também são aceitas, com o achatamento que trazem."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "Seus cadernos são reconstruídos como pastas de verdade, aninhadas na profundidade em que estavam no UpNote. Uma nota que morava em vários cadernos vai parar no primeiro e carrega os outros como etiquetas.",
+            "Notas fixadas e do Quick Access chegam como Fixadas. Notas na lixeira vão parar na lixeira, modelos são importados como notas com a etiqueta #template, [os links de uma nota para outra viram links entre notas](/br/help/note-links), e cada nota mantém suas datas originais.",
+            "A formatação sobrevive: listas de tarefas, tabelas, blocos de código, fórmulas, sublinhado, subscrito e sobrescrito, alinhamento do texto e destaques. Seções recolhíveis viram avisos recolhíveis e mantêm o estado aberto ou fechado. As cores de texto e as cores de destaque são ambas aproximadas à paleta do próprio editor, então um destaque amarelo continua amarelo e um verde continua verde. Cada nota chega como o UpNote a salvou pela última vez."
+          ]
+        },
+        {
+          "h": "Se imagens ou arquivos estiverem faltando",
+          "p": [
+            "Um backup feito antes de você marcar \"Backup attachments\" não tem arquivo nenhum dentro, e a prévia da importação vai avisar que as notas fazem referência a anexos que o backup não carrega. Se isso acontecer, cancele, ative a opção no UpNote, clique em \"Backup now\" de novo, compacte a pasta nova e importe essa no lugar."
+          ]
+        }
+      ]
+    },
+    "joplin": {
+      "app": "Joplin",
+      "title": "Exporte as suas notas do Joplin",
+      "metaTitle": "Como exportar suas notas do Joplin em JEX - PrivacyNotes",
+      "lead": "O Joplin exporta todos os cadernos de uma vez em um único arquivo JEX. Ele traz suas notas com os cadernos, as etiquetas, as tarefas a fazer, os links entre notas e os anexos.",
+      "sections": [
+        {
+          "h": "Exporte tudo em JEX",
+          "steps": [
+            "Abra o Joplin no seu computador.",
+            "Escolha File > Export all > \"JEX - Joplin Export File\".",
+            "Salve o arquivo. Você recebe um único arquivo .jex com todos os cadernos, então não há nada para compactar.",
+            "Solte esse .jex do jeito que está."
+          ],
+          "p": [
+            "Tools > Create backup grava o mesmo arquivo, byte por byte, como all_notebooks.jex dentro de uma pasta JoplinBackup na sua pasta pessoal. Se o Joplin já faz esses backups para você, o mais recente funciona igualmente bem."
+          ]
+        },
+        {
+          "h": "Escolha JEX, não Markdown, HTML nem PDF",
+          "p": [
+            "Export all também oferece MD, MD + Front Matter, HTML directory e PDF. Essas são cópias feitas para leitura em outros apps. O arquivo JEX é o registro próprio do Joplin de cada nota, caderno, etiqueta e anexo, e é o que a gente lê. Solte uma das outras exportações aqui e a gente avisa, em vez de importar só uma parte.",
+            "Se você já exportou \"RAW - Joplin Export Directory\", compacte essa pasta em um zip e solte o zip. Ele contém os mesmos itens que o arquivo JEX."
+          ]
+        },
+        {
+          "h": "Tire as notas da lixeira antes de exportar",
+          "p": [
+            "O Joplin deixa a lixeira fora de toda exportação e de todo backup. Tire da lixeira as notas que você quer guardar antes de exportar, ou elas ficam para trás no Joplin."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "Seus cadernos são reconstruídos como pastas de verdade, aninhadas na mesma profundidade do Joplin, e cada nota mantém suas etiquetas e as datas de criação e de atualização que o Joplin mostrava.",
+            "[As tarefas a fazer viram notas de tarefa](/br/help/tasks) com uma caixa que você pode marcar, já marcada quando a tarefa estava concluída, e a data de vencimento fica escrita ao lado do título. [Os links entre notas viram links entre notas do PrivacyNotes](/br/help/note-links). As imagens e os anexos são importados para o seu armazenamento e continuam no lugar na nota. As notas salvas em HTML, como muitos recortes da web, são convertidas com a formatação.",
+            "As notas do caderno Conflicts do Joplin chegam com a etiqueta \"conflict\", para você achá-las e organizá-las. Se você usa a criptografia do Joplin, deixe-o terminar de descriptografar antes de exportar: um item que ainda está criptografado é pulado, e a prévia da importação diz quantos."
+          ]
+        }
+      ]
+    },
+    "browser-bookmarks": {
+      "app": "Favoritos do navegador",
+      "title": "Exporte os favoritos do seu navegador",
+      "metaTitle": "Exportar favoritos de qualquer navegador - PrivacyNotes",
+      "lead": "Todo navegador de computador exporta o mesmo arquivo de favoritos (.html), e o PrivacyNotes lê ele com as suas pastas e as suas datas intactas. O Safari embrulha esse arquivo num .zip, que você pode soltar sem abrir. Nenhum navegador de celular sabe exportar, então ligue a sincronização do seu navegador e exporte de um computador.",
+      "sections": [
+        {
+          "h": "Exportar do Chrome, Edge, Brave, Opera ou Vivaldi",
+          "steps": [
+            "Abra o gerenciador de favoritos com Ctrl+Shift+O, ou Cmd+Option+B em um Mac. No Edge a mesma página se chama Favorites.",
+            "Clique no botão \"...\" no canto superior direito do gerenciador e escolha \"Export bookmarks\". No Edge a opção diz \"Export favorites\".",
+            "Salve o arquivo. É um .html com a data de hoje no nome."
+          ]
+        },
+        {
+          "h": "Exportar do Firefox",
+          "steps": [
+            "Pressione Ctrl+Shift+O, ou Cmd+Shift+O em um Mac, para abrir a janela Biblioteca.",
+            "Clique em \"Import and Backup\" na barra de ferramentas e escolha \"Export Bookmarks to HTML...\".",
+            "Salve. O arquivo se chama bookmarks.html."
+          ]
+        },
+        {
+          "h": "Exportar do Safari",
+          "img": {
+            "src": "/help/img/safari-export-menu.webp",
+            "alt": "O menu File do Safari, com \"Export Browsing Data to File...\" destacado embaixo",
+            "width": 1576,
+            "height": 1226
+          },
+          "steps": [
+            "Escolha File > \"Export Browsing Data to File...\" na barra de menus.",
+            "Desligue tudo menos Bookmarks e clique em Export.",
+            "O Safari salva um .zip. Solte esse .zip aqui do jeito que está, ou o Bookmarks.html que vem dentro. Os dois funcionam.",
+            "As versões mais antigas do Safari mostram File > Export > \"Bookmarks...\" no lugar, e salvam um arquivo .html comum."
+          ]
+        },
+        {
+          "h": "Deixe ligada só a chave Bookmarks",
+          "img": {
+            "src": "/help/img/browser-bookmarks-safari-export.webp",
+            "alt": "A janela Export Browsing Data do Safari, com Bookmarks ligado e todos os outros tipos desligados",
+            "width": 1576,
+            "height": 1356
+          },
+          "p": [
+            "A mesma janela oferece History, Extensions, Credit Cards e Passwords. Deixe tudo isso desligado. O PrivacyNotes não lê nada do arquivo além dos favoritos, mas uma exportação que você depois precisa apagar é mais uma cópia em texto puro das suas senhas parada na pasta de downloads."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "Cada pasta que você tinha vem junto, aninhada do jeito que você deixou, dentro de uma pasta nova chamada Bookmarks. A barra de favoritos é a exceção: o conteúdo dela sobe um nível em vez de virar pasta, porque cada navegador chama essa barra de um jeito em cada idioma. O Safari não marca nada, então o Favorites dele chega mesmo como pasta.",
+            "O dia em que você salvou cada favorito vem junto. O Safari é o único navegador que não escreve data nenhuma, então uma exportação do Safari chega com a data de hoje.",
+            "O Firefox também é o único que salva etiquetas e uma palavra-chave da barra de endereços junto com o favorito. Se o seu arquivo tiver, a prévia oferece uma caixa para manter, e as duas chegam aqui como etiquetas.",
+            "Três coisas ficam de fora de propósito. Os atalhos internos do navegador, como Most Visited, não são links de verdade: são contados e pulados. Os ícones dos sites também não são lidos do arquivo, porque a cópia guardada lá dentro envelhece; [o PrivacyNotes busca uma nova](/br/help/bookmarks). E uma pasta que não tinha nenhum favorito não é recriada.",
+            "Importar o mesmo arquivo duas vezes é seguro. Um marcador cujo endereço você já salvou é ignorado em vez de adicionado de novo, e a prévia diz quantos foram."
+          ]
+        },
+        {
+          "h": "Levando de volta",
+          "p": [
+            "Vá em Configurações > Transferência > Exportar e escolha \"Arquivo de marcadores (.html)\". Você recebe o mesmo arquivo padrão, com pastas e tudo, que qualquer navegador lê. Seus marcadores nunca ficam presos aqui."
+          ]
+        }
+      ]
+    },
+    "browser-passwords": {
+      "app": "Senhas do navegador",
+      "title": "Exporte as senhas do seu navegador",
+      "metaTitle": "Exportar as senhas salvas no navegador - PrivacyNotes",
+      "lead": "Chrome, Edge, Firefox e Safari exportam as senhas salvas como um arquivo .csv comum, e o PrivacyNotes lê todos eles, um login por linha. O Safari embrulha o .csv dele num .zip, que você pode soltar sem abrir.",
+      "sections": [
+        {
+          "h": "Exportar do Chrome, Edge, Brave, Opera ou Vivaldi",
+          "steps": [
+            "Abra as Settings do navegador e vá até a página de senhas. No Chrome é \"Passwords and autofill\" > Google Password Manager > Settings, no Edge é \"Profiles > Passwords\".",
+            "Procure \"Export passwords\" e escolha \"Download file\".",
+            "Confirme com a senha do seu dispositivo ou com a digital. O arquivo costuma se chamar passwords.csv."
+          ]
+        },
+        {
+          "h": "Exportar do Firefox",
+          "steps": [
+            "Digite about:logins na barra de endereços e aperte Enter.",
+            "Clique no botão \"...\" no canto superior direito e escolha \"Export Logins...\".",
+            "Confirme com a senha do seu dispositivo. O arquivo se chama logins.csv."
+          ]
+        },
+        {
+          "h": "Exportar do Safari",
+          "img": {
+            "src": "/help/img/safari-export-menu.webp",
+            "alt": "O menu File do Safari, com \"Export Browsing Data to File...\" destacado embaixo",
+            "width": 1576,
+            "height": 1226
+          },
+          "steps": [
+            "Escolha File > \"Export Browsing Data to File...\" na barra de menus.",
+            "Desligue tudo menos Passwords e clique em Export.",
+            "Confirme com Touch ID ou com a senha do seu Mac. O Safari salva um .zip com o Passwords.csv dentro, e esse .zip você solta aqui do jeito que está.",
+            "A partir do macOS 15, o app Passwords exporta as mesmas linhas em File > \"Export All Passwords...\", como .csv comum."
+          ]
+        },
+        {
+          "h": "Deixe ligada só a chave Passwords",
+          "img": {
+            "src": "/help/img/browser-passwords-safari-export.webp",
+            "alt": "A janela Export Browsing Data do Safari, com Passwords ligado e todos os outros tipos desligados",
+            "width": 1576,
+            "height": 1358
+          },
+          "p": [
+            "A mesma janela também exporta os seus favoritos, o histórico e os cartões salvos. Cada chave que você deixa ligada escreve mais um arquivo sem criptografia no mesmo pacote, então desligue elas. Uma exceção: se você também quer os favoritos aqui, ligue as duas e solte esse único .zip nos dois importadores, porque cada um lê dele só o seu próprio arquivo."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "Cada linha vira um login com o site, o usuário e a senha, mais a nota que o navegador guardava junto. O Firefox é o único dos três que grava datas, então os logins dele mantêm o dia em que você salvou e os outros chegam com a data de hoje. O Safari é o único que exporta uma chave de autenticação, e só se você guardava os códigos no Safari: quando tem, [o código continua funcionando aqui](/br/help/vault-totp).",
+            "Os navegadores salvam uma entrada por página de login, então uma exportação grande costuma trazer várias linhas da mesma empresa. Todas entram, e depois você junta ou apaga.",
+            "O navegador guarda as senhas numa lista plana, então não há estrutura de pastas para reconstruir. Em vez disso, cada login chega com uma etiqueta, o que abre o lote inteiro em um clique."
+          ]
+        },
+        {
+          "h": "Apague o arquivo exportado quando terminar: são as suas senhas em texto puro",
+          "p": [
+            "No .csv exportado nada é criptografado, chegando dentro de um .zip ou não. Quem abrir ele lê todas as senhas que você salvou, então guarde ele na sua própria máquina, importe, confira se chegou tudo e depois apague o arquivo e esvazie a lixeira. Dentro do PrivacyNotes tudo volta a ser criptografado, no seu dispositivo e a caminho do servidor."
+          ]
+        }
+      ]
+    },
+    "typora": {
+      "app": "Typora",
+      "title": "Exporte as suas notas do Typora",
+      "metaTitle": "Exportar notas do Typora - PrivacyNotes",
+      "lead": "O Typora edita arquivos .md comuns que já estão numa pasta do seu disco, então não existe etapa de exportação. Compacte a pasta e solte aqui.",
+      "sections": [
+        {
+          "h": "Compacte a pasta em que você escreve",
+          "steps": [
+            "Encontre a pasta com os seus arquivos .md. O Typora não tem biblioteca própria, então ela está onde você escolheu salvar.",
+            "Clique na pasta com o botão direito e escolha Comprimir (macOS) ou Enviar para > Pasta compactada (Windows).",
+            "Solte o .zip na importação."
+          ]
+        },
+        {
+          "h": "Antes de compactar, decida onde ficam as imagens",
+          "p": [
+            "O Typora pode guardar a imagem ao lado da nota, dentro de uma subpasta assets, ou deixá-la no local de onde você a arrastou. Só chegam aqui as imagens que estiverem dentro da pasta que você compacta. Abra Preferences > Image, deixe configurado para copiar as imagens na pasta assets da própria nota, e use \"Format > Image > Copy image files to...\" nas notas antigas cujas figuras ainda apontam para outro lugar."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "As subpastas viram pastas de verdade, em qualquer profundidade. Títulos, tabelas, listas de tarefas, blocos de código, notas de rodapé, fórmulas e destaques sobrevivem, e URLs soltas viram links clicáveis. O frontmatter YAML é lido para o título, as datas e as etiquetas.",
+            "As etiquetas vêm pelos dois caminhos: do frontmatter YAML e das #hashtags escritas no texto. Uma hashtag dentro de um bloco de código continua sendo código, e um número solto como #4711 continua sendo a referência de um chamado."
+          ]
+        }
+      ]
+    },
+    "ia-writer": {
+      "app": "iA Writer",
+      "title": "Exporte a sua biblioteca do iA Writer",
+      "metaTitle": "Exportar a biblioteca do iA Writer - PrivacyNotes",
+      "lead": "O iA Writer guarda o que você escreve como arquivos .md comuns na Library dele, então essa pasta já é a exportação. A única coisa a acertar: fazer o iCloud entregar antes os arquivos de verdade.",
+      "sections": [
+        {
+          "h": "Tire a pasta do iCloud e só depois compacte",
+          "steps": [
+            "No iA Writer, clique com o botão direito na pasta da barra lateral Library e escolha \"Mostrar no Finder\".",
+            "No Finder, clique com o botão direito nessa pasta e escolha \"Baixar agora\", para o iCloud buscar cada arquivo em vez de deixar marcadores.",
+            "Clique de novo com o botão direito e escolha Comprimir.",
+            "Solte o .zip na importação."
+          ]
+        },
+        {
+          "h": "No iPhone ou no iPad",
+          "p": [
+            "Abra o app Arquivos, vá em iCloud Drive > iA Writer, mantenha a pasta pressionada e escolha Comprimir. Compartilhe o .zip com o PrivacyNotes, ou abra o PrivacyNotes e pegue pelo Arquivos."
+          ]
+        },
+        {
+          "h": "A armadilha dos marcadores",
+          "p": [
+            "Com \"Otimizar armazenamento do Mac\" ligado, o iCloud troca os arquivos que você não abre há um tempo por marcadores minúsculos. Compacte a pasta nesse estado e você recebe um arquivo cheio de cascas vazias: a importação roda, diz que deu certo, e não traz quase nada. Faça primeiro \"Baixar agora\" e depois confira se o .zip pesa mais ou menos o que pesa o que você escreveu."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "As pastas da Library viram pastas de verdade, em qualquer profundidade, e as imagens e arquivos para onde as suas notas apontam vêm junto. Títulos, tabelas, listas de tarefas, blocos de código e notas de rodapé sobrevivem, e URLs soltas viram links clicáveis. O frontmatter é lido para o título, as datas e as etiquetas.",
+            "Os blocos de conteúdo, que enquanto você escreve puxam um arquivo para dentro de outro, chegam como o link do jeito que está escrito, e não como o texto que eles buscavam."
+          ]
+        }
+      ]
+    },
+    "zettlr": {
+      "app": "Zettlr",
+      "title": "Exporte as suas notas do Zettlr",
+      "metaTitle": "Exportar notas do Zettlr - PrivacyNotes",
+      "lead": "O Zettlr trabalha direto sobre uma pasta de arquivos .md, então o espaço de trabalho que você já tem é a exportação. Compacte e solte aqui.",
+      "sections": [
+        {
+          "h": "Compacte o espaço de trabalho",
+          "steps": [
+            "No Zettlr, clique com o botão direito no espaço de trabalho no topo da árvore de arquivos e escolha \"Show in Finder\", ou \"Show in Explorer\" no Windows.",
+            "Clique com o botão direito nessa pasta e compacte.",
+            "Solte o .zip no importador."
+          ]
+        },
+        {
+          "h": "Os links Zettelkasten guardam o texto, não o destino",
+          "p": [
+            "O Zettlr liga as notas por identificador, então um link se lê [[20260823120000]]. [A gente mantém os links entre notas exatamente como estão escritos](/br/help/note-links), o que significa que um link por identificador só acha a nota dele aqui se alguma nota realmente tiver esse identificador como título. Os links escritos com o nome do arquivo funcionam normalmente: se você depende deles, mude o formato de link interno para o nome do arquivo antes de exportar.",
+            "Chaves de citação como [@doe2026] são texto para a gente. Chegam sem mudança e deixam de ser clicáveis."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "As subpastas do espaço de trabalho viram pastas de verdade, em qualquer profundidade, e as imagens e arquivos para onde as suas notas apontam vêm junto. Títulos, tabelas, listas de tarefas, blocos de código, notas de rodapé, fórmulas e destaques sobrevivem. As etiquetas são lidas do frontmatter YAML e das #hashtags escritas no texto, então um Zettelkasten feito de hashtags mantém a organização."
+          ]
+        }
+      ]
+    },
+    "nextcloud-notes": {
+      "app": "Nextcloud Notes",
+      "title": "Exporte as suas notas do Nextcloud Notes",
+      "metaTitle": "Exportar o Nextcloud Notes - PrivacyNotes",
+      "lead": "O Nextcloud Notes não precisa de nenhuma etapa de exportação: cada nota já é um arquivo simples numa pasta do seu próprio servidor, e o Nextcloud entrega essa pasta inteira em .zip. Aqui a gente lê as duas extensões que ele usa, então não tem nada para converter antes.",
+      "sections": [
+        {
+          "h": "Baixe a pasta Notes",
+          "steps": [
+            "Abra o Files no seu Nextcloud, pelo navegador.",
+            "Encontre a pasta Notes. Ela se chama Notes, a menos que a administração tenha renomeado.",
+            "Abra o menu \"...\" da pasta e escolha Baixar. O Nextcloud empacota a pasta inteira num .zip.",
+            "Solte o .zip no importador."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "As categorias ficam guardadas como subpastas, então chegam como pastas de verdade. As datas das notas vêm dos próprios arquivos, não do momento da importação. Títulos, tabelas, listas de tarefas, blocos de código, notas de rodapé e fórmulas sobrevivem, e URLs soltas viram links clicáveis.",
+            "Aqui você importa uma cópia. Nada é apagado do seu Nextcloud e nada volta por sincronização, então mantenha o servidor como arquivo até você gostar do que chegou aqui."
+          ]
+        },
+        {
+          "h": "As duas extensões servem",
+          "p": [
+            "O Notes escreve .txt de fábrica e .md quando você ou a sua administração mudam a configuração. Aqui a gente lê as duas, junto com .markdown, .mdown e .mkd, então antes de exportar você não precisa renomear nada nem mexer no servidor."
+          ]
+        }
+      ]
+    },
+    "contacts": {
+      "app": "Contatos (vCard)",
+      "title": "Exporte os seus contatos",
+      "metaTitle": "Como exportar seus contatos como vCard - PrivacyNotes",
+      "lead": "Todo celular e toda agenda de contatos conseguem exportar seus contatos como um único arquivo .vcf, e o PrivacyNotes lê esse arquivo diretamente, fotos incluídas.",
+      "sections": [
+        {
+          "h": "Exporte do seu iPhone",
+          "steps": [
+            "Abra o app Contatos e toque em \"Listas\" no canto superior esquerdo.",
+            "Toque e segure \"Todos os Contatos\" e escolha Exportar.",
+            "Salve o .vcf no app Arquivos ou envie-o por AirDrop para o dispositivo em que você vai importar."
+          ]
+        },
+        {
+          "h": "Exporte do seu Mac ou do iCloud",
+          "steps": [
+            "No app Contatos, selecione \"Todos os Contatos\" e pressione Command-A.",
+            "Escolha Arquivo > Exportar > Exportar vCard.",
+            "Em [icloud.com/contacts](https://www.icloud.com/contacts), selecione tudo, abra o menu \"...\" e escolha \"Exportar vCard\"."
+          ]
+        },
+        {
+          "h": "Exporte do Android ou do Google Contatos",
+          "steps": [
+            "No app Google Contatos, toque em \"Fix & manage\" (corrigir e gerenciar) > \"Export to file\" (exportar para arquivo).",
+            "Em [contacts.google.com](https://contacts.google.com), escolha Export (exportar) e selecione \"vCard (for iOS Contacts)\".",
+            "Em um celular Samsung, abra Contatos > Gerenciar contatos > Importar ou exportar contatos > Exportar."
+          ]
+        },
+        {
+          "h": "Escolha vCard, não CSV",
+          "p": [
+            "O Google oferece dois formatos CSV ao lado do vCard. O importador lê apenas arquivos .vcf, então um CSV não aparece no seletor de arquivos. Exporte de novo e escolha vCard."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "Todos os cartões do arquivo vêm junto: nomes, telefones, endereços de e-mail, endereços postais, aniversários e outras datas, sites, perfis em redes sociais e notas. Os seus próprios rótulos ficam como você os digitou, então \"Trabalho da mãe\" continua \"Trabalho da mãe\".",
+            "Uma foto dentro do arquivo vem junto. Uma foto que é só um link da web continua sendo um link, e nada é baixado. [Quando as fotos não cabem no seu armazenamento](/br/help/storage-usage), os contatos são importados mesmo assim e as fotos ficam de fora."
+          ]
+        },
+        {
+          "h": "Importe o mesmo arquivo de novo quando quiser",
+          "p": [
+            "Uma segunda importação pula as pessoas que você já tem. Ela compara cada cartão pelo ID, depois pelo nome junto com um telefone em comum, depois por um endereço de e-mail em comum. Os contatos que você já salvou não são alterados, então as suas edições aqui ficam seguras."
+          ]
+        }
+      ]
+    },
+    "anytype": {
+      "app": "Anytype",
+      "title": "Exporte seu espaço do Anytype",
+      "metaTitle": "Como exportar seu espaço do Anytype - PrivacyNotes",
+      "lead": "O Anytype exporta um espaço inteiro de uma vez, como um zip no formato Any-Block JSON. Esse arquivo traz suas páginas com etiquetas, coleções, tarefas, links e arquivos.",
+      "sections": [
+        {
+          "img": {
+            "src": "/help/img/anytype-export.webp",
+            "alt": "Configurações do espaço do Anytype, página Export, Any-Block v1 com File Format JSON e Zip archive, com Include files data e Include archived objects ativados.",
+            "width": 1576,
+            "height": 800
+          },
+          "h": "Exporte o espaço como Any-Block JSON",
+          "steps": [
+            "Abra o Anytype no seu computador e vá até o espaço que você quer levar.",
+            "Escolha File > Export. O Anytype abre as configurações do espaço na página Export. As versões mais novas chamam o espaço de canal, então a página aparece como \"Export Channel\".",
+            "Escolha \"Any-Block v1\" e deixe File Format em JSON.",
+            "Ative \"Zip archive\", \"Include files data\" e \"Include archived objects\".",
+            "Clique em \"Export data\" e escolha uma pasta. O Anytype grava um único .zip com o nome do espaço e a data.",
+            "Solte esse .zip do jeito que está."
+          ],
+          "p": [
+            "Cada exportação contém um espaço. Se você guarda notas em vários espaços, exporte cada um e solte os zips um depois do outro."
+          ]
+        },
+        {
+          "h": "Escolha Any-Block JSON, não Markdown nem Protobuf",
+          "p": [
+            "A exportação em Markdown mantém o texto, mas perde o sublinhado, as cores, os avisos, o alinhamento e as linguagens de código, e deixa as coleções de fora. Lemos esse arquivo se for tudo o que você tem, e a prévia da importação diz o que foi perdido.",
+            "O Any-Block também oferece o formato de arquivo Protobuf. Ele guarda os mesmos dados em forma binária que não lemos, então pedimos a exportação em JSON. O Any-Block v2 é marcado como prévia pelo Anytype e não é um backup."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "Páginas, notas, tarefas e marcadores viram notas, com suas etiquetas e as datas de criação e de atualização que o Anytype guardou. O Anytype não tem pastas, então uma página de uma coleção vai para uma pasta com o nome da coleção, e todas as outras páginas ficam no nível principal.",
+            "Títulos, listas, listas de tarefas, citações, código com a sua linguagem, tabelas, fórmulas e diagramas Mermaid chegam como estavam. Os blocos de alternância viram seções recolhíveis e os avisos continuam avisos. [Os links e as menções entre páginas viram links entre notas](/br/help/note-links), e as imagens e os arquivos são importados para o seu armazenamento.",
+            "Uma tarefa chega como uma nota de tarefa, marcada como concluída quando estava. As propriedades personalizadas são escritas como uma lista curta no topo da nota. As páginas da lixeira do Anytype vão para a sua Lixeira, onde você pode restaurá-las ou excluí-las.",
+            "Os ícones e as capas das páginas ficam para trás, e a prévia da importação diz quantos. Os favoritos não fazem parte da exportação, então fixe essas notas de novo depois da importação."
+          ]
+        }
+      ]
+    },
+    "apple-calendar": {
+      "app": "Apple Calendar",
+      "title": "Exporte o seu Apple Calendar",
+      "metaTitle": "Como exportar o Apple Calendar - PrivacyNotes",
+      "lead": "O app Calendário do Mac exporta um calendário por vez como um arquivo .ics, e o PrivacyNotes lê esse arquivo do jeito que está. Cada calendário vira uma pasta.",
+      "sections": [
+        {
+          "h": "Exporte um calendário do app Calendário em um Mac",
+          "steps": [
+            "Abra o Calendário e mostre a lista de calendários à esquerda (Visualizar > Mostrar lista de calendários).",
+            "Clique no calendário que você quer trazer.",
+            "Escolha Arquivo > Exportar > \"Exportar...\" e salve o arquivo .ics.",
+            "Faça o mesmo com cada outro calendário que você quiser. Cada um é um arquivo."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "Todo evento chega com seu dia, seu horário e sua duração, inclusive eventos de dia inteiro e eventos que duram vários dias. Eventos com repetição mantêm a regra.",
+            "Os alertas padrão de um calendário ficam nas configurações do Calendário, não nos eventos, então a exportação os deixa de fora, e a etapa de conferência diz quantos eventos futuros chegam sem lembrete. Um alerta definido em um evento vem junto. Importar o mesmo arquivo de novo pula os eventos que você já tem."
+          ]
+        }
+      ]
+    },
+    "keepass": {
+      "app": "KeePass",
+      "title": "Exporte o seu banco de dados do KeePass",
+      "metaTitle": "Como exportar o seu banco de dados do KeePass - PrivacyNotes",
+      "lead": "O KeePass exporta todo o seu banco de dados em um único arquivo KeePass XML, e o PrivacyNotes transforma cada entrada em um login ou em uma nota. O XML guarda mais do que a exportação em CSV.",
+      "sections": [
+        {
+          "h": "Exporte do KeePass",
+          "steps": [
+            "Abra seu banco de dados no KeePass e desbloqueie-o.",
+            "Escolha File > Export.",
+            "Selecione \"KeePass XML (2.x)\" e salve o arquivo .xml."
+          ]
+        },
+        {
+          "h": "Escolha o XML, não o .kdbx",
+          "p": [
+            "O arquivo de banco de dados .kdbx é protegido pela sua chave mestra, então o PrivacyNotes não consegue lê-lo, e a importação avisa isso se você soltá-lo aqui. A exportação em CSV do KeePass também funciona, mas guarda só o título, o nome de usuário, a senha, o site e as notas."
+          ]
+        },
+        {
+          "h": "Onde as coisas aterrissam",
+          "p": [
+            "Uma entrada com nome de usuário, senha, site ou chave 2FA vira um [login do Cofre](/br/help/vault), e qualquer outra entrada vira uma nota segura. Sites extras e seus próprios campos vêm junto, um campo protegido continua oculto, e a data de validade vira um campo. A chave 2FA também vem junto, então [seus códigos continuam funcionando](/br/help/vault-totp). Os arquivos anexados também vêm junto, na seção Arquivos do login ou no fim da nota. Os grupos e as etiquetas viram etiquetas. Entradas da Recycle Bin e versões antigas de uma entrada ficam para trás.",
+            "O arquivo exportado contém suas senhas em texto puro. Importe, confira se chegou tudo e depois apague o arquivo."
+          ]
+        }
+      ]
+    },
+    "keepassxc": {
+      "app": "KeePassXC",
+      "title": "Exporte o seu banco de dados do KeePassXC",
+      "metaTitle": "Como exportar o seu banco de dados do KeePassXC - PrivacyNotes",
+      "lead": "O KeePassXC exporta seu banco de dados como um arquivo XML ou um arquivo CSV, e o PrivacyNotes lê os dois. A exportação em XML guarda tudo o que o CSV deixa de fora.",
+      "sections": [
+        {
+          "h": "Exporte do KeePassXC",
+          "steps": [
+            "Abra seu banco de dados no KeePassXC e desbloqueie-o.",
+            "Escolha Database > Export > \"XML File...\".",
+            "Confirme o aviso sobre o arquivo não criptografado e salve-o."
+          ]
+        },
+        {
+          "h": "XML ou CSV",
+          "p": [
+            "Escolha o XML. O CSV guarda o título, o nome de usuário, a senha, o site, as notas, a chave 2FA, as datas e o grupo, mas não guarda etiquetas, campos personalizados, um segundo site, a data de validade nem os arquivos anexados. O seu arquivo .kdbx em si é protegido, então o PrivacyNotes não consegue lê-lo."
+          ]
+        },
+        {
+          "h": "Onde as coisas aterrissam",
+          "p": [
+            "Uma entrada com nome de usuário, senha, site ou chave 2FA vira um [login do Cofre](/br/help/vault), e qualquer outra entrada vira uma nota segura. Campos personalizados chegam como campos, um protegido fica oculto, e a chave 2FA vem junto, então [seus códigos continuam funcionando](/br/help/vault-totp). Os arquivos anexados também vêm junto, na seção Arquivos do login ou no fim da nota. Os grupos e as etiquetas viram etiquetas. Entradas da Recycle Bin e versões antigas de uma entrada ficam para trás.",
+            "O arquivo exportado contém suas senhas em texto puro. Importe, confira se chegou tudo e depois apague o arquivo."
+          ]
+        }
+      ]
+    },
+    "lastpass": {
+      "app": "LastPass",
+      "title": "Exporte o seu cofre do LastPass",
+      "metaTitle": "Como exportar o seu cofre do LastPass - PrivacyNotes",
+      "lead": "O LastPass exporta seu cofre em um único arquivo .csv, e o PrivacyNotes transforma as senhas em logins e as notas seguras em notas ou cartões.",
+      "sections": [
+        {
+          "h": "Exporte do LastPass",
+          "steps": [
+            "Faça login no seu cofre do LastPass em um navegador.",
+            "Escolha Advanced options > Export.",
+            "Selecione \"Export data for use anywhere\" e confirme com sua senha mestra. O LastPass salva um arquivo .csv."
+          ]
+        },
+        {
+          "h": "Onde as coisas aterrissam",
+          "p": [
+            "Cada senha vira um [login do Cofre](/br/help/vault) com sua chave 2FA, então [seus códigos continuam funcionando](/br/help/vault-totp). Uma nota segura vira uma nota, e uma nota de cartão de pagamento vira um cartão. Pastas viram etiquetas, as aninhadas também, e os favoritos chegam fixados. O arquivo não tem datas, então cada item recebe a data do dia em que você o importa.",
+            "O arquivo exportado contém suas senhas em texto puro. Importe, confira se chegou tudo e depois apague o arquivo."
+          ]
+        }
+      ]
+    },
+    "nordpass": {
+      "app": "NordPass",
+      "title": "Exporte o seu cofre do NordPass",
+      "metaTitle": "Como exportar o seu cofre do NordPass - PrivacyNotes",
+      "lead": "O NordPass exporta seu cofre em um único arquivo .csv, e o PrivacyNotes transforma as senhas, notas, cartões e informações pessoais em itens do Cofre.",
+      "sections": [
+        {
+          "h": "Exporte do NordPass",
+          "steps": [
+            "Abra o NordPass e desbloqueie-o.",
+            "Vá em Settings e escolha \"Export Items\".",
+            "Confirme com sua senha mestra e salve o arquivo .csv."
+          ]
+        },
+        {
+          "h": "Onde as coisas aterrissam",
+          "p": [
+            "Cada senha vira um [login do Cofre](/br/help/vault) com seus sites extras e campos personalizados, e um campo oculto continua oculto. Notas chegam como notas, cartões como cartões, e informações pessoais como uma nota com cada detalhe em sua própria linha. A pasta de cada item vira uma etiqueta. O arquivo informa só a pasta em que um item está, não as pastas acima dela.",
+            "No plano gratuito o NordPass não guarda chaves 2FA, então o arquivo não tem nenhuma. O arquivo exportado contém suas senhas em texto puro. Importe, confira se chegou tudo e depois apague o arquivo."
+          ]
+        }
+      ]
+    },
+    "proton-pass": {
+      "app": "Proton Pass",
+      "title": "Exporte o seu cofre do Proton Pass",
+      "metaTitle": "Como exportar o seu cofre do Proton Pass - PrivacyNotes",
+      "lead": "O Proton Pass exporta seus cofres como um .zip, um .csv ou um arquivo criptografado com PGP. O PrivacyNotes lê o .zip e o .csv, e o .zip é o que guarda mais.",
+      "sections": [
+        {
+          "h": "Exporte do Proton Pass",
+          "steps": [
+            "Abra o Proton Pass e vá em Settings > Export.",
+            "Em File format, escolha ZIP.",
+            "Clique em Export e confirme com sua senha do Proton."
+          ]
+        },
+        {
+          "h": "Escolha ZIP, não o criptografado com PGP",
+          "p": [
+            "O arquivo criptografado com PGP é protegido pela sua frase secreta, então o PrivacyNotes não consegue lê-lo, e a importação avisa isso. O .csv também funciona, mas não tem campos personalizados."
+          ]
+        },
+        {
+          "h": "Onde as coisas aterrissam",
+          "p": [
+            "Cada login vira um [login do Cofre](/br/help/vault) com seus sites extras, campos personalizados e datas. A chave 2FA vem junto, então [seus códigos continuam funcionando](/br/help/vault-totp). Quando um item tem e-mail e nome de usuário, o nome de usuário preenche o login e o e-mail vira um campo. Notas chegam como notas, cartões como cartões, e identidades como notas com cada detalhe em sua própria linha. Cada alias do Hide My Email vira uma nota com o endereço do alias, para você guardar a lista de qual endereço você deu a cada site; o Proton continua encaminhando os e-mails enquanto sua conta do Proton estiver ativa. Com mais de um cofre, cada cofre vira uma etiqueta. Itens da lixeira ficam para trás.",
+            "O arquivo exportado contém suas senhas em texto puro. Importe, confira se chegou tudo e depois apague o arquivo."
+          ]
+        }
+      ]
+    },
+    "dashlane": {
+      "app": "Dashlane",
+      "title": "Exporte o seu cofre do Dashlane",
+      "metaTitle": "Como exportar o seu cofre do Dashlane - PrivacyNotes",
+      "lead": "O Dashlane exporta o seu cofre em um .zip de arquivos CSV, e o PrivacyNotes transforma os logins, notas seguras e cartões de pagamento em itens do Cofre e em notas.",
+      "sections": [
+        {
+          "h": "Exporte do Dashlane",
+          "steps": [
+            "Abra o seu cofre do Dashlane na extensão do navegador ou no app web.",
+            "Escolha Settings > Export data.",
+            "Selecione o formato CSV e salve o arquivo .zip."
+          ]
+        },
+        {
+          "h": "CSV, não .dash",
+          "p": [
+            "Escolha CSV. Uma exportação .dash é protegida por uma senha própria, e o PrivacyNotes avisa isso se você soltá-la aqui."
+          ]
+        },
+        {
+          "h": "Onde as coisas aterrissam",
+          "p": [
+            "Cada login vira um [login do Cofre](/br/help/vault) com a sua chave 2FA, então [seus códigos continuam funcionando](/br/help/vault-totp). Uma nota segura vira uma nota e um cartão de pagamento vira um cartão. Documentos de identidade e informações pessoais viram notas com os seus detalhes. As categorias viram etiquetas, as aninhadas também. O Dashlane guarda um site por login, então um segundo site não está no arquivo.",
+            "O arquivo exportado contém suas senhas em texto puro. Importe, confira se chegou tudo e depois apague o arquivo."
+          ]
+        }
+      ]
+    },
+    "daylio": {
+      "app": "Daylio",
+      "title": "Exporte as suas entradas do Daylio",
+      "metaTitle": "Como exportar o backup do Daylio - PrivacyNotes",
+      "lead": "O Daylio exporta um backup .daylio em More > Backup & Restore. O PrivacyNotes lê esse arquivo e reconstrói cada entrada como entrada de diário, com o humor, as atividades e as fotos.",
+      "sections": [
+        {
+          "h": "Exporte o backup .daylio",
+          "steps": [
+            "Feche o Daylio por completo e abra-o de novo. Um backup feito logo depois de uma nova entrada pode deixá-la de fora até o app reiniciar.",
+            "Escolha More > Backup & Restore > Advanced Options > Export.",
+            "O Daylio abre uma folha de compartilhamento, não uma janela para salvar. Salve o arquivo nos seus arquivos ou em um drive na nuvem que você consiga abrir neste dispositivo.",
+            "O arquivo .daylio que você salvou é o arquivo a importar."
+          ]
+        },
+        {
+          "h": "Escolha o backup, não o CSV",
+          "p": [
+            "More > Export Entries grava um CSV, um recurso Premium do Daylio. O PrivacyNotes lê esse arquivo também, mas o CSV não traz fotos, gravações de voz nem grupos de humor, então um humor que você nomeou ou renomeou chega na entrada como texto, e não no rastreador de humor. Use o backup .daylio sempre que puder."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "[Cada entrada vai parar em Diários](/br/help/journal), no dia e na hora que o Daylio mostra, e duas entradas no mesmo dia continuam sendo duas entradas. Cada humor preenche [o rastreador de humor](/br/help/choose-trackers) a partir do grupo de humor dele no Daylio, então um humor renomeado mantém o lugar dele na escala, e um humor que você mesmo nomeou também aparece no início da entrada.",
+            "As atividades viram [fatores](/br/help/factors), e um fator novo mantém o grupo dele no Daylio. Escalas como Energy ou Stress chegam como uma lista no fim da entrada. Títulos de nota, negrito, itálico, sublinhado, tachado e listas sobrevivem, as fotos são importadas como imagens, as gravações de voz como anexos, e uma entrada marcada com estrela continua marcada. Metas e dias importantes ficam para trás, e o resumo da importação os conta."
+          ]
+        }
+      ]
+    },
+    "diarium": {
+      "app": "Diarium",
+      "title": "Exporte o seu diário do Diarium",
+      "metaTitle": "Como exportar o seu diário do Diarium - PrivacyNotes",
+      "lead": "O Diarium exporta o seu diário como JSON pelo menu Export. O PrivacyNotes lê essa exportação e reconstrói cada entrada como entrada de diário, com a avaliação, as etiquetas e os anexos.",
+      "sections": [
+        {
+          "h": "Exporte o JSON com anexos",
+          "steps": [
+            "Abra o Diarium e escolha Export no menu.",
+            "Escolha JSON como formato e ative Attachments.",
+            "Escolha Save to local storage e selecione uma pasta. O Diarium salva um .zip que contém o JSON e as suas fotos e arquivos.",
+            "Esse .zip é o arquivo a importar."
+          ]
+        },
+        {
+          "h": "Deixe Attachments ativado",
+          "p": [
+            "Com Attachments desativado, o Diarium salva só um .json. O PrivacyNotes importa o texto, mas todas as fotos e arquivos ficam para trás, e o resumo da importação os conta. Exporte de novo com Attachments ativado e, em vez disso, solte o .zip.",
+            "Create separate file for each entry não faz diferença: o PrivacyNotes lê todos os arquivos JSON do .zip. As exportações em DOCX, TXT, HTML e PDF e o backup .diary não são importados, então escolha JSON."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "[Cada entrada vai parar em Diários](/br/help/journal), no dia e na hora que o Diarium mostra. A avaliação por estrelas preenche [o rastreador de humor](/br/help/choose-trackers). As etiquetas do Diarium viram etiquetas da nota e [fatores](/br/help/factors), e as pessoas viram fatores em um grupo Pessoas.",
+            "Negrito, itálico, sublinhado, tachado, destaques, cores de texto, listas e links sobrevivem, e um link para outra entrada vira um [link entre notas](/br/help/note-links) quando essa entrada está na mesma exportação. Os rastreadores chegam como uma lista no fim da entrada, o clima, o sol e a lua como uma linha no topo, e uma localização vira o lugar da entrada. As fotos são importadas como imagens, e vídeos, áudios e PDFs como anexos."
+          ]
+        }
+      ]
+    },
+    "google-journal": {
+      "app": "Google Journal",
+      "title": "Exporte as suas entradas do Google Journal",
+      "metaTitle": "Como exportar as suas entradas do Google Journal - PrivacyNotes",
+      "lead": "O Google Journal exporta pelo Google Takeout depois que o backup está ativado. O PrivacyNotes lê o .zip do Takeout e reconstrói cada entrada como entrada de diário, com as fotos e os vídeos.",
+      "sections": [
+        {
+          "h": "Ative o backup primeiro",
+          "p": [
+            "O Takeout não mostra o Journal até que ele faça backup na sua conta do Google. Ative o backup primeiro, ou você não vai encontrar o Journal na lista do Takeout."
+          ],
+          "steps": [
+            "Abra o Journal no seu Pixel e vá em Settings.",
+            "Ative Back up your journal.",
+            "Espere alguns minutos. O Journal só aparece no Takeout depois que o backup está ativado."
+          ]
+        },
+        {
+          "h": "Exporte o Journal pelo Google Takeout",
+          "steps": [
+            "Abra takeout.google.com e entre com a mesma conta do Google.",
+            "Clique em Deselect all e marque só Journal (\"Your journal entries and attachments from Journal\").",
+            "Clique em Next step, mantenha o tipo de arquivo .zip e clique em Create export.",
+            "O Google envia um link quando o arquivo está pronto. Baixe o .zip: esse é o arquivo a importar."
+          ]
+        },
+        {
+          "h": "O que vem junto",
+          "p": [
+            "[Cada entrada vai parar em Diários](/br/help/journal), no dia que você escolheu para ela no Journal. Cada entrada mantém o título e o texto, e fotos e vídeos são importados como imagens e anexos. Um mapa em uma entrada vem junto como imagem.",
+            "O Takeout não traz nomes de lugares, sugestões de escrita, marcadores nem as reflexões do Journal, então isso fica no Journal. O resumo da importação avisa."
+          ]
+        }
+      ]
+    }
+  }
+}

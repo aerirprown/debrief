@@ -1,0 +1,129 @@
+import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { LocalNote } from './db';
+import { HoverLabel } from './HoverLabel';
+import { useIsTouchDevice } from './useIsMobile';
+import { DotsThreeOutlineVertical, PencilSimple, Trash } from './icons';
+import { ARMED_MS } from './ui/DeleteButton';
+
+/**
+ * The edit / delete pair a bookmark row wears on hover.
+ *
+ * Passed as `trailing` to NoteRow and NoteCard, so the reveal, the placement
+ * and the truncation bargain all come from the row itself (`pn-row-actions`
+ * in index.css). Lives in its own file because a bookmark is a bookmark in
+ * every pillar: the Bookmarks pane draws these, and so do the All and Pinned
+ * lists, which showed a link row with no way to edit or delete it until
+ * 2026-08-25.
+ *
+ * Delete is armed, not immediate: the first click swaps the pair for a
+ * labelled confirm pill, a second click inside six seconds (`ARMED_MS`) does it, and
+ * silence disarms. Each row owns that state, so arming one never disturbs
+ * another.
+ *
+ * On touch the pair is one "..." button that opens the row menu, which
+ * carries edit, delete and everything else a right-click offers. Touch has
+ * no hover to hide the pair behind, so two permanent buttons sat on every
+ * title (GitHub #339), and a bookmark row cannot be the way in instead:
+ * tapping it opens the website.
+ *
+ * Spec: docs/internal/design/ui-patterns.md (sections 74 and 104)
+ */
+export function BookmarkRowActions({
+  note,
+  onEdit,
+  onTrash,
+  onMenu,
+  tipPos,
+}: {
+  note: LocalNote;
+  onEdit: (note: LocalNote) => void;
+  onTrash: (note: LocalNote) => void;
+  /** Opens the row menu at the tap. Touch only. */
+  onMenu: (note: LocalNote, e: React.MouseEvent) => void;
+  /** Grid tiles put the tip above the cluster; list rows put it before it. */
+  tipPos: 'above-start' | 'start';
+}) {
+  const { t } = useTranslation('shell');
+  const isTouch = useIsTouchDevice();
+  const [armed, setArmed] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+
+  if (isTouch) {
+    return (
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onMenu(note, e); }}
+        // The row's long press selects it; a finger resting on this button
+        // is aiming at the menu, not at the row.
+        onTouchStart={(e) => e.stopPropagation()}
+        aria-label={t('shell:selectionToolbar.more')}
+        className="w-7 h-7 rounded-md border border-divider bg-surface-1 text-pn-muted inline-flex items-center justify-center transition active:scale-95"
+      >
+        <DotsThreeOutlineVertical />
+      </button>
+    );
+  }
+
+  function arm(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (timer.current) clearTimeout(timer.current);
+    if (armed) {
+      setArmed(false);
+      onTrash(note);
+      return;
+    }
+    setArmed(true);
+    timer.current = setTimeout(() => setArmed(false), ARMED_MS);
+  }
+
+  if (armed) {
+    return (
+      <button
+        type="button"
+        onClick={arm}
+        /* Opaque, and bordered like the two icon buttons it replaces. This
+           cluster leaves the flow on a tile and on a hovered row, so it sits
+           ON the title - `dark:bg-red-950/30` let the title read straight
+           through the armed pill, worst on a mini tile where the two overlap
+           almost completely (reported 2026-08-23).
+           Spec: docs/internal/design/ui-patterns.md (section 74) */
+        className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-small font-medium text-red-600 transition hover:bg-red-100 dark:border-red-900 dark:bg-red-950 dark:text-red-400 dark:hover:bg-red-900"
+      >
+        <Trash />
+        {t('common:actions.deleteConfirm')}
+      </button>
+    );
+  }
+
+  return (
+    <>
+      <HoverLabel label={t('common:actions.edit')} position={tipPos}>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onEdit(note); }}
+          aria-label={t('common:actions.edit')}
+          className="w-7 h-7 rounded-md border border-divider bg-surface-1 text-pn-muted inline-flex items-center justify-center transition hover:text-accent hover:border-accent"
+        >
+          <PencilSimple />
+        </button>
+      </HoverLabel>
+      <HoverLabel label={t('common:actions.delete')} position={tipPos}>
+        <button
+          type="button"
+          onClick={arm}
+          aria-label={t('common:actions.delete')}
+          /* Opaque on hover, for the same reason the armed pill above is:
+             this cluster leaves the flow and sits ON the row title, so a
+             tinted `dark:hover:bg-red-950/30` let the title read straight
+             through the button (reported 2026-08-25).
+             Spec: docs/internal/design/ui-patterns.md (section 74) */
+          className="w-7 h-7 rounded-md border border-divider bg-surface-1 text-danger inline-flex items-center justify-center transition hover:border-red-400 hover:bg-red-50 dark:hover:bg-red-950"
+        >
+          <Trash />
+        </button>
+      </HoverLabel>
+    </>
+  );
+}

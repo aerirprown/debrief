@@ -1,0 +1,431 @@
+{
+  "noteRow": {
+    "created": "Created",
+    "modified": "Modified",
+    "select": "Select note",
+    "deselect": "Deselect note",
+    "pinProtected": "PIN-protected",
+    "readOnly": "Read-only",
+    "empty": "Empty",
+    "noContent": "No content",
+    "notBackedUp": "Not backed up",
+    "archived": "Archived",
+    "date": "Date",
+    "dayOf": "day {{n}} of {{total}}",
+    "reminders_one": "{{count}} reminder",
+    "reminders_other": "{{count}} reminders"
+  },
+  "header": {
+    "new": "New",
+    "newNote": "New note",
+    "newEvent": "New event"
+  },
+  "folderChip": {
+    "clear": "Clear folder filter: {{folder}}",
+    "subfolders": "Subfolders",
+    "subfoldersLabel": "Include subfolders"
+  },
+  "tagChip": {
+    "clear": "Clear tag filter: {{tag}}"
+  },
+  "vaultNew": {
+    "ariaLabel": "New vault item",
+    "card": "Credit Card",
+    "sshKey": "SSH Key",
+    "generator": "Password"
+  },
+  "newMenu": {
+    "note": "Note",
+    "task": "Task",
+    "kanban": "Kanban",
+    "game": "Game",
+    "drawing": "Drawing",
+    "journal": "Journal",
+    "login": "Login",
+    "bookmark": "Bookmark",
+    "clipPage": "Clip page",
+    "contact": "Contact",
+    "event": "Event"
+  },
+  "vaultFilter": {
+    "all": "All",
+    "logins": "Logins",
+    "cards": "Credit Cards",
+    "keys": "Keys"
+  },
+  "journal": {
+    "newEntry": "New journal entry"
+  },
+  "tasks": {
+    "newTitle": "Tasks for {{date}}"
+  },
+  "trash": {
+    "empty": "Empty",
+    "emptyHover": "Delete all notes in trash",
+    "autoDelete": "Auto-delete after 30 days"
+  },
+  "search": {
+    "sortOptions": "Sort and view options",
+    "placeholderVault": "Search vault…",
+    "placeholderNotes": "Search notes…",
+    "placeholderEvents": "Search events…",
+    "placeholderDrawings": "Search drawings…"
+  },
+  "selection": {
+    "countOf": "{{selected}} of {{total}} selected",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all"
+  },
+  "empty": {
+    "noMatches": "No matches.",
+    "vault": "Vault is empty.",
+    "notes": "No notes yet.",
+    "journal": "No journal entries yet.",
+    "drawings": "No drawings yet.",
+    "drawingsLine": "Sketch, plan or map out an idea. Drawings can link to your notes, but do not show what is in them.",
+    "archive": "Nothing archived.",
+    "trash": "Trash is empty.",
+    "filtered": "No items match your filters.",
+    "filteredAfter": "To display them.",
+    "hiddenInAll_one": "{{count}} item is hidden by the Show in All filter. Open the filter next to All to show it.",
+    "hiddenInAll_other": "{{count}} items are hidden by the Show in All filter. Open the filter next to All to show them.",
+    "inOtherSpace_one": "{{count}} item is in your {{space}} space. Switch to {{space}} in the sidebar to see it.",
+    "inOtherSpace_other": "{{count}} items are in your {{space}} space. Switch to {{space}} in the sidebar to see them."
+  },
+  "listGroups": {
+    "previous7Days": "Previous 7 days",
+    "previous30Days": "Previous 30 days",
+    "other": "Other",
+    "collapseAll": "Collapse all groups",
+    "expandAll": "Expand all groups"
+  },
+  "footerStats": {
+    "journals_one": "Journal",
+    "journals_other": "Journals",
+    "items_one": "Item",
+    "items_other": "Items",
+    "trashed_one": "Trashed",
+    "trashed_other": "Trashed",
+    "notes_one": "Note",
+    "notes_other": "Notes",
+    "bookmarks_one": "Bookmark",
+    "bookmarks_other": "Bookmarks",
+    "contacts_one": "Contact",
+    "contacts_other": "Contacts",
+    "drawings_one": "Drawing",
+    "drawings_other": "Drawings",
+    "files_one": "File",
+    "files_other": "Files",
+    "lists_one": "List",
+    "lists_other": "Lists",
+    "tasks_one": "Task",
+    "tasks_other": "Tasks",
+    "today": "Today"
+  },
+  "toast": {
+    "imageUploadFailed": "Image upload failed: {{error}}",
+    "imageError": "Image error: {{error}}",
+    "uploadFailedFor": "Upload failed for \"{{filename}}\": {{error}}",
+    "importedSyncing_one": "Imported {{count}} note. Syncing…",
+    "importedSyncing_other": "Imported {{count}} notes. Syncing…",
+    "addedTag_one": "Added #{{tag}} to {{count}} item",
+    "addedTag_other": "Added #{{tag}} to {{count}} items",
+    "restoreSummary": "Restored. {{added}} added, {{updated}} updated, {{unchanged}} already up to date."
+  },
+  "burn": {
+    "mediaOnly": "This note only contains media and can't be shared via burn link.",
+    "shareTitle": "Encrypted note"
+  },
+  "loadError": {
+    "message": "Could not load your notes. The local database connection was interrupted. This can happen after the app has been in the background for a while.",
+    "reload": "Reload"
+  },
+  "banner": {
+    "proActivationPending": "Payment received but Pro activation is taking longer than usual. Refresh in a minute, or contact support if it doesn't flip on.",
+    "crypto": {
+      "waiting": "Waiting for your crypto payment. Pro turns on when it confirms.",
+      "seen": "Crypto payment seen. Pro turns on when the network confirms it, usually within an hour for Bitcoin.",
+      "partial": "Part of your crypto payment arrived. Send the rest on the payment page before the link expires.",
+      "ended": "Your crypto payment link expired before a full payment arrived.",
+      "paid": "Your crypto payment is confirmed. Pro is on.",
+      "openPayment": "Payment page"
+    },
+    "snapshotPaused": "Note history is paused. Your Pro plan looks inactive. New edits won't be snapshotted until Pro is restored.",
+    "restorePro": "Restore Pro",
+    "storagePastDue": "Your storage subscription payment failed. Update your card in Paddle to avoid losing extra capacity.",
+    "updateCard": "Update card"
+  },
+  "sidebar": {
+    "collapse": "Collapse sidebar"
+  },
+  "notesList": {
+    "collapse": "Collapse notes list",
+    "expand": "Expand notes list"
+  },
+  "split": {
+    "action": "Split note",
+    "done": "Split into “{{title}}”",
+    "overLimit": "“{{title}}” is over 1 MB and stays on this device",
+    "cannot": "This note cannot be split here. Put the cursor where the new note should start.",
+    "continuedTitle": "{{title}} (continued)",
+    "continuedIn": "Continued in {{link}}"
+  },
+  "paneResize": {
+    "hintCollapse": "Click to collapse · Drag to resize",
+    "hintExpand": "Click to expand · Drag to resize"
+  },
+  "emptyEditor": {
+    "selectFile": "Select a file to preview",
+    "uploadFiles": "Or upload new files to your encrypted vault.",
+    "selectNote": "Select a note or create a new one.",
+    "selectMarkdown": "Open a Markdown file to read it here."
+  },
+  "zen": {
+    "exit": "Exit Zen",
+    "exitHover": "Exit Zen mode",
+    "enterHover": "Enter Zen mode",
+    "proHover": "Zen mode (Pro)",
+    "enterAriaShortcut": "Enter Zen mode ({{keys}})"
+  },
+  "editor": {
+    "backToList": "Back to notes list",
+    "backToGrid": "Back to grid",
+    "titlePlaceholder": "Untitled (click to edit or let it autogenerate)",
+    "titlePlaceholderLogin": "e.g. GitHub",
+    "titlePlaceholderCard": "e.g. Visa ending in 4242",
+    "unlocked": "Unlocked",
+    "lock": "Lock",
+    "lockNow": "Lock now",
+    "lockNowHint": "Hide the contents now",
+    "turnOffHint": "Allow edits again",
+    "unarchiveHint": "Show in your lists again",
+    "showFormatted": "Show formatted",
+    "invisiblesShow": "Show invisible characters",
+    "invisiblesHide": "Hide invisible characters",
+    "undo": "Undo",
+    "redo": "Redo",
+    "hide": "Hide",
+    "show": "Show",
+    "hideToolbar": "Hide formatting toolbar",
+    "showToolbar": "Show formatting toolbar",
+    "widthDefault": "Default width",
+    "widthWide": "Wider",
+    "widthFull": "Full width",
+    "titlePlaceholderLink": "Bookmark name",
+    "notBackedUpTooLarge": "Over the 1 MB limit, so not backed up. Move pictures to attachments or split the note.",
+    "notBackedUpFailed": "Not backed up. Last error: {{message}}. Retrying.",
+    "unknownType": "This item was made by a newer version of PrivacyNotes. Update the app to open it."
+  },
+  "share": {
+    "hover": "Share / Export",
+    "ariaLabel": "Share or export",
+    "currentMdTitle": "Current note (.md)",
+    "currentMdDesc": "Raw markdown with front-matter.",
+    "currentHtmlTitle": "Current note (.html)",
+    "currentHtmlDesc": "Printer-friendly, markdown rendered on a white page.",
+    "printTitle": "Print / Save as PDF",
+    "printDesc": "Opens the print dialog. Save as PDF or send to a printer.",
+    "printTextTitle": "Print text only",
+    "printTextDesc": "Keeps the title. Leaves out the date, folder and tags.",
+    "burnTitle": "Share & Burn After Reading",
+    "burnDesc": "Publish this note as a one-time view link. The link self-destructs after reading. Your note stays safe in your account.",
+    "drawingFileTitle": "Drawing (.excalidraw)",
+    "drawingFileDesc": "Opens in Excalidraw and Obsidian, with its pictures.",
+    "drawingPngTitle": "Picture (.png)",
+    "drawingPngDesc": "The whole drawing as one picture."
+  },
+  "weekReview": {
+    "title": "Week in review",
+    "daysLogged": "{{count}}/7 logged",
+    "mood": "Mood",
+    "meds": "Meds"
+  },
+  "footer": {
+    "settings": "Settings",
+    "viewShortcuts": "View all keyboard shortcuts",
+    "newNote": "New",
+    "newNoteHintMac": "Option + Shift + N",
+    "newNoteHintOther": "Alt + Shift + N",
+    "newNoteHintMacDesktop": "Command + N",
+    "newNoteHintOtherDesktop": "Ctrl + N",
+    "openStats": "Open stats",
+    "journalCalendar": "Journal calendar",
+    "words_one": "Word",
+    "words_other": "Words",
+    "zen": "Zen",
+    "lockApp": "Lock app",
+    "lockAppSetUp": "Set a PIN in Security first",
+    "goToTop": "Go to top",
+    "goToEnd": "Go to end",
+    "signingOut": "Signing out…",
+    "switchToLight": "Switch to light mode",
+    "switchToDark": "Switch to dark mode"
+  },
+  "settings": {
+    "groupYourNotes": "Your data",
+    "groupPreferences": "Preferences",
+    "groupBrand": "PrivacyNotes",
+    "statsLabel": "Statistics",
+    "importLabel": "Transfer",
+    "backupLabel": "Backup",
+    "planLabel": "Account",
+    "storageLabel": "Storage",
+    "imagesLabel": "Images",
+    "securityLabel": "Security",
+    "accountLabel": "ID & Sync",
+    "appearanceLabel": "Design",
+    "editorLabel": "Editor",
+    "formatBarLabel": "Toolbar",
+    "listsLabel": "Lists",
+    "trackersLabel": "Trackers",
+    "helpLabel": "Help",
+    "aboutLabel": "About",
+    "languageLabel": "Language",
+    "dateLabel": "Date & Time",
+    "dateTabFormat": "Format",
+    "languageDesc": "Choose the language PrivacyNotes is shown in.",
+    "calendarLabel": "Calendar"
+  },
+  "importStore": {
+    "title": "Import or store?",
+    "confirm": "Import as notes",
+    "cancel": "Store as files",
+    "bodySingle": "<strong>{{filename}}</strong> looks like a markdown file. Import it as a note so you can read and edit it, or store it as an encrypted file attachment?",
+    "bodyMulti": "These {{count}} files look like markdown. Import them as notes so you can read and edit them, or store them as encrypted file attachments?"
+  },
+  "archiveConfirm": {
+    "body_one": "Archive <highlight>{{count}} item</highlight>? It leaves your lists and waits in the Archive view. Unarchive brings it back.",
+    "body_other": "Archive <highlight>{{count}} items</highlight>? They leave your lists and wait in the Archive view. Unarchive brings them back."
+  },
+  "bulkTrash": {
+    "body_one": "Delete <highlight>{{count}} item</highlight>? Move it to the trash to restore it later, or delete it forever.",
+    "body_other": "Delete <highlight>{{count}} items</highlight>? Move them to the trash to restore them later, or delete them forever.",
+    "confirm": "Move to Trash",
+    "keys": "Outside this window, <kbd>{{trash}}</kbd> moves an item to the trash at once, and <kbd>{{ask}}</kbd> opens this window even after Don't ask again.",
+    "dontAskAgain": "Don't ask again",
+    "readOnlyAcknowledge": "Got it",
+    "readOnlyBlocked_one": "This item is <highlight>read-only</highlight>, so it cannot be moved to trash. Turn read-only off in the note options menu first.",
+    "readOnlyBlocked_other": "All <highlight>{{count}} items</highlight> are read-only, so none of them can be moved to trash. Turn read-only off in the note options menu first.",
+    "readOnlySkipped_one": "<highlight>{{count}} item</highlight> is read-only and stays where it is.",
+    "readOnlySkipped_other": "<highlight>{{count}} items</highlight> are read-only and stay where they are."
+  },
+  "deleteCheckedTasks": {
+    "title": "Delete checked items?",
+    "body_one": "<highlight>{{count}} item</highlight> will be deleted from this note. This cannot be undone.",
+    "body_other": "<highlight>{{count}} items</highlight> will be deleted from this note, nested items included. This cannot be undone."
+  },
+  "tagConfirm": {
+    "mergeTitle": "Merge Tags",
+    "mergeConfirm": "Merge",
+    "mergeBody_one": "Tag <highlight>“{{targetTag}}”</highlight> already exists. Merge <highlight>{{count}} note</highlight> currently tagged “{{tag}}” into it?",
+    "mergeBody_other": "Tag <highlight>“{{targetTag}}”</highlight> already exists. Merge <highlight>{{count}} notes</highlight> currently tagged “{{tag}}” into it?",
+    "deleteBody_one": "Remove tag <highlight>“{{tag}}”</highlight> from <highlight>{{count}} note</highlight>? The notes themselves are not deleted.",
+    "deleteBody_other": "Remove tag <highlight>“{{tag}}”</highlight> from <highlight>{{count}} notes</highlight>? The notes themselves are not deleted.",
+    "deleteWithNotesBody_one": "Delete tag <highlight>“{{tag}}”</highlight> and move <highlight>{{count}} note</highlight> to Trash? You can restore them from there.",
+    "deleteWithNotesBody_other": "Delete tag <highlight>“{{tag}}”</highlight> and move <highlight>{{count}} notes</highlight> to Trash? You can restore them from there."
+  },
+  "createNote": {
+    "title": "Create note?",
+    "confirm": "Create note",
+    "body": "No note titled <highlight>“{{title}}”</highlight> exists. This can happen if the linked note was renamed. Create a new note with this title?"
+  },
+  "freshVault": {
+    "title": "New vault created",
+    "confirm": "Got it",
+    "body": "No existing vault matched the phrase you entered, so a new empty one was created. If you expected to see your notes, sign out and re-enter your phrase carefully - a single different word opens a different vault."
+  },
+  "ambiguousLink": {
+    "title": "Two notes share that title",
+    "body": "More than one note is titled <highlight>“{{title}}”</highlight>, so this link does not say which one it means. Rename one of them and the link will point at the other."
+  },
+  "connections": {
+    "title": "Connections",
+    "hide": "Hide connections",
+    "linkedFrom": "Linked from",
+    "linksTo": "Links to",
+    "missing": "Not created yet",
+    "protectedHidden_one": "{{count}} PIN-protected item not shown",
+    "protectedHidden_other": "{{count}} PIN-protected items not shown",
+    "related": "Suggested connections",
+    "relatedWords": "Both mention {{words}}",
+    "relatedLinksTo": "Both link to {{title}}",
+    "relatedLinkedFrom": "Both linked from {{title}}",
+    "relatedTag": "Both tagged {{tag}}",
+    "relatedMeaning": "Same meaning",
+    "meaningDoor": "Smart connections: find notes with the same meaning, with offline AI",
+    "meaningDoorNo": "Don't show again",
+    "meaningDoorHidden": "Hidden in all notes. Smart connections stays in Settings > Editor > Behavior.",
+    "hideSuggestions": "Hide suggested connections",
+    "notRelated": "Not related",
+    "notRelatedDone": "Not suggested anymore",
+    "notRelatedCount": "Not related ({{n}})",
+    "restoreSuggestion": "Suggest again",
+    "linkAtCursor": "Link at the cursor",
+    "linkNeedsCursor": "Click in the note first",
+    "linkAsFootnote": "Link as a footnote"
+  },
+  "drawing": {
+    "fullScreen": "Full screen",
+    "frame": "Frame",
+    "laser": "Laser pointer",
+    "bar": {
+      "hiddenNote": "They still work by their keys."
+    },
+    "resetTitle": "Reset the canvas?",
+    "resetBody": "This removes everything on the canvas. Undo brings it back.",
+    "hotkeysTitle": "Drawing hotkeys",
+    "tools": {
+      "label": "Drawing tools",
+      "keepTool": "Keep the tool after drawing",
+      "hand": "Move the canvas",
+      "rectangle": "Rectangle",
+      "diamond": "Diamond",
+      "ellipse": "Ellipse",
+      "arrow": "Arrow",
+      "line": "Line",
+      "pen": "Pen",
+      "text": "Text box",
+      "steps": "Numbered steps",
+      "eraser": "Eraser",
+      "resetZoom": "Reset zoom",
+      "open": "Open a drawing file",
+      "reset": "Reset the canvas",
+      "style": "Style",
+      "more": "More tools",
+      "fewer": "Fewer tools"
+    }
+  },
+  "location": {
+    "add": "Add location",
+    "title": "Location",
+    "chipLabel": "Location: {{place}}",
+    "useCurrent": "Use my current location",
+    "locating": "Getting your location",
+    "inputLabel": "Place, coordinates or a map link",
+    "nameLabel": "Name (optional)",
+    "openOsm": "Open in OpenStreetMap",
+    "copyCoordinates": "Copy coordinates",
+    "remove": "Remove location",
+    "errorUnreadable": "No place found. Type a place, or paste coordinates or a map link.",
+    "errorShortLink": "Short links need the internet to open. Open the link, then copy the full address.",
+    "errorRange": "Those numbers are outside the map.",
+    "errorDenied": "Location is off for PrivacyNotes. Turn it on in Settings, or paste coordinates.",
+    "errorOff": "Location services are off on this phone. Turn them on in Settings, or paste coordinates.",
+    "errorTimeout": "We could not get your location. Try again outside, or paste coordinates.",
+    "saveFailed": "The place was not saved. Try again.",
+    "mapNotice": "Map from our own server, for your privacy: maps.privacynotes.app",
+    "mapLoading": "Loading the map",
+    "mapLabel": "Map of {{place}}",
+    "mapFailed": "The map cannot show here. Open it in OpenStreetMap instead.",
+    "inputPlaceholder": "Mount Fuji, or 35.36, 138.72",
+    "townsLoading": "Loading the place list",
+    "insertMap": "Insert map",
+    "gestureCtrl": "Hold Ctrl and scroll to zoom the map",
+    "gestureMac": "Hold ⌘ and scroll to zoom the map",
+    "gestureTouch": "Use two fingers to move the map",
+    "autoNote": "Add my location to every new note",
+    "autoJournal": "Add my location to every new journal entry",
+    "autoDenied": "Location is off for PrivacyNotes. Turn it on in your phone's settings first.",
+    "autoOff": "Location services are off on this phone. Turn them on first."
+  }
+}

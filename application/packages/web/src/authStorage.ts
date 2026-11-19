@@ -1,0 +1,586 @@
+import { db } from './db';
+import {
+  hasPinWrappedPhrase,
+  hasStoredPhrase,
+} from './biometric';
+import { hasPin } from './pin';
+import { credentialKey, isDemoMode } from './demo';
+import { clearSyncLog } from './syncLog';
+import { clearSyncFaults } from './syncFaults';
+import { clearPlaces } from './notesView/listPlace';
+import { phraseSignsFor } from './identity';
+import { trustAwareStorage } from './trustStorage';
+import { settingsLocalKey } from './settingsLocalKey';
+import { forgetCryptoOrder } from './cryptoCheckout';
+
+// Demo-bucketed (see credentialKey in demo.ts): a demo session must
+// never read or write a real account's credential keys on the same
+// origin.
+export const PHRASE_STORAGE_KEY = credentialKey('privacynotes.phrase');
+
+// The handover record of a phrase change this device sent and has not
+// finished (phraseChange.ts). It holds the new phrase under the device's
+// wrap key, or only inside the new PIN wrap and biometric record, so it
+// lives where the phrase does (trust-aware: the tab's session storage on a
+// device the person did not trust) and a sign-out removes it with the other
+// credentials. The boot and the lock screen ask for it here, without
+// loading the change module.
+// Spec: docs/internal/plans/phrase-change.md (6.6)
+export const PHRASE_CHANGE_KEY = credentialKey('privacynotes.phraseChange');
+
+export function hasPendingPhraseChange(): boolean {
+  return trustAwareStorage.getItem(PHRASE_CHANGE_KEY) !== null;
+}
+
+export function removePendingPhraseChange(): void {
+  trustAwareStorage.removeItem(PHRASE_CHANGE_KEY);
+}
+
+// Sticky flag: "this session's phrase was seeded via OAuth, not typed".
+// Kept alongside the phrase in trust-aware storage so a reload still
+// knows to treat the session as OAuth (and suppress the sign-out
+// reminder, etc). Cleared on sign-out.
+export const OAUTH_FLAG_KEY = 'privacynotes.oauth.active';
+
+// One-shot flag: open Security > Phrase once after an OAuth signup, so the
+// new user sees the words. Demo-bucketed like the credential keys: a
+// `?demo=1` boot on a real install must not consume the real account's
+// reveal.
+export const SHOW_PHRASE_ONCE_KEY = credentialKey('privacynotes.oauth.showPhraseOnce');
+
+// The https address both mobile builds ask providers to return to. A custom
+// scheme is a first-come claim any installed app can make, so a redirect to
+// one can land in an app that is not ours, and no native build asks for one.
+// On Android this is an App Link, delivered by the OS only to the package and
+// signing certificate that the assetlinks.json served on this host names. On
+// iOS the in-app auth sheet completes on it, which iOS grants only to the app
+// whose associated-domains entitlement names the host, checked against the
+// apple-app-site-association file served here. Host and path must match the
+// app-link entry under `plugins.deep-link.mobile` in tauri.conf.json and the
+// entitlement; tests/desktopCapabilities.test.ts holds them together.
+// Spec: docs/internal/plans/oauth-redirect-binding-handoff.md (sections 8.1, 8.2)
+export const OAUTH_APP_LINK_REDIRECT = 'https://use.privacynotes.app/auth/callback';
+
+// Where a DESKTOP sign-in comes back to. No desktop operating system can say
+// which application owns a custom scheme, and none has an equivalent of the
+// mobile app-link bindings, so a desktop build stops asking for an address it
+// cannot own. The browser lands on this page instead, the page shows the
+// one-time code, and the person carries it back to the app, which exchanges
+// it with the verifier it generated before the browser opened. The page is
+// static and deliberately does not load the application bundle, whose client
+// would otherwise spend the code in the browser.
+// Spec: docs/internal/plans/oauth-redirect-binding-handoff.md (section 8.3)
+export const OAUTH_DESKTOP_RETURN = 'https://use.privacynotes.app/auth/desktop';
+
+
+// Tracks which pubkey "owns" the local IndexedDB. Compared against the
+// incoming pubkey at the top of every authenticate call; on mismatch
+// we wipe Dexie + cached blobs + lastSync before proceeding. Without
+// this, a phrase swap (or OAuth swap - backlog.md #1) would leave the
+// prior user's dirty notes in db.notes; the next sync push would
+// upsert them under the new pubkey (cross-user data leak), and the
+// new user's pasted images would dedup-collide with prior UUIDs they
+// can't actually access. Persisted in plain localStorage because the
+// pubkey isn't a secret and survival across signOut is the point.
+export const PUBKEY_OWNER_KEY = 'privacynotes.currentPubkey';
+
+// IndexedDB mirror of PUBKEY_OWNER_KEY (db.kv, key 'ownerPubkey').
+// localStorage can be evicted while the Dexie notes survive, and that
+// asymmetry made the owner-unknown wipe destroy the user's OWN wrapped
+// phrase and unsynced rows. The mirror
+// lives with the data it vouches for, so the wipe check can tell "own
+// data, lost marker" from "foreign leftovers". Best-effort on write
+// (auth must not fail on a storage hiccup); null on read means the
+// mirror predates this feature or the DB is unreadable.
+export async function writeOwnerMirror(pubkey: string): Promise<void> {
+  try {
+    await db.kv.put({ key: 'ownerPubkey', value: pubkey });
+  } catch { /* ignore */ }
+}
+
+export async function readOwnerMirror(): Promise<string | null> {
+  try {
+    const value = (await db.kv.get('ownerPubkey'))?.value;
+    return typeof value === 'string' ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The account this device holds, from the marker or from its mirror. */
+async function claimedOwner(): Promise<string | null> {
+  // The demo never writes the marker, and a real account on the same origin
+  // does: read here, it refused every demo phrase on the lock screen.
+  if (isDemoMode()) return null;
+  let owner: string | null = null;
+  try {
+    owner = localStorage.getItem(PUBKEY_OWNER_KEY);
+  } catch {
+    /* storage unavailable - the mirror is the fallback */
+  }
+  return owner ?? (await readOwnerMirror());
+}
+
+/**
+ * Does this phrase sign for the account this device already holds? Its own
+ * key is the account until a phrase change; after one, this device's record
+ * of the change says so (identity.ts).
+ *
+ * The marker first, then the mirror, because localStorage can be evicted
+ * while the notes it vouches for survive. An install where both are gone
+ * has no answer to give: refusing there would strand a user whose browser
+ * cleared its storage, so an unknown owner answers true and leaves the
+ * decision to whatever check comes next.
+ *
+ * A value that derives nothing at all answers false rather than throwing,
+ * so a caller can treat this as one question with one answer.
+ */
+export async function phraseOwnsThisDevice(phrase: string, online = false): Promise<boolean> {
+  const owner = await claimedOwner();
+  if (!owner) return true;
+  // The phrase's own key, then this device's record of a phrase change, and
+  // the server only when `online` and both said no: a device whose record
+  // went missing still takes its current phrase.
+  // Spec: docs/internal/plans/phrase-change.md (4.6)
+  return phraseSignsFor(phrase, owner, online);
+}
+
+/**
+ * True when this tab may still write to (or wipe) the shared local
+ * storage: either nothing has claimed it, or this account did.
+ *
+ * Every tab in this browser shares one Dexie database and one
+ * localStorage. Once another tab authenticates a DIFFERENT account, this
+ * tab is stale, and both of the things a stale tab would otherwise do
+ * are destructive: its sign-out wipes the new account's notes, settings
+ * and stored phrase (in a zero-knowledge app, deleting a phrase the user
+ * never wrote down is permanent account loss), and its sync re-encrypts
+ * whatever now sits in Dexie under THIS account's key and pushes it to
+ * THIS account.
+ */
+export function ownsLocalData(pubkey: string): boolean {
+  try {
+    const owner = localStorage.getItem(PUBKEY_OWNER_KEY);
+    return owner === null || owner === pubkey;
+  } catch {
+    // Storage unreadable: fall back to the pre-guard behavior rather
+    // than stranding a legitimate sign-out with a half-wiped device.
+    return true;
+  }
+}
+
+/**
+ * Remove GoTrue's own session keys from both stores.
+ *
+ * Sign-out asks the auth library to drop the session, and the library can
+ * decline: an expired access token whose refresh fails at the transport
+ * layer returns that error before it reaches its own removal, so the session
+ * survives on disk while the app reports a clean sign-out. A signed-out
+ * device holding a live refresh token signs itself back in on the next boot,
+ * which for a custodial account decrypts the vault with nobody typing
+ * anything. So the removal runs here too, where nothing can decline it.
+ *
+ * Scoped to the `sb-` prefix on purpose. Everything else in these stores has
+ * an owner that decides when it goes: the trust flag survives a sign-out by
+ * design, and the owner marker is what tells the next sign-in whose data
+ * this is.
+ */
+export function clearSupabaseAuthKeys(): void {
+  for (const store of [localStorage, sessionStorage]) {
+    try {
+      for (let i = store.length - 1; i >= 0; i--) {
+        const key = store.key(i);
+        if (key?.startsWith('sb-')) store.removeItem(key);
+      }
+    } catch {
+      /* storage unavailable - there is nothing to remove */
+    }
+  }
+}
+
+/**
+ * Account-scoped UI state that is neither secret nor synced, but is
+ * derived from one account's content and must not follow the user into
+ * the next account on this browser: the expanded-folder set (folder
+ * UUIDs) and the milestone high-water marks (note-count thresholds the
+ * previous account had crossed). Both keys are cleared by every wipe
+ * path; they live here so the two paths cannot drift apart.
+ */
+export function clearAccountScopedUiState(): void {
+  // When this account's last sync passes ran and which of its steps failed.
+  // Outside the try below: neither throws, and a key that fails to clear
+  // there must not leave either log for the next account's support report.
+  clearSyncLog();
+  clearSyncFaults();
+  try {
+    // Two folder keys, because the tree switched from storing which folders
+    // are open to storing which are closed, and the retired one is still on
+    // disk wherever an old install wrote it.
+    localStorage.removeItem('privacynotes.folderToggles'); // folderTreeState.ts
+    localStorage.removeItem('privacynotes.foldersExpanded'); // retired
+    // Legacy: milestone state moved to UserSettings.milestonesSeen (synced).
+    // Still cleared so a pre-move install does not leave it behind.
+    localStorage.removeItem('privacynotes.milestonesSeen');
+    // Armed by the account that completed a domain-move handoff; the
+    // next account on this install must not see its bookmark hint.
+    localStorage.removeItem('privacynotes.movedFromApex'); // migrate.ts / MoveBanner.tsx
+    // When this account last verified its sync, and how many rows matched.
+    localStorage.removeItem('privacynotes.verifyStamp'); // verifyStamp.ts
+    // Which items this account had open as tabs: ids only, but this account's.
+    localStorage.removeItem('privacynotes.openTabs'); // notesView/useOpenTabs.ts
+    // The note this account had open at its last quit, and where it was in
+    // each list and note this session.
+    localStorage.removeItem('privacynotes.lastOpen'); // notesView/listPlace.ts
+    clearPlaces();
+    // Which offers this account dismissed: the site announcement, and the
+    // per-pillar import prompt keys an older build wrote. The import prompt
+    // dismissal itself is synced in the settings blob.
+    localStorage.removeItem('privacynotes.announcementsDismissed'); // announcements.ts
+    for (const kind of ['notes', 'journal', 'tasks', 'vault', 'bookmarks', 'contacts']) {
+      localStorage.removeItem(`privacynotes.importPrompt.hidden.${kind}`); // ImportPrompt.tsx
+    }
+    // This account's reminders: the ids a phone handed the OS, in the map
+    // and in the handed list (cancelled before this runs, see
+    // cancelDeviceReminders), its snoozes, what fired, and the bell's item
+    // ids. Whether the OS was asked stays: that is the phone's answer, not
+    // the account's.
+    localStorage.removeItem('privacynotes.reminderScheduled'); // notesView/useReminders.tsx
+    localStorage.removeItem('privacynotes.reminderHanded'); // notesView/useReminders.tsx
+    localStorage.removeItem('privacynotes.reminderSnoozes'); // reminders.ts
+    localStorage.removeItem('privacynotes.reminderFired'); // notesView/useReminders.tsx
+    localStorage.removeItem('privacynotes.calendarUnseenAlerts'); // reminders.ts
+    // The reminders this account switched on here: the check-in time and its
+    // medication templates by id.
+    localStorage.removeItem('privacynotes.checkInReminder'); // checkIn.ts
+    localStorage.removeItem('privacynotes.medicationReminders'); // medicationReminders.ts
+    // The space this account had open, and the commands it ran last in ">".
+    localStorage.removeItem('privacynotes.ui.activeSpace'); // spaces.ts
+    localStorage.removeItem('privacynotes.ninja.recentCommands'); // ninjaFeatures.ts
+    // The sync pause and the folded list groups stay: they are this device's
+    // switch and layout, and name nothing of the account.
+  } catch { /* ignore */ }
+  // A crypto order names the account and the order, and its status answers
+  // with the payment (cryptoCheckout.ts).
+  forgetCryptoOrder();
+}
+
+/**
+ * True if this browser holds account-scoped local state: a cached
+ * settings blob, a PIN cache, a wrapped phrase, the stored session
+ * phrase itself, or notes in Dexie. The pubkey-owner check treats a
+ * null PUBKEY_OWNER_KEY as "unknown owner" rather than "no prior
+ * account" when this is true - a null owner with data present is
+ * exactly the state that let a prior account's settings blob (PIN
+ * hash, wrapped phrase, folders) be adopted by the freshVault seed
+ * and pushed under a new pubkey.
+ *
+ * The stored-phrase check is safe here because this function is only
+ * consulted when the owner marker AND the db.kv owner mirror are both
+ * absent (auth.tsx wipePrior): a signed-in install always carries the
+ * marker, and "own data, lost marker" is answered by the mirror one
+ * branch earlier - so a phrase that survives into this branch is a
+ * prior account's leftover from a botched sign-out, and counting it
+ * makes the unknown-owner wipe clean it instead of adopting around it.
+ */
+export async function hasLocalAccountState(): Promise<boolean> {
+  try {
+    if (localStorage.getItem(settingsLocalKey())) return true;
+  } catch { /* ignore */ }
+  if (hasPin() || hasPinWrappedPhrase() || hasStoredPhrase()) return true;
+  try {
+    if ((await db.notes.count()) > 0) return true;
+  } catch { /* ignore */ }
+  return false;
+}
+
+/**
+ * True when signing in with this phrase would destroy what is on this
+ * device: the phrase belongs to another account, and there is something
+ * here to lose.
+ *
+ * Both halves matter. A device nobody has claimed answers false, so a
+ * first sign-in is never questioned. So does a signed-out device with
+ * nothing left on it, because a warning about an empty vault is how
+ * people learn to click through warnings.
+ *
+ * One case the wipe covers and this does not: a device carrying data
+ * that neither the marker nor its mirror can name, which the sign-in
+ * clears under a legacy rule. Nothing there can say whose data it is,
+ * so a dialog claiming another account holds this device would be a
+ * sentence nobody can stand behind. The mirror bounds that case to one
+ * boot per install predating it.
+ */
+export async function switchWouldWipe(phrase: string): Promise<boolean> {
+  if (await phraseOwnsThisDevice(phrase)) return false;
+  // A phrase of a changed account this device has no record of yet: the
+  // server says which account it signs for, so the account this device
+  // holds never reads as another one. Spec: docs/internal/plans/phrase-change.md (4.6)
+  const owner = await claimedOwner();
+  if (owner && (await phraseSignsFor(phrase, owner, true))) return false;
+  return hasLocalAccountState();
+}
+
+// Cached account flags for the local-first fast boot. Written on every
+// successful server-side registration, read on startup so a returning
+// trusted user can be marked authenticated (and see their local notes)
+// before any network round-trip completes. Keyed by pubkey so a phrase
+// swap never reuses another account's flags. Plain localStorage: the
+// flags are not secrets, and survival across reloads is the point.
+const ACCOUNT_FLAGS_KEY = 'privacynotes.accountFlags';
+
+type CachedAccountFlags = {
+  pubkey: string;
+  isPro: boolean;
+  isEarlySupporter: boolean;
+  /**
+   * Whether the server holds a copy of this user's phrase. Optional
+   * because flags written before this field existed lack it; absent
+   * reads as "unknown", which the callers treat as not-custodial.
+   *
+   * This is a boot-speed mirror, NOT the source of truth. The truth is
+   * the custodial_phrases row, mirrored into `app_metadata.custodial`
+   * on the JWT; `reconcileCustody` below corrects this cache from that
+   * claim shortly after sign-in. Cached because the fast-boot path
+   * renders before any network round trip, and hiding the "switch to
+   * self-custody" action from a custodial user until the network
+   * answers is the wrong way to be wrong.
+   */
+  isCustodial?: boolean;
+};
+
+export function readCachedAccountFlags(pubkey: string): CachedAccountFlags | null {
+  try {
+    const raw = localStorage.getItem(ACCOUNT_FLAGS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CachedAccountFlags;
+    if (parsed?.pubkey !== pubkey) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function writeCachedAccountFlags(flags: CachedAccountFlags): void {
+  try {
+    localStorage.setItem(ACCOUNT_FLAGS_KEY, JSON.stringify(flags));
+  } catch {
+    /* quota or privacy mode - the mirror below still carries the flags */
+  }
+  void writeAccountFlagsMirror(flags);
+}
+
+/**
+ * The account whose phrase this device met as replaced (phrase change,
+ * section 7), until the device adopts the new phrase or signs out. The
+ * adoption drops the biometric record only while this names the account: the
+ * record then wraps the replaced phrase. Not a secret. Demo-bucketed.
+ * Spec: docs/internal/plans/phrase-change.md (6.5, section 7)
+ */
+const REPLACED_ACCOUNT_KEY = credentialKey('privacynotes.replacedAccount');
+
+export function markReplacedAccount(account: string): void {
+  try {
+    localStorage.setItem(REPLACED_ACCOUNT_KEY, account);
+  } catch {
+    /* without it the adoption keeps the biometric record, which opens nothing the account takes */
+  }
+}
+
+export function wasReplacedAccount(account: string): boolean {
+  try {
+    return localStorage.getItem(REPLACED_ACCOUNT_KEY) === account;
+  } catch {
+    return false;
+  }
+}
+
+export function clearReplacedAccount(): void {
+  try {
+    localStorage.removeItem(REPLACED_ACCOUNT_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function clearCachedAccountFlags(): void {
+  try {
+    localStorage.removeItem(ACCOUNT_FLAGS_KEY);
+  } catch {
+    /* ignore */
+  }
+  void clearAccountFlagsMirror();
+}
+
+/**
+ * IndexedDB mirror of ACCOUNT_FLAGS_KEY (db.kv, key 'accountFlags').
+ *
+ * Both fast-boot gates - the owner marker and these flags - read
+ * localStorage, and an eviction takes every key at once, so mirroring
+ * one without the other buys nothing: the boot still falls through to
+ * the network path with the notes sitting untouched in Dexie. Same
+ * reasoning as the owner mirror above, same storage, same best-effort
+ * write. These are not secrets; the pubkey scoping is what stops one
+ * account reading another's.
+ */
+async function writeAccountFlagsMirror(flags: CachedAccountFlags): Promise<void> {
+  try {
+    await db.kv.put({ key: 'accountFlags', value: JSON.stringify(flags) });
+  } catch { /* ignore */ }
+}
+
+export async function readAccountFlagsMirror(pubkey: string): Promise<CachedAccountFlags | null> {
+  try {
+    const value = (await db.kv.get('accountFlags'))?.value;
+    if (typeof value !== 'string') return null;
+    const parsed = JSON.parse(value) as CachedAccountFlags;
+    return parsed?.pubkey === pubkey ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function clearAccountFlagsMirror(): Promise<void> {
+  try {
+    await db.kv.delete('accountFlags');
+  } catch { /* ignore */ }
+}
+
+/** Patch just the custody bit, leaving the Pro flags alone. No-op if
+ *  the cache belongs to another pubkey or does not exist yet. */
+export function patchCachedCustodial(pubkey: string, isCustodial: boolean): void {
+  const cached = readCachedAccountFlags(pubkey);
+  if (!cached) return;
+  writeCachedAccountFlags({ ...cached, isCustodial });
+}
+
+type JwtClaims = {
+  session_id?: unknown;
+  aal?: unknown;
+  app_metadata?: { custodial?: unknown; pubkey?: unknown } | null;
+};
+
+/**
+ * A JWT's payload (base64url JSON), or null when the token is unreadable.
+ * No verification: the caller either got this token from supabase-js or
+ * already validated it. Every claim read from it is a hint, and every
+ * action it gates is authorized again server-side.
+ */
+function jwtPayload(token: string): JwtClaims | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload: unknown = JSON.parse(atob(parts[1]!.replace(/-/g, '+').replace(/_/g, '/')));
+    return payload !== null && typeof payload === 'object' ? payload as JwtClaims : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The `app_metadata.custodial` claim. Null when the token is unreadable or
+ * carries no claim (a legacy account that has not re-hydrated since the
+ * flag shipped), which is distinct from an explicit `false`.
+ */
+export function jwtPayloadCustodial(token: string): boolean | null {
+  const flag = jwtPayload(token)?.app_metadata?.custodial;
+  return typeof flag === 'boolean' ? flag : null;
+}
+
+// Throttle marker for the register-device edge function. Registration is
+// idempotent (the server just bumps last_seen_at for a known device) and
+// the heartbeat RPC keeps last_seen fresh anyway, so calling it on every
+// boot only adds 1-3 s of edge-function latency for zero information.
+// Skip it when this (pubkey, deviceId) pair registered successfully within
+// the last 24 h. A revoked device is still caught by the heartbeat on the
+// first sync; sign-out clears the marker so a fresh sign-in re-registers.
+const DEVICE_REGISTERED_KEY = 'privacynotes.deviceRegisteredAt';
+const REGISTER_THROTTLE_MS = 24 * 60 * 60 * 1000;
+
+export function hasRecentRegistration(pubkey: string, deviceId: string): boolean {
+  try {
+    const raw = localStorage.getItem(DEVICE_REGISTERED_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as { pubkey: string; deviceId: string; at: number };
+    return (
+      parsed?.pubkey === pubkey &&
+      parsed?.deviceId === deviceId &&
+      typeof parsed?.at === 'number' &&
+      Date.now() - parsed.at < REGISTER_THROTTLE_MS
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function markRegistered(pubkey: string, deviceId: string): void {
+  try {
+    localStorage.setItem(
+      DEVICE_REGISTERED_KEY,
+      JSON.stringify({ pubkey, deviceId, at: Date.now() }),
+    );
+  } catch {
+    /* ignore - worst case we register again next boot */
+  }
+}
+
+export function clearRegistrationMarker(): void {
+  try {
+    localStorage.removeItem(DEVICE_REGISTERED_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Called by sync when the server rejects writes with a row-level
+ * security error: that means this session's pubkey link is broken
+ * server-side, and fast-booting into it for up to 24 h would keep the
+ * vault permanently unsyncable. Clearing the marker makes the next
+ * boot run the full link-pubkey + register-device handshake (see the
+ * needsLink condition in _authenticateWithPhrase), which repairs the
+ * link without the user having to clear browser data.
+ */
+export function invalidateDeviceRegistration(): void {
+  clearRegistrationMarker();
+}
+
+/** The `session_id` claim, or null when unreadable. */
+export function jwtPayloadSessionId(token: string): string | null {
+  const id = jwtPayload(token)?.session_id;
+  return typeof id === 'string' ? id : null;
+}
+
+/** The `aal` claim, or null when unreadable. */
+export function jwtPayloadAal(token: string): string | null {
+  const aal = jwtPayload(token)?.aal;
+  return typeof aal === 'string' ? aal : null;
+}
+
+/**
+ * The `app_metadata.pubkey` claim, or null if absent or malformed. Used to
+ * detect whether link-pubkey + refreshSession can be skipped for returning
+ * users.
+ */
+export function jwtPayloadPubkey(token: string): string | null {
+  const pk = jwtPayload(token)?.app_metadata?.pubkey;
+  return typeof pk === 'string' && pk.length === 64 ? pk : null;
+}
+
+/**
+ * True when a stored session is another account's, so a phrase sign-in
+ * must not reuse it: a pubkey claim that names a different vault, or a
+ * provider login that names none. A provider login stays in storage
+ * after its two-factor prompt is dismissed, and a link from it would
+ * bind the typed vault to that provider account. A claimless phrase
+ * session is this phrase's own unfinished link and stays usable.
+ * tests/foreignSession.test.ts.
+ */
+export function sessionBelongsElsewhere(
+  session: { access_token: string; user?: { app_metadata?: { provider?: unknown } } },
+  pubkey: string,
+): boolean {
+  const claim = jwtPayloadPubkey(session.access_token);
+  if (claim) return claim !== pubkey;
+  const provider = session.user?.app_metadata?.provider;
+  return provider === 'google' || provider === 'apple' || provider === 'github';
+}

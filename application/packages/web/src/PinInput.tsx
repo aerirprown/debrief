@@ -1,0 +1,256 @@
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  type ChangeEvent,
+  type ClipboardEvent,
+  type KeyboardEvent,
+} from 'react';
+import { useTranslation } from 'react-i18next';
+import { isSoftKeyboardUp } from './softKeyboard';
+
+export type PinInputHandle = {
+  focus: () => void;
+  clear: () => void;
+};
+
+type Props = {
+  value: string;
+  onChange: (value: string) => void;
+  /** Called when every box is filled. Receives the full value. */
+  onComplete?: (value: string) => void;
+  /** Auto-focus the first box on mount. */
+  autoFocus?: boolean;
+  disabled?: boolean;
+  ariaLabel?: string;
+  /** Smaller boxes for a settings pane, where the PIN is one control on a
+   *  dense form. The lock screen and the note gate keep the full size:
+   *  there the PIN is the only thing on screen and the box is the target a
+   *  thumb aims at. */
+  compact?: boolean;
+  /** The boxes share the whole width of the row at the lock screen's height:
+   *  every PIN field of the browser extension, the same on every screen
+   *  (owner, 2026-11-11). The app keeps its centered boxes. */
+  fill?: boolean;
+  /** Number of boxes. A PIN has 4; an authenticator code has 6. */
+  length?: number;
+  /** Paint the digits. Only for a one-time code, which expires in seconds and
+   *  is read off another screen; a PIN is always masked. */
+  reveal?: boolean;
+};
+
+/**
+ * The field holds the digit and never paints it. The bullet beside each box
+ * is ours instead.
+ *
+ * A password field is masked by the browser, but Android draws the character
+ * first and masks it a second or two later, which is long enough for the
+ * person behind you to read the whole PIN one key at a time (issue #254).
+ * That reveal is drawn in the field's text colour, so a transparent one
+ * leaves nothing to see, on every platform.
+ *
+ * An inline style rather than a utility class, because this is the only thing
+ * standing between a shoulder and the PIN: a class list gets rewritten in
+ * passing, and the loss would be invisible on a desktop browser, which masks
+ * the character either way. `tests/pinInputMask.test.tsx` watches it too.
+ *
+ * The boxes stay `type="password"` under the transparent text. If this style
+ * is ever lost the app is back to the platform mask and this bug, rather than
+ * a PIN in plain sight.
+ */
+const HIDDEN_TEXT = { color: 'transparent', caretColor: 'transparent' } as const;
+
+/**
+ * Move focus to a box without the browser's own scroll. iOS scrolls the whole
+ * page to every input focus() lands on, even one already in view above the
+ * keyboard, and the keyboard handler then scrolls it back: the page jumped
+ * at each digit. With the keyboard up, `useKeyboardOpen` keeps the box in
+ * view inside its own column; without one, it is brought into view here.
+ * Spec: docs/contrib/mobile-dev-runbook.md (agent build on a physical iPhone)
+ */
+function focusBox(el: HTMLInputElement | null | undefined): void {
+  if (!el) return;
+  el.focus({ preventScroll: true });
+  if (!isSoftKeyboardUp()) el.scrollIntoView?.({ block: 'nearest' });
+}
+
+/**
+ * One box per digit, for the 4-digit PIN and the 6-digit authenticator code.
+ * Handles auto-advance, backspace, arrow navigation, paste, and iOS
+ * one-time-code autofill (the authenticator code only, never a PIN).
+ */
+export const PinInput = forwardRef<PinInputHandle, Props>(function PinInput(
+  {
+    value,
+    onChange,
+    onComplete,
+    autoFocus = false,
+    disabled = false,
+    ariaLabel,
+    compact = false,
+    fill = false,
+    length: LENGTH = 4,
+    reveal = false,
+  },
+  ref,
+) {
+  const mask = !reveal;
+  const { t } = useTranslation('security');
+  const groupLabel = ariaLabel ?? t('security:modal.tabPin');
+  const inputs = useRef<Array<HTMLInputElement | null>>([]);
+
+  useImperativeHandle(ref, () => ({
+    focus: () => focusBox(inputs.current[0]),
+    // Callers are expected to set their `value` state to '' before invoking
+    // `clear()` - `clear()` only refocuses the first box. Notifying the
+    // parent via `onChange('')` here would race with error-state setters
+    // (e.g. `setErr('Incorrect PIN')` followed by `clear()`) because the
+    // parent's onChange typically does `setErr(null)` to clear stale
+    // messages as the user types. The empty value re-renders fine through
+    // the parent's already-set state.
+    clear: () => {
+      // A frame, not a microtask. Callers clear from an async submit, where the
+      // same batch also drops the `busy` flag that disables these boxes - and
+      // focusing a disabled input does nothing at all. A microtask can run
+      // before React commits that flag, which left a wrong PIN needing a click
+      // before the next attempt. A frame always lands after the commit.
+      requestAnimationFrame(() => focusBox(inputs.current[0]));
+    },
+  }));
+
+  useEffect(() => {
+    if (autoFocus) inputs.current[0]?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const digits = Array.from({ length: LENGTH }, (_, i) => value[i] ?? '');
+
+  function commit(next: string[], focusIndex: number) {
+    const joined = next.join('').slice(0, LENGTH);
+    onChange(joined);
+    focusBox(inputs.current[Math.min(Math.max(focusIndex, 0), LENGTH - 1)]);
+    if (joined.length === LENGTH) onComplete?.(joined);
+  }
+
+  function handleChange(index: number, e: ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.value.replace(/\D/g, '');
+    if (!raw) {
+      const next = digits.slice();
+      next[index] = '';
+      onChange(next.join(''));
+      return;
+    }
+
+    const next = digits.slice();
+    if (raw.length === 1) {
+      next[index] = raw;
+      commit(next, index + 1);
+      return;
+    }
+
+    // Multi-digit: user typed fast, autofilled one-time-code, or pasted.
+    for (let i = 0; i < raw.length && index + i < LENGTH; i++) {
+      next[index + i] = raw[i]!;
+    }
+    commit(next, index + raw.length);
+  }
+
+  function handleKeyDown(index: number, e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Backspace') {
+      if (digits[index]) {
+        const next = digits.slice();
+        next[index] = '';
+        onChange(next.join(''));
+      } else if (index > 0) {
+        e.preventDefault();
+        const next = digits.slice();
+        next[index - 1] = '';
+        onChange(next.join(''));
+        focusBox(inputs.current[index - 1]);
+      }
+    } else if (e.key === 'ArrowLeft' && index > 0) {
+      e.preventDefault();
+      focusBox(inputs.current[index - 1]);
+    } else if (e.key === 'ArrowRight' && index < LENGTH - 1) {
+      e.preventDefault();
+      focusBox(inputs.current[index + 1]);
+    }
+  }
+
+  function handlePaste(index: number, e: ClipboardEvent<HTMLInputElement>) {
+    const raw = e.clipboardData
+      .getData('text')
+      .replace(/\D/g, '')
+      .slice(0, LENGTH - index);
+    if (!raw) return;
+    e.preventDefault();
+    const next = digits.slice();
+    for (let i = 0; i < raw.length; i++) {
+      next[index + i] = raw[i]!;
+    }
+    commit(next, index + raw.length);
+  }
+
+  return (
+    // rtl-ok: PIN digit sequence stays LTR so ArrowLeft/ArrowRight focus movement matches spatial order
+    <div
+      role="group"
+      aria-label={groupLabel}
+      dir="ltr"
+      className={fill ? `grid grid-flow-col auto-cols-fr ${compact ? 'gap-2' : 'gap-3'}` : `flex justify-center ${compact ? 'gap-2' : 'gap-3'}`}
+    >
+      {digits.map((d, i) => (
+        <div
+          key={i}
+          className={`relative ${fill ? (compact ? 'h-12' : 'h-16') : compact ? 'w-11 h-12' : 'w-14 h-16 sm:w-16'} ${disabled ? 'opacity-40' : ''}`}
+        >
+          <input
+            ref={(el) => {
+              inputs.current[i] = el;
+            }}
+            type={mask ? 'password' : 'text'}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            // Only a real one-time code says so: a PIN is not one, and the
+            // hint invites a password manager to offer its codes (#754).
+            autoComplete={i === 0 && reveal ? 'one-time-code' : 'off'}
+            // The first box takes a whole code, so a clipboard suggestion or
+            // autofill that types instead of pasting is not cut to one digit.
+            maxLength={i === 0 ? LENGTH : 1}
+            value={d}
+            onChange={(e) => handleChange(i, e)}
+            onKeyDown={(e) => handleKeyDown(i, e)}
+            onPaste={(e) => handlePaste(i, e)}
+            onFocus={(e) => e.currentTarget.select()}
+            disabled={disabled}
+            style={mask ? HIDDEN_TEXT : undefined}
+            aria-label={t('pinInput.digitAriaLabel', { index: i + 1 })}
+            className={`peer w-full h-full rounded-md bg-track text-pn border border-divider focus:border-accent dark:focus:border-accent text-center font-mono focus:outline-none disabled:cursor-not-allowed ${compact ? 'text-display' : 'text-display-2'}`}
+          />
+          {!d && mask && (
+            // The caret the field no longer draws: its own is transparent with
+            // the text, and would sit beside a hidden digit, not in the middle.
+            // Only in the focused empty box, like a real caret.
+            <span
+              aria-hidden="true"
+              className="pn-pin-caret pointer-events-none absolute inset-0 hidden items-center justify-center peer-focus:flex"
+            >
+              <span className={`w-0.5 rounded-full bg-accent ${compact ? 'h-5' : 'h-7'}`} />
+            </span>
+          )}
+          {d && mask && (
+            // The bullet the field no longer draws. Same glyph, size and
+            // family the browser used, so the boxes look untouched.
+            <span
+              aria-hidden="true"
+              className={`pointer-events-none absolute inset-0 flex items-center justify-center text-pn font-mono ${compact ? 'text-display' : 'text-display-2'}`}
+            >
+              &bull;
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+});

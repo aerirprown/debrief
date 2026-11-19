@@ -1,0 +1,46 @@
+.debrief-return-card {
+  display: flex;
+  gap: 1rem;
+  align-items: stretch;
+  padding: 1rem 1.25rem;
+  background: #1a1a1a;
+  border-bottom: 1px solid #2e2e2e;
+  color: #e6e6e6;
+}
+
+.debrief-return-card__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  justify-content: center;
+}
+
+.debrief-return-card__line {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.35;
+  color: #3ddc84;
+}
+
+.debrief-return-card__next {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #e6e6e6;
+}
+
+.debrief-return-card__days {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #8a8a8a;
+}
+
+.debrief-return-card__frame {
+  flex-shrink: 0;
+  width: 160px;
+  height: 90px;
+  object-fit: cover;
+  background: #141414;
+  border: 1px solid #2e2e2e;
+}

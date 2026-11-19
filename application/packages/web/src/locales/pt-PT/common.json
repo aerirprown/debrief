@@ -1,0 +1,337 @@
+{
+  "actions": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "close": "Fechar",
+    "delete": "Eliminar",
+    "done": "Concluído",
+    "edit": "Editar",
+    "confirm": "Confirmar",
+    "back": "Voltar",
+    "next": "Seguinte",
+    "remove": "Remover",
+    "deleteConfirm": "Eliminar?",
+    "removeConfirm": "Remover?",
+    "copy": "Copiar",
+    "rename": "Mudar o nome",
+    "create": "Criar",
+    "search": "Procurar",
+    "add": "Adicionar",
+    "clearSearch": "Limpar a pesquisa"
+  },
+  "state": {
+    "loading": "A carregar...",
+    "saving": "A guardar...",
+    "untitled": "Sem título",
+    "noResults": "Sem resultados"
+  },
+  "deleteNote": {
+    "confirm": "Eliminar Para Sempre",
+    "body": "Eliminar permanentemente <highlight>“{{title}}”</highlight>? Isto não pode ser anulado."
+  },
+  "emptyTrash": {
+    "title": "Esvaziar o Lixo",
+    "body_one": "Eliminar permanentemente <highlight>{{count}} nota</highlight>? Isto não pode ser anulado.",
+    "body_other": "Eliminar permanentemente <highlight>{{count}} notas</highlight>? Isto não pode ser anulado."
+  },
+  "storageBar": {
+    "usage": "{{percent}}% utilizado ({{used}} / {{max}})",
+    "refresh": "Atualizar armazenamento",
+    "cleanupInfo": "Os itens eliminados deixam de contar de imediato. Os próprios ficheiros encriptados saem do servidor em poucos dias.",
+    "open": "Abrir as definições de armazenamento"
+  },
+  "updateToast": {
+    "available": "Atualização disponível",
+    "required": "Atualização necessária",
+    "changelog": "Changelog",
+    "refresh": "Atualizar",
+    "restart": "Reiniciar",
+    "dismiss": "Dispensar",
+    "download": "Transferir",
+    "update": "Atualizar",
+    "copyCommand": "Copiar comando"
+  },
+  "hotkeys": {
+    "heading": "Ajuda de Atalhos",
+    "typingNote": "A maioria dos atalhos é ignorada enquanto escreves num campo de texto, por isso teclas normais como J e K continuam a escrever J e K.",
+    "cheatSheet": "Guia de referência para imprimir"
+  },
+  "palette": {
+    "label": "Comandos",
+    "empty": "Nenhum comando corresponde",
+    "groups": {
+      "features": "Funcionalidades",
+      "commands": "Comandos",
+      "new": "Novo",
+      "goTo": "Ir para",
+      "themes": "Temas"
+    },
+    "commands": {
+      "quickSwitcher": "Abrir o Ninja: encontrar um item, adicionar o que quiseres, executar um comando",
+      "historyBack": "Recuar",
+      "historyForward": "Avançar",
+      "toggleSidebar": "Mostrar ou ocultar a barra lateral",
+      "toggleTheme": "Alternar entre claro e escuro",
+      "openSettings": "Abrir as definições",
+      "zen": "Modo Zen",
+      "markdownView": "Ligar ou desligar a vista Markdown",
+      "invisibles": "Ligar ou desligar caracteres invisíveis",
+      "find": "Procurar na nota",
+      "findReplace": "Procurar e substituir",
+      "outline": "Mostrar ou ocultar a estrutura",
+      "insertDate": "Inserir a data",
+      "insertDateTime": "Inserir a data e a hora",
+      "clearFilters": "Remover os filtros",
+      "moveToTrash": "Eliminar a nota",
+      "closeTab": "Fechar o separador ou a nota",
+      "nextTab": "Separador seguinte",
+      "previousTab": "Separador anterior",
+      "zoomIn": "Aumentar a app",
+      "zoomOut": "Diminuir a app",
+      "zoomReset": "Repor o tamanho normal da app",
+      "help": "Atalhos de teclado"
+    }
+  },
+  "quickNote": {
+    "bodyPlaceholder": "Escreve mais aqui",
+    "hint": "Escreve / para uma pasta, # para uma etiqueta",
+    "locked": "O PrivacyNotes está bloqueado. A tua nota fica selada e abre quando desbloqueares.",
+    "queued": "Guardada. Abre quando desbloqueares.",
+    "tooLong": "Esta nota é demasiado longa. Divide-a em duas notas.",
+    "full": "Há demasiadas notas à espera. Desbloqueia para as adicionar.",
+    "empty": "Escreve primeiro alguma coisa.",
+    "failed": "Não foi possível guardar a nota. Abre o PrivacyNotes e tenta novamente.",
+    "added_other": "{{count}} notas rápidas adicionadas",
+    "added_one": "{{count}} nota rápida adicionada"
+  },
+  "quickSwitcher": {
+    "label": "Ninja: encontra um item ou uma definição, adiciona o que quiseres, executa um comando",
+    "jumpTo": "Ninja",
+    "placeholder": "Ninja ao teu dispor: um título, + para adicionar, > para comandos",
+    "recent": "Recentes",
+    "empty": "Nenhum item ou definição com esse nome",
+    "searchAll": "Procurar em tudo: “{{query}}”",
+    "searchIn": "Procurar em {{section}}: “{{query}}”",
+    "searchList": "Procurar na lista: “{{query}}”",
+    "searchDetail": "Encontra palavras dentro do texto",
+    "move": "mover",
+    "open": "abrir",
+    "openInTab": "abrir num separador",
+    "edit": "editar",
+    "close": "fechar",
+    "folders": "Pastas",
+    "tagItems_one": "{{count}} item",
+    "tagItems_other": "{{count}} itens",
+    "emptyTags": "Nenhuma etiqueta com esse nome",
+    "emptyFolders": "Nenhuma pasta com esse nome",
+    "emptyVault": "Ainda não há nada aqui. Escreve + para adicionares o teu primeiro item.",
+    "onlyTags": "etiquetas",
+    "onlyFolders": "pastas",
+    "showOnlyTags": "Só etiquetas",
+    "showOnlyFolders": "Só pastas",
+    "showOnlyCommands": "Só comandos",
+    "goToTag": "Ir para uma etiqueta",
+    "goToFolder": "Ir para uma pasta",
+    "createTag": "Criar a etiqueta #{{name}}",
+    "createFolder": "Criar a pasta “{{name}}”",
+    "newTag": "Nova etiqueta",
+    "newFolder": "Nova pasta",
+    "goToDay": "Ir para o dia",
+    "inText": "No texto",
+    "actions": "ações",
+    "back": "voltar",
+    "actionsPlaceholder": "Filtrar as ações",
+    "onlyCreate": "adicionar",
+    "ninjaLockedTitle": "O PrivacyNotes está bloqueado",
+    "ninjaLockedBody": "Abre o PrivacyNotes e desbloqueia-o. Depois o Ninja encontra as tuas notas a partir de qualquer app."
+  },
+  "cardForm": {
+    "cardholderName": "Nome do Titular",
+    "cardholderPlaceholder": "João Silva",
+    "cardNumber": "Número do Cartão",
+    "cardNumberPlaceholder": "4242 4242 4242 4242",
+    "showNumber": "Mostrar número",
+    "hideNumber": "Ocultar número",
+    "copyCardNumber": "Copiar o número do cartão",
+    "unknownNetwork": "Rede desconhecida",
+    "network": "Rede",
+    "numberTooShort_one": "Número do cartão demasiado curto ({{count}} dígito, esperado {{expected}})",
+    "numberTooShort_other": "Número do cartão demasiado curto ({{count}} dígitos, esperado {{expected}})",
+    "expiry": "Validade",
+    "monthPlaceholder": "MM",
+    "yearPlaceholder": "AA",
+    "cvv": "CVV",
+    "cvvPlaceholder": "123",
+    "showCvv": "Mostrar CVV",
+    "hideCvv": "Ocultar CVV",
+    "expiredHint": "Este cartão parece estar expirado.",
+    "billingZip": "Código Postal de Faturação",
+    "billingZipPlaceholder": "1000-001",
+    "notes": "Notas",
+    "notesPlaceholder": "Notas adicionais (opcional)",
+    "requirePin": "Exigir PIN para ver",
+    "whatDoesThisDo": "O que é que isto faz?",
+    "setUpPinFirst": "Configura primeiro um PIN nas definições de Segurança."
+  },
+  "sshKeyForm": {
+    "label": "Etiqueta",
+    "labelPlaceholder": "p. ex. chave de deploy do GitHub",
+    "publicKey": "Public Key",
+    "copyPublicKey": "Copiar chave pública",
+    "privateKey": "Private Key",
+    "copyPrivateKey": "Copiar chave privada",
+    "downloadPublicKey": "Descarregar chave pública",
+    "downloadPrivateKey": "Descarregar chave privada",
+    "downloadHint": "Move a chave descarregada para ~/.ssh e executa chmod 600 nela, ou o ssh recusa-a.",
+    "downloadHintDesktop": "O PrivacyNotes não guarda em ~/.ssh, para manter seguras as chaves que lá estão. Guarda a chave noutro sítio, move-a para ~/.ssh e executa chmod 600 nela, ou o ssh recusa-a.",
+    "downloadHintWindows": "O PrivacyNotes não guarda na tua pasta .ssh, para manter seguras as chaves que lá estão. Guarda a chave noutro sítio e move-a para %USERPROFILE%\\.ssh. O Windows não precisa de chmod.",
+    "downloadFailed": "Não foi possível guardar o ficheiro da chave. Verifica o ficheiro e tenta novamente.",
+    "passphrase": "Frase-passe",
+    "passphrasePlaceholder": "Frase-passe da chave (se existir)",
+    "show": "Mostrar",
+    "hide": "Ocultar",
+    "copyPassphrase": "Copiar frase-passe"
+  },
+  "tagInput": {
+    "placeholder": "Adicionar etiquetas… separa por vírgula, # ou enter",
+    "create": "Criar “#{{tag}}”",
+    "removeTag": "Remover {{tag}}"
+  },
+  "loading": {
+    "pause": "Pausar as frases",
+    "play": "Reproduzir as frases",
+    "lines": [
+      "a trazer a energia da banca suíça para as tuas notas",
+      "a proteger os teus pensamentos de banho",
+      "as tuas notas estão encriptadas no teu dispositivo",
+      "armazenamento frio para pensamentos quentes",
+      "mais um belo dia para a encriptação",
+      "a manter os segredos aborrecidos desde o lançamento",
+      "privacidade sem a ted talk",
+      "a manter a nuvem confusa",
+      "o servidor guarda texto encriptado. acha-o aborrecido",
+      "menos vigilância. mais notas",
+      "disparates encriptados, como esperado",
+      "rastreio desativado emocional e tecnicamente",
+      "o teu dispositivo é que guarda a bisbilhotice",
+      "pensamentos privados a entrar em modo privado",
+      "mais uma nota escondida do capitalismo",
+      "aqui a privacidade não é premium",
+      "segurança através de segurança a sério",
+      "a resistir caladinho aos corretores de dados",
+      "nenhum material de treino de ia detetado",
+      "encriptado mais do que o necessário",
+      "só sinal. zero vigilância",
+      "a transformar problemas de confiança em software",
+      "os teus pensamentos continuam fora do mercado",
+      "os mineradores de dados só encontraram tristeza",
+      "o teu cofre continua agressivamente encriptado",
+      "neutralidade suíça, mas para notas",
+      "sem anúncios. sem rastreadores. sem reviravoltas",
+      "open source, para poderes verificar as contas",
+      "o texto encriptado é a nossa linguagem do amor",
+      "a tornar as tuas notas aborrecidas para estranhos",
+      "o teu diário ligou. quer privacidade",
+      "o teu registo de humor teve saudades tuas",
+      "as tuas ideias, sem plateia",
+      "o teu diário guardou os teus segredos durante a noite",
+      "um lugar privado para tudo o que nunca publicarias",
+      "aqui nenhum algoritmo decide o que vês",
+      "as tuas ideias soltas estão sãs e salvas",
+      "escrever é pensar. pensar é privado",
+      "nenhum influencer foi consultado",
+      "a carregar segredos com responsabilidade.",
+      "tudo sinal. nenhuma vigilância.",
+      "vem aí mais uma obra-prima encriptada.",
+      "a converter problemas de confiança em software.",
+      "os teus pensamentos continuam fora do mercado.",
+      "esta sincronização não tem bisbilhotice nenhuma para nós.",
+      "porque “confia em nós” é uma estupidez.",
+      "a pensar em privado à escala.",
+      "as tuas notas continuam legalmente misteriosas.",
+      "a restaurar a ordem a partir do caos encriptado.",
+      "os mineiros de dados só encontraram tristeza.",
+      "a desencriptar pensamentos existenciais localmente…",
+      "o teu cofre continua agressivamente ilegível.",
+      "neutralidade suíça, mas para notas."
+    ],
+    "loadingOnly": [
+      "a carregar o teu excesso de pensamento encriptado",
+      "um momento enquanto desiludimos os anunciantes",
+      "os teus segredos sobreviveram a mais um reinício",
+      "a abrir o cofre em silêncio",
+      "desencriptado localmente. ignorado globalmente",
+      "a desencriptar como se não fosse da conta de ninguém",
+      "a transformar pensamentos numa sopa ilegível",
+      "mais uma obra-prima encriptada a caminho",
+      "a pôr ordem no caos encriptado",
+      "a desencriptar localmente pensamentos existenciais",
+      "a aquecer as chaves",
+      "a reencontrar o teu fio de pensamento",
+      "a contar as tuas tarefas por fazer. sem julgamentos",
+      "nenhum anúncio foi mostrado durante este carregamento",
+      "a pôr as tuas notas onde as deixaste",
+      "a desembaraçar os pensamentos de ontem",
+      "a arrumar bits numa ordem bonita",
+      "a lembrar o que te esqueceste de lembrar"
+    ]
+  },
+  "neverBackedUp": {
+    "one": "Nunca teve cópia de segurança. Esta é a única cópia.",
+    "some_one": "{{count}} destas notas nunca teve cópia de segurança. Esta é a sua única cópia.",
+    "some_other": "{{count}} destas notas nunca tiveram cópia de segurança. Estas são as únicas cópias.",
+    "changesOne": "As últimas alterações não têm cópia de segurança e perder-se-iam.",
+    "changesSome_one": "{{count}} destas notas tem alterações sem cópia de segurança que se perderiam.",
+    "changesSome_other": "{{count}} destas notas têm alterações sem cópia de segurança que se perderiam."
+  },
+  "ninja": {
+    "topHit": "Melhor correspondência",
+    "trashEmpty": "O Lixo está vazio",
+    "allThemes": "Todos os temas",
+    "features": {
+      "stats": {
+        "detail": "A tua escrita, as sequências e os registos ao longo do tempo"
+      },
+      "trackers": {
+        "detail": "Humor, hábitos, fatores e medicação"
+      },
+      "medication": {
+        "label": "Medicação",
+        "detail": "Doses, horas e lembretes"
+      },
+      "yearInPixels": {
+        "label": "Ano em píxeis",
+        "detail": "Cada dia do ano como um quadrado colorido"
+      },
+      "importExport": {
+        "detail": "Traz notas para dentro ou leva-as para fora"
+      },
+      "backup": {
+        "detail": "Fazer backup agora, backups automáticos e restauro"
+      },
+      "generator": {
+        "label": "Gerador de palavras-passe",
+        "detail": "Uma palavra-passe forte ou uma frase-passe, pronta a copiar"
+      },
+      "themes": {
+        "detail": "Temas de cor para claro e escuro"
+      }
+    },
+    "new": {
+      "medication": "Novo medicamento",
+      "customTracker": "Novo registo personalizado"
+    },
+    "commands": {
+      "syncResume": "Retomar a sincronização",
+      "lockProtected": "Bloquear esta nota",
+      "changelog": "Novidades",
+      "themesPage": "Temas da comunidade",
+      "website": "Site do PrivacyNotes"
+    },
+    "themes": {
+      "word": "Tema",
+      "light": "Tema claro",
+      "dark": "Tema escuro"
+    }
+  }
+}

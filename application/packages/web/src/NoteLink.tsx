@@ -1,0 +1,428 @@
+/**
+ * TipTap inline-node extension for [[wiki-links]].
+ *
+ * Stores two attributes:
+ *   - `target`: the note title being linked to
+ *   - `label`:  optional display text (for [[target|label]] syntax)
+ *
+ * Renders as a clickable pill in the editor. Clicking navigates to
+ * the target note (by title match). If no match is found, the click
+ * creates a new note with that title.
+ *
+ * A target may name a heading, `[[Note#Heading]]` or `[[#Heading]]` for the
+ * note that holds the link; with no label it shows as "Note › Heading".
+ * The link's menu can point an existing link at one of its note's headings.
+ *
+ * Markdown round-trip: stored as `[[target]]` or `[[target|label]]`.
+ * The tiptap-markdown integration uses addStorage().markdown for
+ * serialization, and an inputRule + pasteRule handle the parse side
+ * (markdown-it doesn't know wiki-link syntax natively).
+ */
+
+import { InputRule, mergeAttributes, Node } from '@tiptap/core';
+import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react';
+import { Fragment, Slice, type Node as PMNode } from '@tiptap/pm/model';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { useTranslation } from 'react-i18next';
+import {
+  resolveWikiLinkNote,
+  wikiLinkHasNote,
+  wikiLinkHeadings,
+  wikiLinkSuggestion,
+} from './NoteLinkSuggestion';
+import { HoverLabel } from './HoverLabel';
+import { ContextMenu, useContextMenu, type ContextMenuItem } from './ContextMenu';
+import { iconExternal, iconTrash, Hash } from './icons';
+import { noteLinkDisplayText, noteLinkTarget, parseNoteLinkTarget } from './noteLinks';
+import { atomDeleteKeys } from './editorAtomKeys';
+
+/* ------------------------------------------------------------------ */
+/* Navigation callback - set by the host (NotesView) via extension    */
+/* storage so the node view can navigate without prop-drilling.       */
+/* ------------------------------------------------------------------ */
+
+type WikiLinkNavigator = (target: string) => void;
+
+const NAVIGATE_KEY = '__wikiLinkNavigate';
+
+/** Call from NotesView to wire up the navigation callback. */
+export function setWikiLinkNavigator(
+  // `storage: unknown` rather than a Record: TipTap 3 types editor.storage as
+  // an interface without an index signature, which no longer matches a Record
+  // parameter structurally. The runtime shape is unchanged.
+  editor: { storage: unknown } | null,
+  fn: WikiLinkNavigator
+) {
+  if (!editor) return;
+  const store = (editor.storage as Record<string, Record<string, unknown>>).wikiLink;
+  if (store) store[NAVIGATE_KEY] = fn;
+}
+
+/* ------------------------------------------------------------------ */
+/* Inline node view                                                   */
+/* ------------------------------------------------------------------ */
+
+function WikiLinkView({
+  node,
+  editor,
+  deleteNode,
+  updateAttributes,
+}: {
+  node: { attrs: { target: string; label: string | null } };
+  editor: Parameters<typeof wikiLinkHeadings>[0] & { storage: Record<string, Record<string, unknown>>; isEditable: boolean };
+  deleteNode: () => void;
+  updateAttributes: (attrs: { target: string }) => void;
+}) {
+  const { target, label } = node.attrs;
+  const hasNote = wikiLinkHasNote(editor);
+  const readable = noteLinkDisplayText(target, hasNote);
+  const display = label || readable;
+  const { t } = useTranslation('editor');
+  const menu = useContextMenu();
+  const wlStore = editor.storage.wikiLink as Record<string, unknown> | undefined;
+  // Read the navigator out of the storage box AT CLICK TIME, never at render
+  // time. NotesView rewrites the box on every render, and the navigator it
+  // writes closes over the live filters and note list. A node view renders
+  // once and then sits there across every one of those renders, so a captured
+  // copy is the state of the app when the link happened to be drawn - or
+  // `null`, for a node drawn before NotesView first wired the box, whose click
+  // then does nothing at all.
+  const go = () => {
+    const navigate = wlStore?.[NAVIGATE_KEY] as WikiLinkNavigator | undefined;
+    if (navigate) navigate(target);
+  };
+
+  // A link is one uneditable object rather than a run of letters, and that is
+  // what makes it unreachable on a touch screen. A tap follows the link, so it
+  // can never leave a caret beside it, and a long press hands the selection to
+  // the platform's own text-selection layer, which the editor is never told
+  // about - the handles appear around the link while the editor holds no
+  // selection at all, so cut and delete act on nothing. A soft keyboard cannot
+  // rescue it either: with the link selected it reports only that its own input
+  // method is handling the key and sends no input event, so no handler runs.
+  // This menu is the route that owes nothing to the keyboard. It is also why
+  // this is the one place a touch long press does not belong to the platform.
+  // Reported as GitHub #283 (deleting a note-link is stuck on Android).
+  const openMenu = (e: React.MouseEvent) => {
+    if (!editor.isEditable) return;
+    const at = { clientX: e.clientX, clientY: e.clientY, preventDefault() {}, stopPropagation() {} };
+    const parsed = parseNoteLinkTarget(target, hasNote);
+    const found = resolveWikiLinkNote(editor, parsed.note);
+    const linked = found && wikiLinkHeadings(editor, found) !== null ? found : null;
+    const items: ContextMenuItem[] = [
+      { label: t('noteLink.open'), onSelect: go, icon: iconExternal() },
+      ...(linked
+        ? [{
+            label: t('noteLink.linkHeading'),
+            icon: <Hash />,
+            // The menu closes after this runs, so the heading list opens
+            // on the next tick, in the same place.
+            onSelect: () => window.setTimeout(() => menu.open(at, headingRows(linked)), 0),
+          }]
+        : []),
+      { label: t('noteLink.remove'), onSelect: deleteNode, destructive: true, icon: iconTrash() },
+    ];
+    menu.open(e, items);
+    // The platform starts its own selection on a long press before it asks
+    // whether a menu is wanted, so the highlight and its two drag handles are
+    // already painted over the link by the time this runs. They belong to a
+    // selection the editor does not share and cannot act on, and they land on
+    // top of the menu. Drop them, but only when they are inside this link:
+    // a right click carries a selection the user made somewhere else, and that
+    // one is theirs to keep.
+    const el = e.currentTarget;
+    const sel = el.ownerDocument.getSelection();
+    if (sel && !sel.isCollapsed && sel.anchorNode && el.contains(sel.anchorNode)) {
+      sel.removeAllRanges();
+    }
+  };
+
+  // The headings of the linked note, as rows that point this link at one.
+  // The note part keeps what the link already said, so a link into its own
+  // note stays `[[#Heading]]`.
+  const headingRows = (linked: { id: string; title: string }): ContextMenuItem[] => {
+    const answer = wikiLinkHeadings(editor, linked) ?? [];
+    const header: ContextMenuItem = { type: 'header', label: t('noteLinkSuggestion.headingsIn', { title: linked.title }) };
+    if (answer === 'locked') return [header, { label: t('noteLink.headingsLocked'), onSelect: () => {}, disabled: true }];
+    if (answer.length === 0) return [header, { label: t('noteLink.noHeadings'), onSelect: () => {}, disabled: true }];
+    const notePart = parseNoteLinkTarget(target, hasNote).note;
+    const prefix = notePart ? noteLinkTarget(linked.title) : '';
+    const top = Math.min(...answer.map((h) => h.level));
+    return [
+      header,
+      ...answer.map((h) => ({
+        label: `${'\u2003'.repeat(Math.min(h.level - top, 3))}${h.text}`,
+        onSelect: () => updateAttributes({ target: `${prefix}#${noteLinkTarget(h.text)}` }),
+      })),
+    ];
+  };
+
+  const span = (
+    <span
+      role="link"
+      tabIndex={0}
+      onContextMenu={openMenu}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        go();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          go();
+        }
+      }}
+      className="text-accent hover:text-accent-hover underline underline-offset-2 cursor-pointer rounded px-0.5 -mx-0.5 hover:bg-accent/10 transition"
+      aria-label={readable !== display ? readable : undefined}
+    >
+      {display}
+    </span>
+  );
+
+  return (
+    <NodeViewWrapper as="span" className="inline">
+      {readable !== display
+        ? <HoverLabel label={readable} position="above" inline>{span}</HoverLabel>
+        : span}
+      <ContextMenu state={menu.state} onClose={menu.close} />
+    </NodeViewWrapper>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* markdown-it inline rule for [[wiki-links]]                        */
+/* ------------------------------------------------------------------ */
+
+/** Minimal typing for the markdown-it inline state we touch. */
+interface WikiLinkParseState {
+  src: string;
+  pos: number;
+  posMax: number;
+  push: (type: string, tag: string, nesting: number) => {
+    attrSet: (k: string, v: string) => void;
+    content: string;
+  };
+}
+
+function wikiLinkRule(state: WikiLinkParseState): boolean {
+  const { src, pos, posMax } = state;
+  // Must start with [[
+  if (src.charCodeAt(pos) !== 0x5B || src.charCodeAt(pos + 1) !== 0x5B) {
+    return false;
+  }
+  // `![[target]]` is Obsidian's EMBED, a different thing from a note-link, and
+  // it is what a vault writes for an inline image. markdown-it's image rule
+  // does not recognise that shape, so without this guard the `!` is left
+  // stranded as literal text and the rest becomes a note-link - which is both
+  // wrong on screen and, once serialized back, a rewrite of the user's file.
+  // Spec: docs/internal/specs/markdown-folder.md (section 8, media)
+  if (pos > 0 && src.charCodeAt(pos - 1) === 0x21) {
+    return false;
+  }
+  // Find closing ]]
+  const closeIdx = src.indexOf(']]', pos + 2);
+  if (closeIdx < 0 || closeIdx > posMax) return false;
+
+  const inner = src.slice(pos + 2, closeIdx);
+  if (!inner.trim()) return false;
+
+  // Split on | for optional display text
+  const pipeIdx = inner.indexOf('|');
+  const target = pipeIdx >= 0 ? inner.slice(0, pipeIdx).trim() : inner.trim();
+  const label = pipeIdx >= 0 ? inner.slice(pipeIdx + 1).trim() : null;
+
+  if (!target) return false;
+
+  // Emit an HTML token that parseHTML will pick up.
+  // Escape quotes in attrs to prevent injection.
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const escText = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const tokenOpen = state.push('html_inline', '', 0);
+  const labelAttr = label ? ` data-label="${esc(label)}"` : '';
+  tokenOpen.content = `<span data-wiki-link data-target="${esc(target)}"${labelAttr}>${escText(label || target)}</span>`;
+
+  state.pos = closeIdx + 2;
+  return true;
+}
+
+/* ------------------------------------------------------------------ */
+/* Extension                                                          */
+/* ------------------------------------------------------------------ */
+
+export const WikiLink = Node.create({
+  name: 'wikiLink',
+  group: 'inline',
+  inline: true,
+  atom: true,
+
+  addAttributes() {
+    return {
+      target: { default: '' },
+      label: { default: null },
+    };
+  },
+
+  parseHTML() {
+    return [
+      {
+        tag: 'span[data-wiki-link]',
+        getAttrs: (el) => {
+          const dom = el as HTMLElement;
+          return {
+            target: dom.getAttribute('data-target') || '',
+            label: dom.getAttribute('data-label') || null,
+          };
+        },
+      },
+    ];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    // `target` and `label` are NODE attributes, not HTML ones, so they are
+    // taken out before the merge. Spreading them straight onto the tag wrote a
+    // second, meaningless `target="Some note"` beside the `data-target` that
+    // actually carries it. It is not cosmetic: a block that cannot be written
+    // as markdown - an aligned paragraph, a table that is not a pipe table -
+    // falls back to this HTML, so the junk attribute was stored in the user's
+    // own note and shown in the markdown source view.
+    const { target, label, ...rest } = HTMLAttributes;
+    return [
+      'span',
+      mergeAttributes(rest, {
+        'data-wiki-link': '',
+        'data-target': target,
+        'data-label': label || undefined,
+      }),
+      label || noteLinkDisplayText(target),
+    ];
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(WikiLinkView as never);
+  },
+
+  addKeyboardShortcuts() {
+    // A note-link is one uneditable pill: see atomDeleteKeys.
+    return atomDeleteKeys(this.editor, this.type);
+  },
+
+  addInputRules() {
+    // Type [[ and the closing ]] to create a wiki-link inline.
+    // Matches: [[target]] or [[target|label]]
+    const type = this.type;
+    return [
+      new InputRule({
+        find: /\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]$/,
+        handler: ({ state, range, match }) => {
+          const target = match[1]?.trim() ?? '';
+          const label = match[2]?.trim() || null;
+          if (!target) return;
+          const node = type.create({ target, label });
+          state.tr.replaceWith(range.from, range.to, node);
+        },
+      }),
+    ];
+  },
+
+  addProseMirrorPlugins() {
+    const type = this.type;
+    return [
+      // Autocomplete dropdown when user types [[
+      wikiLinkSuggestion(this.editor),
+      // Paste rule: convert [[...]] in pasted text to wiki-link nodes.
+      // Code is left as text: a code block cannot hold the node, and a
+      // shell character class such as `[[:space:]]` is not a link.
+      new Plugin({
+        key: new PluginKey('wikiLinkPaste'),
+        props: {
+          transformPasted(slice, view) {
+            if (view.state.selection.$from.parent.type.spec.code) return slice;
+            const wikiRe = /\[\[([^\]|]+?)(?:\|([^\]]+?))?\]\]/g;
+
+            function walkFragment(fragment: Fragment): Fragment {
+              const newNodes: PMNode[] = [];
+              fragment.forEach((node) => {
+                if (node.type.spec.code || node.marks.some((m) => m.type.spec.code)) {
+                  newNodes.push(node);
+                } else if (node.isText && node.text) {
+                  const text = node.text;
+                  let lastIdx = 0;
+                  let m: RegExpExecArray | null;
+                  wikiRe.lastIndex = 0;
+                  while ((m = wikiRe.exec(text)) !== null) {
+                    if (m.index > lastIdx) {
+                      newNodes.push(
+                        node.type.schema.text(text.slice(lastIdx, m.index), node.marks)
+                      );
+                    }
+                    newNodes.push(
+                      type.create({
+                        target: m[1]?.trim() ?? '',
+                        label: m[2]?.trim() || null,
+                      })
+                    );
+                    lastIdx = m.index + m[0].length;
+                  }
+                  if (lastIdx === 0) {
+                    // No wiki-link matched - keep the original node as-is.
+                    // (Pushing the cloned slice AND the original here used
+                    // to duplicate every plain-text paste.)
+                    newNodes.push(node);
+                  } else if (lastIdx < text.length) {
+                    // Trailing text after the final match.
+                    newNodes.push(
+                      node.type.schema.text(text.slice(lastIdx), node.marks)
+                    );
+                  }
+                } else if (node.content.size > 0) {
+                  newNodes.push(node.copy(walkFragment(node.content)));
+                } else {
+                  newNodes.push(node);
+                }
+              });
+              return Fragment.fromArray(newNodes);
+            }
+
+            return new Slice(
+              walkFragment(slice.content),
+              slice.openStart,
+              slice.openEnd
+            );
+          },
+        },
+      }),
+    ];
+  },
+
+  addStorage() {
+    return {
+      [NAVIGATE_KEY]: null as WikiLinkNavigator | null,
+      markdown: {
+        serialize(
+          state: { write: (s: string) => void; esc: (s: string) => string },
+          node: { attrs: { target: string; label: string | null } }
+        ) {
+          const t = node.attrs.target;
+          const l = node.attrs.label;
+          if (l && l !== t) {
+            state.write(`[[${t}|${l}]]`);
+          } else {
+            state.write(`[[${t}]]`);
+          }
+        },
+        parse: {
+          setup(md: { inline: { ruler: { push: (name: string, fn: (state: WikiLinkParseState) => boolean) => void } } }) {
+            // Register a markdown-it inline rule that converts [[...]]
+            // tokens into <span data-wiki-link> elements that parseHTML
+            // picks up.
+            md.inline.ruler.push('wiki_link', wikiLinkRule);
+          },
+          updateDOM(_el: HTMLElement) {
+            // nothing to patch
+          },
+        },
+      },
+    };
+  },
+});

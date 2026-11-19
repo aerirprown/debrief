@@ -1,0 +1,1453 @@
+/**
+ * Theme system: orthogonal appearance axes.
+ *
+ * 1. Light / dark - Tailwind `darkMode: 'class'`, toggles `dark` on <html>.
+ *    What the user picks is a MODE ('auto' | 'light' | 'dark'); 'auto'
+ *    resolves against the OS `prefers-color-scheme` and re-resolves live
+ *    when the OS flips, so a phone on a sunrise/sunset schedule follows
+ *    along without reopening the app.
+ * 2. Color theme - toggles `theme-<name>` on <html>, drives CSS custom
+ *    properties defined in index.css (--pn-accent, --pn-warm, etc.).
+ * 3. Text size - sets `data-text-size` on <html>, drives --pn-text-scale
+ *    in index.css, which the editor's type scale derives from.
+ * 4. Content width - sets `data-content-width` on <html>, drives
+ *    --pn-content-max, the cap on the editor's reading column.
+ * 5. Spell check - paints nothing. A flag the writing surfaces read to
+ *    decide whether to hand the engine's own spell checker an off switch.
+ * 6. Website icons - paints nothing. Read by every surface that draws a
+ *    link or a vault login, and the off switch for the proxy request.
+ * 7. Invisible characters - paints nothing. The editor drives the
+ *    extension's show/hide commands from it.
+ * 8. Line spacing - sets `data-line-spacing` on <html>, drives
+ *    --pn-para-gap, the gap between two paragraphs, and --pn-line-height.
+ * 9. Code wrap - toggles `pn-wrap-code` on <html>, which folds long lines
+ *    in every code block. Its state lives in codeWrap.ts, because the
+ *    editor reads it and must not load this module; boot and the reset
+ *    below still paint and clear it here.
+ *
+ * Axes 1 to 7 and 9 persist to localStorage and NONE of them reaches the
+ * server: each is a property of the screen in front of you rather than
+ * of the account, and a desktop and a phone can reasonably disagree.
+ * A sign-out leaves them standing for that same reason. The one thing
+ * that clears them is a different account arriving on this install -
+ * see `resetAppearance`.
+ *
+ * Line spacing is the exception and owns no state here. It describes how
+ * somebody writes rather than the screen they write on, so it lives on
+ * UserSettings, syncs with everything else there, and this module only
+ * paints what it is handed.
+ */
+import { useCallback, useSyncExternalStore } from 'react';
+import { applyAppZoom, DEFAULT_APP_ZOOM } from './appZoom';
+import { paintCodeWrap, setCodeWrap } from './codeWrap';
+import { FONT_FAMILIES } from './editorColors';
+
+// ------------------------------------------------------------------
+// Light / dark axis
+// ------------------------------------------------------------------
+
+const STORAGE_KEY = 'privacynotes.theme';
+
+/** The appearance actually painted on <html>. */
+export type Theme = 'light' | 'dark';
+
+/** What the user chose. 'auto' defers to the OS. */
+export type ThemeMode = Theme | 'auto';
+
+/** Picker order, Auto first (matches the View segmented right below it). */
+export const THEME_MODES: readonly ThemeMode[] = ['auto', 'light', 'dark'];
+
+/**
+ * The OS preference right now. Deliberately asks for `light` rather than
+ * `dark`: a browser that cannot answer (no matchMedia, no preference)
+ * then lands on dark, which is what this app has always fallen back to.
+ */
+export function getSystemTheme(): Theme {
+  if (typeof window === 'undefined' || !window.matchMedia) return 'dark';
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
+/** Read the stored mode. Debrief v1 is dark-only; fresh installs land on dark. */
+function getStoredThemeMode(): ThemeMode {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (stored === 'light' || stored === 'dark' || stored === 'auto') return stored;
+  return 'dark';
+}
+
+/** The stored mode resolved to something paintable. */
+function getStoredTheme(): Theme {
+  const mode = getStoredThemeMode();
+  return mode === 'auto' ? getSystemTheme() : mode;
+}
+
+/**
+ * Browser and OS chrome color: the Android Chrome address bar, the iOS
+ * Safari / installed-PWA status bar, the Android task switcher card.
+ * Values mirror the two metas in index.html.
+ * Spec: docs/contrib/color-themes.md (section 1, theme-color)
+ */
+const THEME_COLOR: Record<Theme, string> = { light: '#0d0d0d', dark: '#0d0d0d' };
+
+/**
+ * Keep `theme-color` in step with the painted theme.
+ *
+ * index.html ships two metas gated on `prefers-color-scheme`, which is
+ * the right answer before JS boots and while the mode is 'auto', but
+ * wrong the moment someone pins Light on a dark OS - the app went light
+ * and the address bar stayed charcoal. Once we are running we own the
+ * value, so the media-gated pair is dropped and replaced by a single
+ * meta we rewrite on every paint.
+ *
+ * Deliberately not palette-aware: Cream and Slate sit close enough to
+ * the default surfaces that a per-theme table would be churn for a strip
+ * of browser chrome.
+ */
+function paintThemeColorMeta(theme: Theme): void {
+  const head = document.head;
+  if (!head) return;
+  head.querySelectorAll('meta[name="theme-color"][media]').forEach((m) => m.remove());
+  let meta = head.querySelector<HTMLMetaElement>('meta[name="theme-color"]:not([media])');
+  if (!meta) {
+    meta = document.createElement('meta');
+    meta.name = 'theme-color';
+    head.appendChild(meta);
+  }
+  meta.content = THEME_COLOR[theme];
+}
+
+declare global {
+  interface Window {
+    /** Installed by MainActivity.kt in the Android app; absent everywhere else. */
+    __pnBars?: { set: (color: string, dark: boolean) => void };
+  }
+}
+
+/**
+ * Android system-bar strips (#205).
+ *
+ * The Android app consumes the window insets to fix the soft keyboard, so
+ * the webview does not draw under the status and navigation bars - the
+ * activity paints those strips itself. It has no way to know what we
+ * painted, and guessing from the system uiMode got it wrong twice over:
+ * the light/dark MODE can be pinned against the OS, and the color theme
+ * on top of it (Cream, Slate, Navy) lands nowhere near either default. A
+ * Cream app on a dark phone showed black bars.
+ *
+ * So push, on every theme change of either axis. `--pn-surface-0` is the
+ * app shell's own background (NotesView's `h-dvh` column), which is what
+ * sits against both strips, and its default light/dark values are the two
+ * colors the activity used to hardcode - this generalizes them rather
+ * than replacing them.
+ *
+ * Unlike the `theme-color` meta above, this one IS palette-aware: a strip
+ * physically touching the app's own chrome shows a seam that a browser
+ * address bar never does.
+ *
+ * The Windows app paints its title bar from the same value, below. Inert
+ * on every other platform (no bridge, no call).
+ */
+function paintNativeBars(): void {
+  const bars = window.__pnBars;
+  const windows = __PN_BUILD_PLATFORM__ === 'windows';
+  if (!bars && !windows) return;
+  const root = document.documentElement;
+  const surface = cssChannels(root, '--pn-surface-0');
+  if (!surface) return;
+  const dark = root.classList.contains('dark');
+  if (bars) {
+    // Android wants #RRGGBB.
+    bars.set(`#${surface.map((n) => n.toString(16).padStart(2, '0')).join('')}`, dark);
+    return;
+  }
+  // The Windows title bar (#525): the shell color and the text color on
+  // Windows 11, and dark or light everywhere. Under Auto the window theme is
+  // handed back to the system, because pinning it also pins the web view's
+  // `prefers-color-scheme`, and Auto would then never see the system again.
+  const text = cssChannels(root, '--pn-text');
+  if (!text) return;
+  void (async () => {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('set_title_bar_colors', {
+        caption: surface,
+        text,
+        dark: getStoredThemeMode() === 'auto' ? null : dark,
+      });
+    } catch {
+      /* An older build with no such command keeps the system title bar. */
+    }
+  })();
+}
+
+/** A palette value as its three RGB channels. Palette values are stored as
+ *  space-separated channels so Tailwind can wrap them in rgb() with an alpha. */
+function cssChannels(root: HTMLElement, name: string): [number, number, number] | null {
+  const channels = getComputedStyle(root).getPropertyValue(name).trim().split(/\s+/).map(Number);
+  if (channels.length !== 3 || channels.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return null;
+  return channels as [number, number, number];
+}
+
+let themeTransitionFrame = 0;
+/** Theme colors must settle before control hover transitions resume. */
+function suppressThemeTransitions(): void {
+  const root = document.documentElement;
+  root.classList.add('pn-theme-switching');
+  cancelAnimationFrame(themeTransitionFrame);
+  themeTransitionFrame = requestAnimationFrame(() => {
+    themeTransitionFrame = requestAnimationFrame(() => root.classList.remove('pn-theme-switching'));
+  });
+}
+
+/** Paint a resolved theme without animating every mounted item.
+ * Spec: docs/contrib/color-themes.md (Theme switching performance)
+ */
+function paintTheme(theme: Theme): void {
+  const root = document.documentElement;
+  if (root.classList.contains('dark') !== (theme === 'dark')) suppressThemeTransitions();
+  if (theme === 'dark') {
+    root.classList.add('dark');
+  } else {
+    root.classList.remove('dark');
+  }
+  paintThemeColorMeta(theme);
+  paintNativeBars();
+}
+
+/**
+ * A mode painted for a moment without being stored. Settings uses it when a
+ * pick of the other mode must not change the stored mode: under Auto, and
+ * for a free account's preview of a Pro theme. The pick shows at once and
+ * the stored mode stays. A real mode choice, or peekThemeMode(null) when
+ * Settings closes, ends it.
+ */
+let peekTheme: Theme | null = null;
+export function peekThemeMode(next: Theme | null): void {
+  if (next === peekTheme) return;
+  peekTheme = next;
+  paintTheme(next ?? getStoredTheme());
+  emitThemeChange();
+}
+
+/** Persist a mode and paint what it resolves to. */
+function applyThemeMode(mode: ThemeMode): Theme {
+  peekTheme = null;
+  localStorage.setItem(STORAGE_KEY, mode);
+  const resolved = mode === 'auto' ? getSystemTheme() : mode;
+  paintTheme(resolved);
+  return resolved;
+}
+
+/** Repaint from the stored preference. Views call this on entry and exit
+ *  so a stale paint from a previous view never survives a transition.
+ *  (This used to release the marketing page's forced-light pin; the pin
+ *  was retired when the landing shipped its washi dark palette.) */
+export function applyStoredTheme(): Theme {
+  const resolved = getStoredTheme();
+  paintTheme(resolved);
+  return resolved;
+}
+
+/**
+ * Repaint when the OS flips, but only while the mode is 'auto'.
+ * Registered once from initTheme() and never torn down - it has to
+ * outlive every view.
+ *
+ * The color theme needs nothing here. <html> carries the light slot and
+ * the dark slot at once, and each palette's CSS block is scoped to its own
+ * mode (`:root:not(.dark).theme-warm-cream`, `:root.dark.theme-oled`), so
+ * the flip alone moves the screen from one to the other.
+ */
+function watchSystemTheme(): void {
+  if (typeof window === 'undefined' || !window.matchMedia) return;
+  const mql = window.matchMedia('(prefers-color-scheme: light)');
+  mql.addEventListener('change', () => {
+    if (getStoredThemeMode() !== 'auto' || peekTheme) return;
+    paintTheme(getSystemTheme());
+    emitThemeChange();
+  });
+}
+
+/** One-shot bootstrap: call from main.tsx before React renders. */
+export function initTheme(): Theme {
+  const theme = getStoredTheme();
+  paintTheme(theme);
+  watchSystemTheme();
+  initColorTheme();
+  applyTextSize(getStoredTextSize());
+  activeCustomFonts = getStoredCustomFonts();
+  applyNoteFont(getStoredNoteFont());
+  applyContentWidth(getStoredContentWidth());
+  paintCodeWrap();
+  return theme;
+}
+
+// ------------------------------------------------------------------
+// Text size axis
+// ------------------------------------------------------------------
+
+const TEXT_SIZE_KEY = 'privacynotes.textSize';
+
+/**
+ * How big the writing surface renders. Drives `--pn-text-scale` in
+ * index.css, which the editor's type scale derives from; nothing else
+ * in the app chrome scales (that is a much larger job - most of the
+ * chrome is pinned to literal pixel sizes).
+ *
+ * Device-local on purpose, like every other axis: a phone held at arm's
+ * length and a 27" monitor want different answers, so syncing this would
+ * mean fixing it on one device and breaking it on another. Same
+ * reasoning as the light/dark mode above.
+ */
+export const TEXT_SIZES = ['xs', 'sm', 'md', 'lg', 'xl'] as const;
+export type TextSize = (typeof TEXT_SIZES)[number];
+
+/** Type guard. */
+function isTextSize(v: unknown): v is TextSize {
+  return typeof v === 'string' && (TEXT_SIZES as readonly string[]).includes(v);
+}
+
+/** Read the stored size. Anything unrecognised means the default. */
+function getStoredTextSize(): TextSize {
+  const stored = localStorage.getItem(TEXT_SIZE_KEY);
+  return isTextSize(stored) ? stored : 'md';
+}
+
+/** Currently applied size (mirrors <html>, for the React snapshot). */
+let activeTextSize: TextSize = 'md';
+
+/** Apply a text size to <html> and persist it. */
+function applyTextSize(size: TextSize): void {
+  activeTextSize = size;
+  document.documentElement.dataset.textSize = size;
+  localStorage.setItem(TEXT_SIZE_KEY, size);
+}
+
+// ------------------------------------------------------------------
+// Note font axis
+// ------------------------------------------------------------------
+
+const NOTE_FONT_KEY = 'privacynotes.noteFont';
+
+/**
+ * The typeface every note renders in, for a reader who writes most notes
+ * in one (GitHub #615). Drives `data-note-font` on <html>, which index.css
+ * reads; nothing is written into a note, and a font picked in the toolbar
+ * still wins over it. Device-local, like the text size beside it.
+ * Spec: index.css (Note font), values from FONT_FAMILIES in editorColors.ts
+ */
+export const NOTE_FONTS = ['sans', 'serif', 'mono'] as const;
+export type NoteFont = (typeof NOTE_FONTS)[number];
+
+function getStoredNoteFont(): NoteFont {
+  try {
+    const stored = localStorage.getItem(NOTE_FONT_KEY);
+    return (NOTE_FONTS as readonly string[]).includes(stored ?? '') ? (stored as NoteFont) : 'sans';
+  } catch {
+    return 'sans';
+  }
+}
+
+let activeNoteFont: NoteFont = 'sans';
+
+/** Paint a note font on <html> and persist it. */
+function applyNoteFont(font: NoteFont): void {
+  activeNoteFont = font;
+  document.documentElement.dataset.noteFont = font;
+  localStorage.setItem(NOTE_FONT_KEY, font);
+  paintCustomFont();
+}
+
+const CUSTOM_FONTS_KEY = 'privacynotes.noteFontCustom';
+
+/**
+ * A font installed on this device, named by the reader, for each note font
+ * (GitHub #716). The one for the chosen note font goes first in the stack,
+ * and the built-in stack stays behind it, so a font that is not here (or a
+ * typo) falls back to what the note font shows without one. Device-local:
+ * installed fonts differ from one computer to the next. Nothing is written
+ * into a note, and code keeps its own font.
+ * Spec: index.css (Note font)
+ */
+export type CustomFonts = Partial<Record<NoteFont, string>>;
+
+/** The longest name kept. Real family names stay far below it. */
+const CUSTOM_FONT_MAX = 100;
+
+/** A name as the stack can quote it: no quote, backslash or control
+ *  character, so it can never close the string it sits in. */
+export function cleanFontName(name: string): string {
+  // eslint-disable-next-line no-control-regex
+  return name.replace(/["\\\u0000-\u001f\u007f]/g, '').trim().slice(0, CUSTOM_FONT_MAX);
+}
+
+function getStoredCustomFonts(): CustomFonts {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(CUSTOM_FONTS_KEY) ?? '{}');
+    const out: CustomFonts = {};
+    if (raw && typeof raw === 'object') {
+      for (const font of NOTE_FONTS) {
+        const v = (raw as Record<string, unknown>)[font];
+        const name = typeof v === 'string' ? cleanFontName(v) : '';
+        if (name) out[font] = name;
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+let activeCustomFonts: CustomFonts = {};
+
+/** The full font-family value for a note font: the reader's font, if any,
+ *  in front of the built-in stack. */
+export function noteFontStack(font: NoteFont, custom: CustomFonts = activeCustomFonts): string {
+  const stack = FONT_FAMILIES.find((f) => f.name.toLowerCase() === font)?.value ?? 'sans-serif';
+  const name = custom[font];
+  return name ? `"${name}", ${stack}` : stack;
+}
+
+/** Paint the custom font of the chosen note font, or clear it. */
+function paintCustomFont(): void {
+  const root = document.documentElement;
+  if (activeCustomFonts[activeNoteFont]) {
+    root.style.setProperty('--pn-note-font-custom', noteFontStack(activeNoteFont));
+    root.dataset.noteFontCustom = '';
+  } else {
+    root.style.removeProperty('--pn-note-font-custom');
+    delete root.dataset.noteFontCustom;
+  }
+}
+
+/** Set (or, with an empty name, clear) one note font's custom font. */
+function applyCustomFont(font: NoteFont, name: string): void {
+  const clean = cleanFontName(name);
+  const next = { ...activeCustomFonts };
+  if (clean) next[font] = clean;
+  else delete next[font];
+  activeCustomFonts = next;
+  try {
+    if (Object.keys(next).length) localStorage.setItem(CUSTOM_FONTS_KEY, JSON.stringify(next));
+    else localStorage.removeItem(CUSTOM_FONTS_KEY);
+  } catch { /* ignore */ }
+  paintCustomFont();
+}
+
+// ------------------------------------------------------------------
+// Line spacing axis
+// ------------------------------------------------------------------
+
+/**
+ * The gap between two paragraphs, and on 'tight' the line height as well.
+ * Drives `--pn-para-gap` in index.css, which the shared `.prose` block
+ * reads - the editor, the burn note viewer, the note history modal and the
+ * markdown file pane at once - and `--pn-line-height`, which the editor
+ * reads.
+ *
+ * 'compact' has no gap, so Enter costs the same line as Shift+Enter.
+ * 'tight' keeps that and sets the lines closer (GitHub #255). 'compact' is
+ * also the absent state, which is what a surface with no account behind
+ * it paints: a burn page, and any note opened before settings arrive.
+ *
+ * The one axis in this file the ACCOUNT owns rather than the device.
+ * Everything else here is a property of the screen in front of you; this
+ * is a property of how somebody writes, and it should follow them from
+ * the phone they typed the note on to the laptop they read it on. So the
+ * value lives on UserSettings and syncs, this module only paints it, and
+ * there is deliberately no localStorage key below.
+ * Spec: docs/internal/design-decisions.md (editor paragraph rhythm)
+ */
+// The values are stored and synced, so they never change; the labels the
+// reader sees are Tight, Default and Relaxed (settings.json lineSpacing*).
+export const LINE_SPACINGS = ['tight', 'compact', 'normal'] as const;
+export type LineSpacing = (typeof LINE_SPACINGS)[number];
+
+/** Type guard, for the settings blob's decode step. */
+export function isLineSpacing(v: unknown): v is LineSpacing {
+  return typeof v === 'string' && (LINE_SPACINGS as readonly string[]).includes(v);
+}
+
+/** Paint a line spacing on <html>. The caller owns the value. */
+export function applyLineSpacing(spacing: LineSpacing): void {
+  document.documentElement.dataset.lineSpacing = spacing;
+}
+
+/**
+ * The spacing currently painted. For the two places that need the value
+ * without the settings blob in reach: the export stylesheet, which builds a
+ * standalone file, and the editor's clipboard serializer. Absent reads as
+ * compact, which is also what those two surfaces should produce before any
+ * account has been loaded.
+ */
+export function readLineSpacing(): LineSpacing {
+  const painted = document.documentElement.dataset.lineSpacing;
+  return isLineSpacing(painted) ? painted : 'compact';
+}
+
+/**
+ * The paragraph gap as a CSS length, for markup that leaves the app and so
+ * cannot read `--pn-para-gap`: the export stylesheet, the HTML flavour of a
+ * copy, and the burn viewer, which lays a note out in its sender's spacing.
+ * Keep it equal to the values in index.css.
+ * Spec: docs/internal/design-decisions.md (editor paragraph rhythm)
+ */
+export function paragraphGapCss(spacing: LineSpacing = readLineSpacing()): string {
+  return spacing === 'normal' ? '0.75em' : '0';
+}
+
+/** The line height as a CSS number, for the export stylesheet and the burn
+ *  viewer. Keep it equal to `--pn-line-height` in index.css. */
+export function lineHeightCss(spacing: LineSpacing = readLineSpacing()): string {
+  return spacing === 'tight' ? '1.4' : '1.7';
+}
+
+// ------------------------------------------------------------------
+// Nested numbers axis
+// ------------------------------------------------------------------
+
+/**
+ * How a numbered list inside a numbered list counts: 'flat' starts every
+ * level at 1, 'outline' writes the whole path, 1.1 and 1.1.1 (GitHub #689).
+ * Drives `data-nested-numbers` on <html>, which index.css reads. Nothing is
+ * written into a note: the Markdown keeps its plain `1.` items. Synced like
+ * the line spacing, so a note counts the same on every device and in its
+ * export; the value lives on UserSettings and this module only paints it.
+ * Spec: index.css (Nested numbers)
+ */
+export const NESTED_NUMBERS = ['flat', 'outline'] as const;
+export type NestedNumbers = (typeof NESTED_NUMBERS)[number];
+
+/** Type guard, for the settings blob's decode step. */
+export function isNestedNumbers(v: unknown): v is NestedNumbers {
+  return typeof v === 'string' && (NESTED_NUMBERS as readonly string[]).includes(v);
+}
+
+/** Paint the nested numbers on <html>. The caller owns the value. */
+export function applyNestedNumbers(style: NestedNumbers): void {
+  document.documentElement.dataset.nestedNumbers = style;
+}
+
+/** The style painted now, for the export stylesheet. Absent reads as flat. */
+export function readNestedNumbers(): NestedNumbers {
+  const painted = document.documentElement.dataset.nestedNumbers;
+  return isNestedNumbers(painted) ? painted : 'flat';
+}
+
+// ------------------------------------------------------------------
+// Content width axis
+// ------------------------------------------------------------------
+
+const CONTENT_WIDTH_KEY = 'privacynotes.contentWidth';
+
+/**
+ * How wide the editor's reading column runs. Drives `--pn-content-max`
+ * in index.css, which `.pn-content-col` reads - the one place the cap
+ * lives, for both the note editor and the markdown file pane.
+ *
+ * The steps multiply the 56rem default rather than taking a percentage
+ * of the pane, so collapsing the notes list never reflows the text.
+ * 'full' removes the cap and the column takes the pane whole.
+ *
+ * Painting it on <html> is what lets zen mode, markdown mode, the trash
+ * and read-only notes honour the choice: all four hide the tag row that
+ * carries the toggle button, and none of them needs React state to obey
+ * a CSS variable. Settings > Editor is the way back in those modes.
+ *
+ * Device-local, for the text-size reason: a phone never reaches the cap
+ * at all, so syncing this would fix one screen and do nothing for the
+ * other.
+ * Spec: docs/internal/design-decisions.md (editor content column max-width)
+ */
+export const CONTENT_WIDTHS = ['default', 'wide', 'full'] as const;
+export type ContentWidth = (typeof CONTENT_WIDTHS)[number];
+
+/** Type guard. */
+function isContentWidth(v: unknown): v is ContentWidth {
+  return typeof v === 'string' && (CONTENT_WIDTHS as readonly string[]).includes(v);
+}
+
+/** Read the stored width. Anything unrecognised means the default. */
+function getStoredContentWidth(): ContentWidth {
+  const stored = localStorage.getItem(CONTENT_WIDTH_KEY);
+  return isContentWidth(stored) ? stored : 'default';
+}
+
+/** Currently applied width (mirrors <html>, for the React snapshot). */
+let activeContentWidth: ContentWidth = 'default';
+
+/** Apply a content width to <html> and persist it. */
+function applyContentWidth(width: ContentWidth): void {
+  activeContentWidth = width;
+  document.documentElement.dataset.contentWidth = width;
+  localStorage.setItem(CONTENT_WIDTH_KEY, width);
+}
+
+// ------------------------------------------------------------------
+// Spell check axis
+// ------------------------------------------------------------------
+
+const SPELLCHECK_KEY = 'privacynotes.spellcheck';
+
+/**
+ * Whether the writing surfaces let the engine spell-check them. Default on.
+ *
+ * The app ships no dictionary of its own - every red squiggle comes from
+ * the engine the app is rendered in, and that engine picks the dictionary,
+ * not us. On Windows the WebView takes it from the system UI language and
+ * ignores the document's own language entirely, so someone writing French
+ * on an English install gets every word underlined with nothing in the app
+ * to change it. This flag is that missing off switch.
+ * Spec: docs/internal/design-decisions.md (Spell check is the engine's, not ours)
+ *
+ * Device-local and NOT synced, for the text-size reason above and one
+ * stronger: the dictionary belongs to the machine, not the account. The
+ * same notes are usually fine in a browser and wrong in the Windows app,
+ * so syncing the fix would break the device that already worked.
+ */
+function getStoredSpellcheck(): boolean {
+  return localStorage.getItem(SPELLCHECK_KEY) !== '0';
+}
+
+/** Currently applied value (mirrors localStorage, for the React snapshot). */
+let activeSpellcheck: boolean = getStoredSpellcheck();
+
+/** Persist a spell-check choice. Nothing is painted on <html>: the writing
+ *  surfaces read the value and emit their own attribute when it is off. */
+function applySpellcheck(on: boolean): void {
+  activeSpellcheck = on;
+  localStorage.setItem(SPELLCHECK_KEY, on ? '1' : '0');
+}
+
+// ------------------------------------------------------------------
+// Copied text axis
+// ------------------------------------------------------------------
+
+const COPY_FORMAT_KEY = 'privacynotes.copyFormat';
+
+/** What the plain-text part of a copy from a note holds. */
+export type CopyFormat = 'markdown' | 'plain';
+
+/**
+ * Default Markdown, today's copy. Plain text drops every formatting
+ * character, for a reader who pastes tasks into forms and work tools that
+ * print `- [ ]` as it is. Device-local, like spell check: what a paste
+ * target understands belongs to the device's apps, not the account.
+ * Spec: docs/internal/specs/paste-pictures.md (section 3.6)
+ */
+function getStoredCopyFormat(): CopyFormat {
+  try {
+    return localStorage.getItem(COPY_FORMAT_KEY) === 'plain' ? 'plain' : 'markdown';
+  } catch {
+    return 'markdown';
+  }
+}
+
+let activeCopyFormat: CopyFormat = getStoredCopyFormat();
+
+function applyCopyFormat(format: CopyFormat): void {
+  activeCopyFormat = format;
+  localStorage.setItem(COPY_FORMAT_KEY, format);
+}
+
+/** The format "Copy as ..." asks the serializer for, while it runs. */
+let copyFormatOnce: CopyFormat | null = null;
+
+/** For the copy serializer, which runs outside React. */
+export function readCopyFormat(): CopyFormat {
+  return copyFormatOnce ?? activeCopyFormat;
+}
+
+/**
+ * Runs `run` with the copy serializer reading the given format, and leaves
+ * the setting as it was. Spec: docs/internal/issues/0546.md (Spec)
+ */
+export function withCopyFormat(format: CopyFormat, run: () => void): void {
+  copyFormatOnce = format;
+  try {
+    run();
+  } finally {
+    copyFormatOnce = null;
+  }
+}
+
+// ------------------------------------------------------------------
+// Pasted text axis
+// ------------------------------------------------------------------
+
+const PASTE_FORMAT_KEY = 'privacynotes.pasteFormat';
+
+/** What a paste from another app keeps. */
+export type PasteFormat = 'formatted' | 'plain';
+
+/**
+ * Default Formatted. Plain text makes every paste from another app take the
+ * same path as a paste with Shift held, which phones have no key for.
+ * Device-local, like the copied text.
+ * Spec: docs/internal/issues/0508.md (Spec)
+ */
+function getStoredPasteFormat(): PasteFormat {
+  try {
+    return localStorage.getItem(PASTE_FORMAT_KEY) === 'plain' ? 'plain' : 'formatted';
+  } catch {
+    return 'formatted';
+  }
+}
+
+let activePasteFormat: PasteFormat = getStoredPasteFormat();
+
+function applyPasteFormat(format: PasteFormat): void {
+  activePasteFormat = format;
+  localStorage.setItem(PASTE_FORMAT_KEY, format);
+}
+
+/** For the editor's paste handler, which runs outside React. */
+export function readPasteFormat(): PasteFormat {
+  return activePasteFormat;
+}
+
+// ------------------------------------------------------------------
+// Link click axis
+// ------------------------------------------------------------------
+
+const LINK_MODIFIER_KEY = 'privacynotes.linkModifier';
+
+/**
+ * Whether a mouse click on a link in a note needs Cmd (Ctrl off a Mac) to
+ * open it. Default off: a click opens, as GitHub #293 asked. On, a plain
+ * click places the caret, for a reader who opened links by mistake
+ * (GitHub #633). A tap still opens, since a touch screen has no key to hold.
+ * Device-local, like the copied text: it follows the pointer in use.
+ */
+function getStoredLinkModifier(): boolean {
+  try {
+    return localStorage.getItem(LINK_MODIFIER_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+let activeLinkModifier: boolean = getStoredLinkModifier();
+
+function applyLinkModifier(on: boolean): void {
+  activeLinkModifier = on;
+  localStorage.setItem(LINK_MODIFIER_KEY, on ? '1' : '0');
+}
+
+/** For the link click handlers, which run outside React. */
+export function readLinkModifier(): boolean {
+  return activeLinkModifier;
+}
+
+// ------------------------------------------------------------------
+// Website icons axis
+// ------------------------------------------------------------------
+
+const FAVICONS_KEY = 'privacynotes.favicons';
+
+/**
+ * Whether links and vault logins show the site's own icon. Default ON.
+ *
+ * Device-local, for the same reason as the axes above: it is about how
+ * someone is reading right now. It is also the only off
+ * switch for the one thing the icons cost - a request per new domain to our
+ * proxy - so it has to work on the device making the requests.
+ *
+ * Every surface reads it through `getFavicons()` rather than the hook, so
+ * the non-React callers (markdownRender for export, print and burn pages,
+ * the editor's decoration plugin) see the same value.
+ * Spec: docs/internal/design-decisions.md (Website icons toggle)
+ */
+function getStoredFavicons(): boolean {
+  return localStorage.getItem(FAVICONS_KEY) !== '0';
+}
+
+/** Currently applied value (mirrors localStorage, for the React snapshot). */
+let activeFavicons: boolean = getStoredFavicons();
+
+/** Read the current choice from anywhere, React or not. */
+export function getFavicons(): boolean {
+  return activeFavicons;
+}
+
+/** Persist a website-icons choice. Nothing is painted on <html>: each
+ *  surface reads the value and renders its own placeholder when it is off. */
+function applyFavicons(on: boolean): void {
+  activeFavicons = on;
+  localStorage.setItem(FAVICONS_KEY, on ? '1' : '0');
+}
+
+// ------------------------------------------------------------------
+// Invisible characters axis
+// ------------------------------------------------------------------
+
+const INVISIBLES_KEY = 'privacynotes.invisibles';
+
+/**
+ * Whether the editor paints pilcrows, space dots and line-break arrows.
+ * Default OFF - it is a proofreading aid, not a writing default.
+ *
+ * Device-local, for the same reason as spell check and text size above:
+ * it is a property of how someone is reading right now, not of the
+ * account. Someone who turns it on to hunt a stray double space on the
+ * desktop does not want every phone session showing dots.
+ *
+ * Purely decorative - the extension paints ProseMirror decorations and never
+ * touches the document, so nothing here can reach stored markdown.
+ * Spec: docs/internal/design-decisions.md (Invisible characters toggle)
+ */
+function getStoredInvisibles(): boolean {
+  return localStorage.getItem(INVISIBLES_KEY) === '1';
+}
+
+/** Currently applied value (mirrors localStorage, for the React snapshot). */
+let activeInvisibles: boolean = getStoredInvisibles();
+
+/** Persist an invisible-characters choice. Nothing is painted on <html>: the
+ *  editor reads the value and drives the extension command from it. */
+function applyInvisibles(on: boolean): void {
+  activeInvisibles = on;
+  localStorage.setItem(INVISIBLES_KEY, on ? '1' : '0');
+}
+
+// ------------------------------------------------------------------
+// Color theme axis
+// ------------------------------------------------------------------
+
+/**
+ * Two slots: the palette for light mode and the palette for dark mode, so
+ * Auto switches between the user's own pair. The key before the pair held
+ * one palette for whichever mode it belonged to; it is read to seed the slot
+ * of that mode and never written.
+ */
+const LEGACY_COLOR_THEME_KEY = 'privacynotes.colorTheme';
+const COLOR_THEME_KEYS: Record<Theme, string> = {
+  light: 'privacynotes.colorTheme.light',
+  dark: 'privacynotes.colorTheme.dark',
+};
+
+/**
+ * Available color themes. Grouped by mode (light/dark).
+ *
+ * 'default' uses the built-in palette for the active mode and needs
+ * no extra class on <html>. Named themes add `theme-<name>` which
+ * activates CSS custom property overrides in index.css.
+ *
+ * The list is intentionally kept here (not in a config file) so
+ * theme.ts remains the single source of truth for both axes.
+ */
+const COLOR_THEMES = [
+  'default',
+  'warm-cream',
+  'slate',
+  'sage',
+  'soft-dark',
+  'navy-depths',
+  'oled',
+] as const;
+export type ColorTheme = (typeof COLOR_THEMES)[number];
+
+/** Display names for the picker UI. */
+export const THEME_DISPLAY_NAME: Record<ColorTheme, string> = {
+  'default': 'Default',
+  'warm-cream': 'Cream',
+  'slate': 'Slate',
+  'sage': 'Sage',
+  'soft-dark': 'Soft',
+  'navy-depths': 'Navy',
+  'oled': 'OLED',
+};
+
+/** Swatch colors per theme - 3 vertical stripes: sidebar tone, accent,
+    text. Stripe one is the sidebar (`--pn-surface-0`), never the list or
+    the editor tone: it is the widest spread the palettes have, so it is
+    what makes one chip read as a different theme from the next.
+    The Design pane's cards and Ninja's theme rows draw it.
+    Spec: docs/contrib/color-themes.md (section 4, adding a theme) */
+const SWATCH: Record<ColorTheme, [string, string, string]> = {
+  'default': ['#F5F5F5', '#1E40AF', '#0A0A0A'],
+  'warm-cream': ['#E1D8C4', '#1840B1', '#2D2416'],
+  'slate': ['#DDE1E8', '#4338CA', '#121524'],
+  'soft-dark': ['#1C1F26', '#89B7E6', '#CDD3DE'],
+  'navy-depths': ['#0D1321', '#83A4F8', '#D4DAE7'],
+  'sage': ['#E1E7DE', '#2B6A4D', '#17201A'],
+  'oled': ['#000000', '#4A90D9', '#E8E8E8'],
+};
+
+/** The Default card stands for whichever palette the painted mode uses, so
+    unlike a named theme it has one set of stripes per mode. The table above
+    holds the light one. */
+const SWATCH_DEFAULT_DARK: [string, string, string] = ['#171514', '#4A90D9', '#D9D4CC'];
+
+export function themeSwatch(ct: ColorTheme, dark: boolean): [string, string, string] {
+  return ct === 'default' && dark ? SWATCH_DEFAULT_DARK : SWATCH[ct];
+}
+
+/** Themes available for a given mode (for the picker grid). */
+export const LIGHT_THEMES: ColorTheme[] = ['default', 'warm-cream', 'slate', 'sage'];
+export const DARK_THEMES: ColorTheme[] = ['default', 'soft-dark', 'navy-depths', 'oled'];
+
+/** Themes available on the free tier (everything else requires Pro). */
+export const FREE_THEMES: ReadonlySet<ColorTheme> = new Set(['default']);
+
+/** Type guard. */
+export function isColorTheme(v: unknown): v is ColorTheme {
+  return typeof v === 'string' && (COLOR_THEMES as readonly string[]).includes(v);
+}
+
+/** The mode a named palette belongs to. `default` belongs to both. */
+function modeOf(ct: ColorTheme): Theme | null {
+  if (ct === 'default') return null;
+  return (LIGHT_THEMES as readonly string[]).includes(ct) ? 'light' : 'dark';
+}
+
+// ------------------------------------------------------------------
+// Custom themes in a slot
+// ------------------------------------------------------------------
+
+/**
+ * A slot holds a built-in palette, or a custom theme by its id. The list of
+ * custom themes is in the settings blob (customThemes.ts); the device keeps a
+ * snapshot of the colors of the one in each slot, so the first paint needs
+ * neither the blob nor the theme parser. Both slots paint through two fixed
+ * classes, `theme-custom-light` and `theme-custom-dark`, and one generated
+ * <style>, so no theme id ever reaches CSS and the stylesheet does not grow
+ * with the list. Spec: docs/contrib/color-themes.md (section 6)
+ */
+export type CustomChoice = `custom:${string}`;
+export type ThemeChoice = ColorTheme | CustomChoice;
+
+export interface CustomSnapshot {
+  id: string;
+  /** The canonical theme code, so a synced edit can be told from no change. */
+  code: string;
+  mode: Theme;
+  /** `#RRGGBB` per token, without the `--pn-` prefix. */
+  colors: Record<string, string>;
+  /** Set when the theme keeps the logo in its original colors. */
+  logo?: 'original';
+}
+
+export const customChoice = (id: string): CustomChoice => `custom:${id}`;
+export function customIdOf(choice: string): string | null {
+  return choice.startsWith('custom:') ? choice.slice('custom:'.length) : null;
+}
+/** Whether a free account may keep this choice. */
+export function isFreeTheme(choice: ThemeChoice): boolean {
+  return FREE_THEMES.has(choice as ColorTheme);
+}
+
+const CUSTOM_KEYS: Record<Theme, string> = {
+  light: 'privacynotes.customTheme.light',
+  dark: 'privacynotes.customTheme.dark',
+};
+// The tokens a custom theme sets; TOKEN_KEYS in themeCode.ts, and
+// tests/themeCode.test.ts keeps the two lists equal.
+const CUSTOM_TOKENS = [
+  'surface-0', 'surface-1', 'surface-2', 'track', 'divider',
+  'text', 'text-soft', 'text-muted',
+  'accent', 'accent-hover', 'accent-fill', 'accent-fill-hover',
+  'danger', 'warning', 'success',
+] as const;
+
+/** A snapshot from storage, or null unless every part of it is what one holds. */
+function validSnapshot(raw: unknown, mode: Theme): CustomSnapshot | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Partial<CustomSnapshot>;
+  if (typeof r.id !== 'string' || !/^[a-z0-9]{12}$/.test(r.id)) return null;
+  if (typeof r.code !== 'string' || r.code.length > 512 || r.mode !== mode) return null;
+  const colors = r.colors;
+  if (!colors || typeof colors !== 'object') return null;
+  const out: Record<string, string> = {};
+  for (const key of CUSTOM_TOKENS) {
+    const v = (colors as Record<string, unknown>)[key];
+    if (typeof v !== 'string' || !/^#[0-9A-F]{6}$/.test(v)) return null;
+    out[key] = v;
+  }
+  // Optional: a snapshot written before the label or the paper key has
+  // neither; the label then keeps the accent and the paper the background.
+  for (const key of ['label', 'paper']) {
+    const v = (colors as Record<string, unknown>)[key];
+    if (v === undefined) continue;
+    if (typeof v !== 'string' || !/^#[0-9A-F]{6}$/.test(v)) return null;
+    out[key] = v;
+  }
+  // Optional too: a theme that tints the logo, as every theme does unless it
+  // says otherwise, has none.
+  if (r.logo !== undefined && r.logo !== 'original') return null;
+  return { id: r.id, code: r.code, mode, colors: out, ...(r.logo ? { logo: r.logo } : {}) };
+}
+
+function readSnapshot(mode: Theme): CustomSnapshot | null {
+  try {
+    return validSnapshot(JSON.parse(localStorage.getItem(CUSTOM_KEYS[mode]) ?? 'null'), mode);
+  } catch {
+    return null;
+  }
+}
+
+const storedSnapshots: Record<Theme, CustomSnapshot | null> = {
+  light: readSnapshot('light'),
+  dark: readSnapshot('dark'),
+};
+/** A theme shown without being saved: the builder and a pasted code. */
+const previewSnapshots: Record<Theme, CustomSnapshot | null> = { light: null, dark: null };
+
+/** Read one slot. A slot never written takes the legacy value when that
+ *  value belongs to its mode. A custom choice stands only while the device
+ *  holds its snapshot. */
+export function getStoredColorTheme(mode: Theme): ThemeChoice {
+  const stored = localStorage.getItem(COLOR_THEME_KEYS[mode]);
+  if (stored && customIdOf(stored) !== null) {
+    const snap = storedSnapshots[mode];
+    return snap && stored === customChoice(snap.id) ? (stored as CustomChoice) : 'default';
+  }
+  if (isColorTheme(stored) && (stored === 'default' || modeOf(stored) === mode)) return stored;
+  let legacy = localStorage.getItem(LEGACY_COLOR_THEME_KEY);
+  if (legacy === 'cool-white') legacy = 'slate'; // the stored name of 'slate' in older installs
+  if (isColorTheme(legacy) && modeOf(legacy) === mode) return legacy;
+  return 'default';
+}
+
+/** The palette shown in each slot (may differ from storage during a preview). */
+const activeColorThemes: Record<Theme, ThemeChoice> = {
+  light: getStoredColorTheme('light'),
+  dark: getStoredColorTheme('dark'),
+};
+
+/** The snapshot a slot paints, if it shows a custom theme. */
+function slotSnapshot(mode: Theme): CustomSnapshot | null {
+  const id = customIdOf(activeColorThemes[mode]);
+  if (!id) return null;
+  const snap = previewSnapshots[mode] ?? storedSnapshots[mode];
+  return snap && snap.id === id ? snap : null;
+}
+
+/** What a slot paints now, a preview included: the choice, and its snapshot
+ *  when the choice is a custom theme. */
+export function paintedSlot(mode: Theme): { choice: ThemeChoice; snapshot: CustomSnapshot | null } {
+  return { choice: activeColorThemes[mode], snapshot: slotSnapshot(mode) };
+}
+
+const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(' ');
+
+/** The one generated stylesheet: a mode-scoped rule per slot that shows a
+ *  custom theme, built from validated hex and allowlisted token names. It is
+ *  unlayered, so it outranks the palette blocks in index.css. */
+function paintCustomRules(): void {
+  const rules: string[] = [];
+  for (const mode of ['light', 'dark'] as const) {
+    const snap = slotSnapshot(mode);
+    if (!snap) continue;
+    const selector = mode === 'dark' ? ':root.dark.theme-custom-dark' : ':root:not(.dark).theme-custom-light';
+    const decls = CUSTOM_TOKENS.map((k) => `--pn-${k}:${channels(snap.colors[k]!)}`);
+    // The folder and tag ink, which also colors the Jump to hover. A snapshot
+    // from before it existed has none and keeps the mode's value until the
+    // slot is reconciled.
+    const label = snap.colors.label;
+    if (label) decls.push(`--pn-label:${channels(label)}`);
+    // The writing area; without one it is the background.
+    decls.push(`--pn-paper:${channels(snap.colors.paper ?? snap.colors['surface-2']!)}`);
+    rules.push(`${selector}{${decls.join(';')}}`);
+  }
+  let el = document.getElementById('pn-custom-themes');
+  if (rules.length === 0) {
+    el?.remove();
+    return;
+  }
+  if (!el) {
+    el = document.createElement('style');
+    el.id = 'pn-custom-themes';
+    document.head.append(el);
+  }
+  el.textContent = rules.join('\n');
+}
+
+/** Put both slots on <html>. Each palette's CSS block is scoped to its own
+ *  mode, so only the slot of the painted mode applies, and a mode flip needs
+ *  no repaint here. */
+function paintColorThemes(): void {
+  const root = document.documentElement;
+  suppressThemeTransitions();
+  // Snapshot first: removing while iterating a live classList skips entries.
+  const toRemove = [...root.classList].filter((c) => c.startsWith('theme-') || c.startsWith('logo-'));
+  toRemove.forEach((c) => root.classList.remove(c));
+  for (const mode of ['light', 'dark'] as const) {
+    const ct = activeColorThemes[mode];
+    if (customIdOf(ct) !== null) {
+      const snap = slotSnapshot(mode);
+      if (snap) root.classList.add(`theme-custom-${mode}`);
+      // A theme that keeps the logo in its original colors, for its own mode
+      // only (index.css, the logo tint block).
+      if (snap?.logo) root.classList.add(`logo-${mode}-${snap.logo}`);
+    } else if (ct !== 'default') {
+      root.classList.add(`theme-${ct}`);
+    }
+  }
+  paintCustomRules();
+  paintNativeBars();
+}
+
+/** Show a palette in one slot without saving it: a free user's preview, or
+ *  a page that shows the defaults while it is on screen. */
+export function previewColorTheme(mode: Theme, ct: ThemeChoice): void {
+  activeColorThemes[mode] = ct;
+  if (customIdOf(ct) === null) previewSnapshots[mode] = null;
+  paintColorThemes();
+}
+
+/** Save a palette in one slot and paint it. A built-in palette drops the
+ *  slot's custom snapshot, so a theme deleted later leaves nothing behind. */
+function applyColorTheme(mode: Theme, ct: ThemeChoice): void {
+  activeColorThemes[mode] = ct;
+  previewSnapshots[mode] = null;
+  localStorage.setItem(COLOR_THEME_KEYS[mode], ct);
+  if (customIdOf(ct) === null && storedSnapshots[mode]) {
+    storedSnapshots[mode] = null;
+    localStorage.removeItem(CUSTOM_KEYS[mode]);
+  }
+  paintColorThemes();
+}
+
+/** Save a custom theme in the slot of its mode and paint it. */
+function applyCustomTheme(snap: CustomSnapshot): void {
+  storedSnapshots[snap.mode] = snap;
+  localStorage.setItem(CUSTOM_KEYS[snap.mode], JSON.stringify(snap));
+  applyColorTheme(snap.mode, customChoice(snap.id));
+}
+
+/**
+ * Show a custom theme in a slot without saving it, for the builder and a
+ * pasted code. Null ends the preview and shows the saved slot again.
+ */
+export function previewCustomTheme(mode: Theme, snap: CustomSnapshot | null): void {
+  previewSnapshots[mode] = snap ? validSnapshot(snap, mode) : null;
+  const preview = previewSnapshots[mode];
+  activeColorThemes[mode] = preview ? customChoice(preview.id) : getStoredColorTheme(mode);
+  paintColorThemes();
+  emitThemeChange();
+}
+
+/**
+ * Put Default in every slot that holds a Pro theme, for an account the
+ * server reports as free: Pro ends only by a refund or a chargeback. The
+ * saved custom themes stay in the list, so a repurchase brings them back.
+ * Spec: docs/internal/pro-features.md (Color themes)
+ */
+export function dropProThemes(): void {
+  let changed = false;
+  for (const mode of ['light', 'dark'] as const) {
+    if (isFreeTheme(getStoredColorTheme(mode))) continue;
+    applyColorTheme(mode, 'default');
+    changed = true;
+  }
+  if (changed) emitThemeChange();
+}
+
+/**
+ * Keep the slots in step with the theme list after it loads or syncs: a
+ * theme edited on another device repaints with its new colors, and a theme
+ * that is gone (deleted, or never in this account) leaves its slot for
+ * Default. `snapshotFor` returns the current snapshot of a listed theme of
+ * that mode, or null. Call it only once the list is the account's own.
+ * `persist` is false in the demo, which shares this storage with a real
+ * install on the same origin.
+ */
+export function reconcileCustomSlots(
+  snapshotFor: (id: string, mode: Theme) => CustomSnapshot | null,
+  persist: boolean,
+): void {
+  let changed = false;
+  for (const mode of ['light', 'dark'] as const) {
+    const id = customIdOf(getStoredColorTheme(mode));
+    if (!id) continue;
+    const next = snapshotFor(id, mode);
+    const prev = storedSnapshots[mode];
+    // The colors as well as the code: a snapshot written by an older build
+    // of this code repaints with the colors this build resolves.
+    if (next && (next.code !== prev?.code || JSON.stringify(next.colors) !== JSON.stringify(prev?.colors))) {
+      storedSnapshots[mode] = next;
+      if (persist) localStorage.setItem(CUSTOM_KEYS[mode], JSON.stringify(next));
+      changed = true;
+    } else if (!next) {
+      storedSnapshots[mode] = null;
+      if (persist) {
+        localStorage.setItem(COLOR_THEME_KEYS[mode], 'default');
+        localStorage.removeItem(CUSTOM_KEYS[mode]);
+      }
+      if (!previewSnapshots[mode]) activeColorThemes[mode] = 'default';
+      changed = true;
+    }
+  }
+  if (changed) {
+    paintColorThemes();
+    emitThemeChange();
+  }
+}
+
+/** Bootstrap color theme - called from initTheme(). */
+function initColorTheme(): void {
+  paintColorThemes();
+}
+
+// ------------------------------------------------------------------
+// Cross-axis reset
+// ------------------------------------------------------------------
+
+/**
+ * Put every axis back to its default and repaint.
+ *
+ * Called from one place only: the account-switch wipe in auth.tsx, when
+ * a DIFFERENT account signs in on this install. A plain sign-out leaves
+ * the axes alone on purpose, because they describe the screen in front
+ * of you and somebody signing back into their own account wants their
+ * own setup back. A new owner is the other case - the axes otherwise
+ * carried the previous person's taste into a fresh account on a shared
+ * machine, and a Pro palette with it, since nothing checks the stored
+ * theme against the new account's tier at sign-in.
+ *
+ * It repaints instead of only dropping the keys, because an account
+ * switch never reloads the page: a cleared key alone would leave <html>
+ * wearing the old palette until the next boot.
+ *
+ * Best effort. It runs inside the wipe that gates authentication, so a
+ * storage that refuses to write must not take the sign-in down with it.
+ */
+export function resetAppearance(): void {
+  try {
+    applyThemeDefaults();
+    applyStyleDefaults();
+    applySpellcheck(true);
+    applyCopyFormat('markdown');
+    applyPasteFormat('formatted');
+    applyLinkModifier(false);
+    setCodeWrap(true);
+  } catch { /* ignore */ }
+  emitThemeChange();
+}
+
+/** The device axes that Settings > Design shows. */
+function applyThemeDefaults(): void {
+  applyThemeMode('auto');
+  applyColorTheme('light', 'default');
+  applyColorTheme('dark', 'default');
+}
+
+/** The Themes tab's "Reset to defaults". */
+export function resetThemeAxes(): void {
+  try { applyThemeDefaults(); } catch { /* ignore */ }
+  emitThemeChange();
+}
+
+/** Every device axis outside the theme pair, for the sign-out wipe. The app
+ *  size emits on its own store, which this function's callers do not reach. */
+function applyStyleDefaults(): void {
+  applyTextSize('md');
+  for (const font of NOTE_FONTS) applyCustomFont(font, '');
+  applyNoteFont('sans');
+  applyContentWidth('default');
+  applyFavicons(true);
+  applyInvisibles(false);
+  applyAppZoom(DEFAULT_APP_ZOOM);
+}
+
+/** The Editor pane's "Reset to defaults", for the axes this device owns.
+ *  Website icons and the app size live on other panes and reset there; the
+ *  synced rows go back through the settings blob. */
+export function resetStyleAxes(): void {
+  try {
+    applyTextSize('md');
+    for (const font of NOTE_FONTS) applyCustomFont(font, '');
+    applyNoteFont('sans');
+    applyContentWidth('default');
+    applyInvisibles(false);
+  } catch { /* ignore */ }
+  emitThemeChange();
+}
+
+// ------------------------------------------------------------------
+// React hook (shared via useSyncExternalStore)
+// ------------------------------------------------------------------
+
+/**
+ * Subscribers notified whenever either axis changes. This is the
+ * single source of truth - every useTheme() call shares it, so the
+ * AppearanceSheet and the bottom-bar toggle can never desync.
+ */
+const themeListeners = new Set<() => void>();
+function subscribeTheme(cb: () => void) {
+  themeListeners.add(cb);
+  return () => { themeListeners.delete(cb); };
+}
+function emitThemeChange() {
+  themeListeners.forEach((cb) => cb());
+}
+
+/** Snapshot functions for useSyncExternalStore. */
+function getThemeSnapshot(): Theme { return peekTheme ?? getStoredTheme(); }
+
+function getThemeModeSnapshot(): ThemeMode { return getStoredThemeMode(); }
+function getLightColorThemeSnapshot(): ThemeChoice { return activeColorThemes.light; }
+function getDarkColorThemeSnapshot(): ThemeChoice { return activeColorThemes.dark; }
+function getTextSizeSnapshot(): TextSize { return activeTextSize; }
+function getContentWidthSnapshot(): ContentWidth { return activeContentWidth; }
+function getSpellcheckSnapshot(): boolean { return activeSpellcheck; }
+function getInvisiblesSnapshot(): boolean { return activeInvisibles; }
+function getFaviconsSnapshot(): boolean { return activeFavicons; }
+function getCopyFormatSnapshot(): CopyFormat { return activeCopyFormat; }
+function getPasteFormatSnapshot(): PasteFormat { return activePasteFormat; }
+function getLinkModifierSnapshot(): boolean { return activeLinkModifier; }
+function getNoteFontSnapshot(): NoteFont { return activeNoteFont; }
+function getCustomFontsSnapshot(): CustomFonts { return activeCustomFonts; }
+
+/** Website icons only depend on their visibility preference, not the palette. */
+export function useFavicons(): boolean {
+  return useSyncExternalStore(subscribeTheme, getFaviconsSnapshot);
+}
+
+function setColorTheme(mode: Theme, next: ThemeChoice): void {
+  applyColorTheme(mode, next);
+  emitThemeChange();
+}
+
+/**
+ * Keep a theme and show it. The slot of its mode takes it, and the screen
+ * moves to that mode: a pinned mode of the other kind switches, and Auto on
+ * a system in the other mode pins the theme's mode, so a pick never goes
+ * away when Settings closes. A pick of the mode on screen keeps Auto.
+ * Settings, the theme builder and Ninja all pick through this.
+ * Spec: docs/contrib/color-themes.md (section 1, a click on a theme)
+ */
+function pickTheme(mode: Theme, pick: ThemeChoice | CustomSnapshot): void {
+  if (typeof pick === 'string') applyColorTheme(mode, pick);
+  else applyCustomTheme(pick);
+  if (getStoredTheme() !== mode) applyThemeMode(mode);
+  else if (peekTheme) {
+    peekTheme = null;
+    paintTheme(mode);
+  }
+  emitThemeChange();
+}
+
+function setInvisibles(next: boolean): void {
+  applyInvisibles(next);
+  emitThemeChange();
+}
+
+function toggle(): void {
+  applyThemeMode(getStoredTheme() === 'dark' ? 'light' : 'dark');
+  emitThemeChange();
+}
+
+/** The shell reads writing preferences; CSS paints mode and palette changes.
+ * Spec: docs/contrib/color-themes.md (Theme switching performance)
+ */
+export function useShellAppearance() {
+  const spellcheck = useSyncExternalStore(subscribeTheme, getSpellcheckSnapshot);
+  const invisibles = useSyncExternalStore(subscribeTheme, getInvisiblesSnapshot);
+  return { spellcheck, invisibles, setColorTheme, pickTheme, setInvisibles, toggle };
+}
+
+/**
+ * React hook that exposes both axes and controls for each.
+ *
+ * All instances share state via useSyncExternalStore - changing the
+ * theme from any component (AppearanceSheet, bottom toggle, etc.)
+ * immediately updates every other consumer.
+ */
+export function useTheme() {
+  const theme = useSyncExternalStore(subscribeTheme, getThemeSnapshot);
+  const themeMode = useSyncExternalStore(subscribeTheme, getThemeModeSnapshot);
+  const lightTheme = useSyncExternalStore(subscribeTheme, getLightColorThemeSnapshot);
+  const darkTheme = useSyncExternalStore(subscribeTheme, getDarkColorThemeSnapshot);
+  /** The palette on screen now: the slot of the painted mode. */
+  const colorTheme = theme === 'dark' ? darkTheme : lightTheme;
+  const textSize = useSyncExternalStore(subscribeTheme, getTextSizeSnapshot);
+  const contentWidth = useSyncExternalStore(subscribeTheme, getContentWidthSnapshot);
+  const spellcheck = useSyncExternalStore(subscribeTheme, getSpellcheckSnapshot);
+  const invisibles = useSyncExternalStore(subscribeTheme, getInvisiblesSnapshot);
+  const favicons = useSyncExternalStore(subscribeTheme, getFaviconsSnapshot);
+  const copyFormat = useSyncExternalStore(subscribeTheme, getCopyFormatSnapshot);
+  const pasteFormat = useSyncExternalStore(subscribeTheme, getPasteFormatSnapshot);
+  const linkModifier = useSyncExternalStore(subscribeTheme, getLinkModifierSnapshot);
+  const noteFont = useSyncExternalStore(subscribeTheme, getNoteFontSnapshot);
+  const customFonts = useSyncExternalStore(subscribeTheme, getCustomFontsSnapshot);
+
+  /** Pin an explicit light/dark choice, replacing 'auto' if it was set. */
+  const setTheme = useCallback((next: Theme) => {
+    applyThemeMode(next);
+    emitThemeChange();
+  }, []);
+
+  const setThemeMode = useCallback((next: ThemeMode) => {
+    applyThemeMode(next);
+    emitThemeChange();
+  }, []);
+
+  /** Save a custom theme in the slot of its mode. */
+  const setCustomTheme = useCallback((snap: CustomSnapshot) => {
+    applyCustomTheme(snap);
+    emitThemeChange();
+  }, []);
+
+  const setTextSize = useCallback((next: TextSize) => {
+    applyTextSize(next);
+    emitThemeChange();
+  }, []);
+
+  const setContentWidth = useCallback((next: ContentWidth) => {
+    applyContentWidth(next);
+    emitThemeChange();
+  }, []);
+
+  /** Step to the next width and wrap. The editor's toggle is one button
+   *  with no room for three, so it cycles; the tooltip names the step it
+   *  will move to, and Appearance shows the whole ladder. */
+  const cycleContentWidth = useCallback(() => {
+    const i = CONTENT_WIDTHS.indexOf(activeContentWidth);
+    applyContentWidth(CONTENT_WIDTHS[(i + 1) % CONTENT_WIDTHS.length] ?? 'default');
+    emitThemeChange();
+  }, []);
+
+  const setSpellcheck = useCallback((next: boolean) => {
+    applySpellcheck(next);
+    emitThemeChange();
+  }, []);
+
+  const setFavicons = useCallback((next: boolean) => {
+    applyFavicons(next);
+    emitThemeChange();
+  }, []);
+
+  const setCopyFormat = useCallback((next: CopyFormat) => {
+    applyCopyFormat(next);
+    emitThemeChange();
+  }, []);
+
+  const setPasteFormat = useCallback((next: PasteFormat) => {
+    applyPasteFormat(next);
+    emitThemeChange();
+  }, []);
+
+  const setLinkModifier = useCallback((next: boolean) => {
+    applyLinkModifier(next);
+    emitThemeChange();
+  }, []);
+
+  const setNoteFont = useCallback((next: NoteFont) => {
+    applyNoteFont(next);
+    emitThemeChange();
+  }, []);
+
+  const setCustomFont = useCallback((font: NoteFont, name: string) => {
+    applyCustomFont(font, name);
+    emitThemeChange();
+  }, []);
+
+  /** Show a palette in one slot without persisting. Reverts on reload. */
+  const previewColor = useCallback((mode: Theme, next: ThemeChoice) => {
+    previewColorTheme(mode, next);
+    emitThemeChange();
+  }, []);
+
+  return { theme, themeMode, toggle, setTheme, setThemeMode, colorTheme, lightTheme, darkTheme, setColorTheme, setCustomTheme, pickTheme, previewColor, textSize, setTextSize, contentWidth, setContentWidth, cycleContentWidth, spellcheck, setSpellcheck, invisibles, setInvisibles, favicons, setFavicons, copyFormat, setCopyFormat, pasteFormat, setPasteFormat, linkModifier, setLinkModifier, noteFont, setNoteFont, customFonts, setCustomFont };
+}

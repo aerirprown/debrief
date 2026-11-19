@@ -1,0 +1,10 @@
+{
+  "id": "game-fixture-1",
+  "revision_id": "rev-root",
+  "parent_revision_id": null,
+  "device_id": "device-fixture",
+  "title": "Fixture Souls",
+  "executables": [],
+  "cover_path": null,
+  "come_back_on": null
+}

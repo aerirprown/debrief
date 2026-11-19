@@ -1,0 +1,161 @@
+{
+  "moveBanner": {
+    "bodySignIn": "Orada kurtarma ifadenizle ya da “{{scanQr}}” ile giriş yapın.",
+    "cta": "Şimdi taşı",
+    "syncing": "Notlarınız eşitleniyor…",
+    "error": "Şu anda her şey eşitlenemedi. Bağlantınızı kontrol edip tekrar deneyin.",
+    "conflict": "Notlarınızdan birinde kararınızı bekleyen bir eşitleme çakışması var. İletişim kutusunda çözün, sonra tekrar deneyin."
+  },
+  "movedHint": {
+    "body": "Uygulamanın yeni adresi burası. Yer imlerinizi use.privacynotes.app olarak güncelleyin ve ana ekran kısayolunuzu yeniden ekleyin.",
+    "gotIt": "Anladım"
+  },
+  "moveScreen": {
+    "title": "Uygulama use.privacynotes.app adresine taşındı",
+    "bodySignIn": "Orada kurtarma ifadenizle ya da “{{scanQr}}” ile giriş yapın. Bu cihaz önce eşitlenir, böylece tüm notlarınız sizi orada bekler ve buradan hiçbir şey silinmez.",
+    "openNotes": "Bunu düzeltmek için notlarınızı burada bir kez açın",
+    "showPhrase": "Kurtarma ifademi göster",
+    "website": "Bunun yerine web sitesine göz atın"
+  },
+  "quota": {
+    "frozen": {
+      "configured": "Eşitleme duraklatıldı. 90 günden uzun süredir depolama sınırınızın üzerindesiniz. Notlarınız bu cihazda güvende. Yeniden abone olun ya da verilerinizi dışa aktarın.",
+      "unconfigured": "Eşitleme duraklatıldı. 90 günden uzun süredir depolama sınırınızın üzerindesiniz. Notlarınız bu cihazda güvende. Eşitlemeyi sürdürmek için dışa aktarıp not silin."
+    },
+    "grace": {
+      "configured_one": "Depolama eklentisinin süresi doldu. Eşitleme duraklamadan önce kullanımı azaltmak ya da yeniden abone olmak için {{count}} gününüz kaldı.",
+      "configured_other": "Depolama eklentisinin süresi doldu. Eşitleme duraklamadan önce kullanımı azaltmak ya da yeniden abone olmak için {{count}} gününüz kaldı.",
+      "unconfigured_one": "Depolama sınırınızın üzerindesiniz. Eşitleme duraklamadan önce not silmek için {{count}} gününüz kaldı.",
+      "unconfigured_other": "Depolama sınırınızın üzerindesiniz. Eşitleme duraklamadan önce not silmek için {{count}} gününüz kaldı."
+    },
+    "full": {
+      "configured": "Depolama dolu. Bazı notlar eşitlenemedi. Yer açın ya da depolama alanı ekleyin.",
+      "unconfigured": "Depolama dolu. Bazı notlar eşitlenemedi. Not silerek yer açın."
+    },
+    "manageStorage": "Depolamayı yönet",
+    "viewUsage": "Kullanımı görüntüle"
+  },
+  "syncError": {
+    "failed_one": "1 not eşitlenemedi. Otomatik olarak yeniden denenecek.",
+    "failed_other": "{{count}} not eşitlenemedi. Otomatik olarak yeniden denenecek.",
+    "lastError": "Son hata: {{message}}"
+  },
+  "sessionExpired": {
+    "title": "Oturum sona erdi",
+    "body": "Oturumunuzun süresi doldu. Notlarınız bu cihazda güvende. Eşitlemeyi sürdürmek için tekrar giriş yapın.",
+    "signInAgain": "Tekrar giriş yap"
+  },
+  "signOutConfirm": {
+    "title": "Kurtarma ifadenizi kaydettiniz mi?",
+    "body": "İfadeniz geri dönmenin <only>tek</only> yolu. E-posta ile sıfırlama yok, destek hattı yok. Henüz bir yere yazmadıysanız <action>Hayır, ifadeyi göster</action> düğmesine dokunun, hemen açalım.",
+    "unsyncedWarn_one": "Bu cihazdaki 1 not henüz eşitlenmedi. Çıkış sırasında yüklenemezse kalıcı olarak kaybolur.",
+    "unsyncedWarn_other": "Bu cihazdaki {{count}} not henüz eşitlenmedi. Çıkış sırasında yüklenemezlerse kalıcı olarak kaybolur.",
+    "unsyncedKept_one": "Bu cihazdaki 1 not henüz eşitlenmedi. Bu cihazda kalır ve tekrar giriş yaptığınızda eşitlenir.",
+    "unsyncedKept_other": "Bu cihazdaki {{count}} not henüz eşitlenmedi. Bu cihazda kalır ve tekrar giriş yaptığınızda eşitlenir.",
+    "unsyncedFilesWarn_one": "Bu cihazdaki {{count}} dosya eşitlenmedi. Çıkış yaparsanız kalıcı olarak silinir.",
+    "unsyncedFilesWarn_other": "Bu cihazdaki {{count}} dosya eşitlenmedi. Çıkış yaparsanız kalıcı olarak silinir.",
+    "dontRemind": "Bir daha hatırlatma",
+    "showPhrase": "Hayır, ifadeyi göster",
+    "confirm": "Evet, çıkış yap",
+    "stay": "Oturumu açık tut",
+    "signOutLose_one": "Çıkış yap ve {{count}} notu kaybet",
+    "signOutLose_other": "Çıkış yap ve {{count}} notu kaybet",
+    "signOutLoseFiles_one": "Çıkış yap ve {{count}} dosyayı kaybet",
+    "signOutLoseFiles_other": "Çıkış yap ve {{count}} dosyayı kaybet",
+    "signOutLoseBoth_one": "Çıkış yap ve {{count}} not ile {{files}} kaybet",
+    "signOutLoseBoth_other": "Çıkış yap ve {{count}} not ile {{files}} kaybet",
+    "fileCount_one": "{{count}} dosyayı",
+    "fileCount_other": "{{count}} dosyayı",
+    "neverBackedUp_one": "Yalnızca bu cihazda:",
+    "neverBackedUp_other": "Yalnızca bu cihazda:",
+    "moreNotes": "ve {{count}} tane daha",
+    "appLockHint": "Ortak cihaz mı? Ayarlar > Güvenlik'ten uygulama kilidini açın."
+  },
+  "signOutUpload": {
+    "uploading": "Son değişiklikleriniz yükleniyor…",
+    "title": "Bazı değişiklikler henüz yüklenmedi",
+    "body": "Şimdi çıkış yaparsanız, son eşitlemeden bu yana bu cihazda yapılan değişiklikler kaybolur. Bunları korumak için internete bağlanın.",
+    "signOutAnyway": "Yine de çıkış yap"
+  },
+  "burnShareModal": {
+    "title": "Paylaş ve okunduktan sonra yak",
+    "body": "<lead>Orijinal notunuz silinmeyecek.</lead> Hesabınızda güvende kalır. Yakma bağlantısı, okunduktan sonra kendini imha eden ayrı bir şifreli kopyadır.",
+    "readTime": "Okuma süresi",
+    "readTimeHint": "Sonra ekrandan silinir",
+    "lifetime": "Bağlantının süresi",
+    "lifetimeHint": "Kimse açmazsa",
+    "minutes_one": "{{count}} dakika",
+    "minutes_other": "{{count}} dakika",
+    "hours_one": "{{count}} saat",
+    "hours_other": "{{count}} saat",
+    "afterHours_one": "{{count}} saat sonra",
+    "afterHours_other": "{{count}} saat sonra",
+    "afterDays_one": "{{count}} gün sonra",
+    "afterDays_other": "{{count}} gün sonra",
+    "create": "Bağlantıyı oluştur ve kopyala",
+    "share": "Bağlantıyı paylaş",
+    "imagesStripped": "Bu notta yalnızca metin gösterilir, dosyalar gizlenir."
+  },
+  "burnView": {
+    "title": "Okuduktan sonra yak",
+    "tagline": "Şifreli. Geçici. Yalnızca size.",
+    "toggleTheme": "Temayı değiştir",
+    "revealing": "Alınıyor ve çözülüyor...",
+    "goToApp": "<brand/> adresine git",
+    "footerTagline": "- İsviçre'de barındırılan şifreli notlar.",
+    "sealed": {
+      "heading": "Size şifreli bir not gönderildi.",
+      "subheading": "Bu mesaj okunduktan sonra kendini imha edecek. Okunmayan bağlantılar kendiliğinden geçerliliğini yitirir.",
+      "reveal": "Mesajı göster",
+      "warning": "Sunucu, notu gösterdiğiniz anda siler. İkinci bir şans yok."
+    },
+    "revealed": {
+      "countdown": "Düz metin {{time}} içinde temizlenecek",
+      "clearNow": "Şimdi temizle",
+      "emptyNote": "(boş not)",
+      "deletedNotice": "Paylaşılan bu kopya sunucudan silindi. Bir daha görüntülenemez."
+    },
+    "destroyed": {
+      "heading": "Mesaj imha edildi.",
+      "body": "Sunucudan silindi ve bellekten temizlendi. Bu mesaj bir daha okunamaz."
+    },
+    "gone": {
+      "heading": "Bu not artık yok.",
+      "body": "Ya okunmuş ya da süresi dolmuş. Yakma bağlantıları yalnızca bir kez açılabilir ve kendiliğinden geçerliliğini yitirir."
+    },
+    "error": {
+      "heading": "Bir şeyler ters gitti.",
+      "fallback": "Bağlantı bozuk ya da eksik olabilir.",
+      "server": "Sunucu hatası. Not okunmuş ya da süresi dolmuş olabilir.",
+      "decryption": "Şifre çözme başarısız oldu. Bağlantı bozuk olabilir.",
+      "network": "Sunucuya ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin."
+    },
+    "noPayload": {
+      "heading": "Mesaj bulunamadı.",
+      "body": "Bu URL bir burn note referansı içermiyor. Bağlantının tamamına sahip olduğunuzdan emin olun."
+    }
+  },
+  "burnShare": {
+    "offline": "Çevrimdışısınız. Yakma bağlantıları sunucuya gidip gelmeyi gerektirir. Yeniden çevrimiçi olduğunuzda tekrar deneyin.",
+    "demo": "Yakma bağlantıları bir sunucuda saklanır, demo ise hiçbir sunucuya bağlanmaz. Gerçek yakma bağlantıları oluşturmak için kaydolun.",
+    "tooLarge": "Not, yakma bağlantısıyla paylaşılamayacak kadar büyük ({{size}}KB). En fazla {{max}}KB olabilir.",
+    "storeFailed": "Burn note sunucuda saklanamadı.",
+    "rateLimited": "Bu ağdan çok fazla yakma bağlantısı oluşturuldu. Daha sonra tekrar deneyin."
+  },
+  "dms": {
+    "returnTitle": "Sunucudaki kopyanız silindi",
+    "returnBody_other": "Ölü adam düğmeniz notlarınızı {{date}} tarihinde sunucudan sildi. Bu cihazda hâlâ {{count}} not var. Saklamak istiyorsanız bir yedek indirin, sonra bunları bu cihazdan silin.",
+    "returnBackup": "Yedek indir",
+    "returnDelete": "Bu cihazdan sil",
+    "returnBody_one": "Ölü adam düğmeniz notlarınızı {{date}} tarihinde sunucudan sildi. Bu cihazda hâlâ {{count}} not var. Saklamak istiyorsanız bir yedek indirin, sonra onu bu cihazdan silin."
+  },
+  "massDelete": {
+    "title": "Notlar başka bir cihazda silindi",
+    "body_other": "Siz ya da diğer cihazlarınızdan biri, bu cihazda hâlâ duran {{count}} notu sildi. Bunu siz yaptıysanız onları burada da silin. Siz değilseniz hesabınıza başka biri erişiyor olabilir: tüm cihazlarınıza geri gelmeleri için onları saklayın.",
+    "refusedTitle": "Notlarınız geri geldi",
+    "refusedBody_one": "{{count}} not sunucudan silindi, ancak bu silme işlemi cihazlarınızdan hiçbirinden gelmedi. Bu cihaz silmeyi kabul etmedi ve notu tüm cihazlarınıza geri koydu. Cihazlarınızı kontrol edin ve tanımadığınız her cihazı kaldırın.",
+    "refusedBody_other": "{{count}} not sunucudan silindi, ancak bu silme işlemi cihazlarınızdan hiçbirinden gelmedi. Bu cihaz silmeyi kabul etmedi ve notları tüm cihazlarınıza geri koydu. Cihazlarınızı kontrol edin ve tanımadığınız her cihazı kaldırın.",
+    "showDevices": "Cihazları göster",
+    "body_one": "Siz ya da diğer cihazlarınızdan biri, bu cihazda hâlâ duran {{count}} notu sildi. Bunu siz yaptıysanız onu burada da silin. Siz değilseniz hesabınıza başka biri erişiyor olabilir: tüm cihazlarınıza geri gelmesi için onu saklayın."
+  }
+}

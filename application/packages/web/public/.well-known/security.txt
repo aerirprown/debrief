@@ -1,0 +1,9 @@
+# Security contact for PrivacyNotes
+# https://securitytxt.org/
+
+Contact: mailto:sec@lifetimelabs.dev
+Contact: https://github.com/LifetimeLabsHQ/PrivacyNotes.app/security/advisories/new
+Expires: 2027-04-19T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://privacynotes.app/.well-known/security.txt
+Policy: https://github.com/LifetimeLabsHQ/PrivacyNotes.app/blob/main/SECURITY.md

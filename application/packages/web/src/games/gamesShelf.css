@@ -1,0 +1,228 @@
+.debrief-shelf {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: #0d0d0d;
+  color: #e6e6e6;
+}
+
+.debrief-shelf__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #2e2e2e;
+  background: #1a1a1a;
+}
+
+.debrief-shelf__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.debrief-shelf__close {
+  background: transparent;
+  border: 1px solid #2e2e2e;
+  color: #8a8a8a;
+  border-radius: 6px;
+  padding: 0.3rem 0.65rem;
+  cursor: pointer;
+}
+
+.debrief-shelf__journal {
+  padding: 0.65rem 1rem 0.75rem;
+  border-bottom: 1px solid #2e2e2e;
+  background: #141414;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.65rem;
+  align-items: center;
+}
+
+.debrief-shelf__journal-path {
+  flex: 1 1 12rem;
+  min-width: 0;
+  font-size: 12px;
+  color: #8a8a8a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debrief-shelf__journal-pick {
+  background: #1a1a1a;
+  border: 1px solid #2e2e2e;
+  color: #e6e6e6;
+  border-radius: 6px;
+  padding: 0.3rem 0.65rem;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.debrief-shelf__cloud-help {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #8a8a8a;
+}
+
+.debrief-shelf__list {
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0;
+  overflow: auto;
+  flex: 1;
+}
+
+.debrief-shelf__row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid #2e2e2e;
+}
+
+.debrief-shelf__cover {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  background: #141414;
+  border: 1px solid #2e2e2e;
+  color: #8a8a8a;
+  flex-shrink: 0;
+}
+
+.debrief-shelf__meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.debrief-shelf__name {
+  font-weight: 600;
+}
+
+.debrief-shelf__line {
+  color: #3ddc84;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.debrief-shelf__days {
+  color: #8a8a8a;
+  font-size: 0.8rem;
+}
+
+.debrief-shelf__source {
+  text-transform: capitalize;
+}
+
+.debrief-shelf__launch {
+  background: #22a05a;
+  color: #0d0d0d;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.debrief-shelf__launch:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.debrief-shelf__empty {
+  padding: 1.5rem 1rem;
+  color: #8a8a8a;
+}
+
+.debrief-shelf__add {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.75rem 1rem 1rem;
+  border-top: 1px solid #2e2e2e;
+  background: #1a1a1a;
+}
+
+.debrief-shelf__add input {
+  background: #141414;
+  border: 1px solid #2e2e2e;
+  border-radius: 6px;
+  color: #e6e6e6;
+  padding: 0.45rem 0.6rem;
+}
+
+.debrief-shelf__add button {
+  background: #22a05a;
+  color: #0d0d0d;
+  border: none;
+  border-radius: 6px;
+  padding: 0.45rem 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  justify-self: start;
+}
+
+.debrief-shelf__add button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.debrief-shelf__log {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.75rem 1rem 1rem;
+  border-top: 1px solid #2e2e2e;
+  background: #141414;
+}
+
+.debrief-shelf__log-title {
+  font-size: 0.8rem;
+  color: #8a8a8a;
+}
+
+.debrief-shelf__log input,
+.debrief-shelf__log select {
+  background: #1a1a1a;
+  border: 1px solid #2e2e2e;
+  border-radius: 6px;
+  color: #e6e6e6;
+  padding: 0.45rem 0.6rem;
+}
+
+.debrief-shelf__log button {
+  background: #22a05a;
+  color: #0d0d0d;
+  border: none;
+  border-radius: 6px;
+  padding: 0.45rem 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  justify-self: start;
+}
+
+.debrief-shelf__log button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.debrief-shelf__error {
+  margin: 0;
+  padding: 0.5rem 1rem;
+  color: #e2c27a;
+  font-size: 0.85rem;
+}
+
+.debrief-shelf__busy {
+  margin: 0;
+  padding: 0.35rem 1rem;
+  color: #8a8a8a;
+  font-size: 0.8rem;
+}

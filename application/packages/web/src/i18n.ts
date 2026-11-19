@@ -1,0 +1,375 @@
+// i18next initialization. English is the source of truth and is always
+// bundled as the fallback. Target-locale catalogs are added under
+// locales/<lng>/ as they land from the translation pipeline;
+// SUPPORTED_LOCALES below is the only list of which ones exist (it used to be
+// duplicated here as prose and went stale twice).
+//
+// Namespaces are auto-discovered from locales/<lng>/*.json via import.meta.glob,
+// so adding an area is just dropping a JSON file - no edit to this file and no
+// shared registry for parallel work to collide on. Components call
+// useTranslation('<namespace>') then t('key').
+//
+// BUILD_ONLY_NAMESPACES is the one exception: catalogs that exist purely to
+// feed the static /help site. help-page.ts reads those JSON files off disk
+// itself at build time, so shipping them to the browser too is dead weight -
+// faq is the single biggest catalog we have. Keep them out of both globs.
+//
+// Spec: docs/contrib/i18n-spec.md, docs/contrib/i18n-extraction-guide.md,
+// docs/contrib/bundle-size.md (build-only catalogs)
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+import LanguageDetector from 'i18next-browser-languagedetector';
+import { localeFromPath } from './localeRoutes';
+
+export const SUPPORTED_LOCALES = [
+  'en',
+  'de',
+  'fr',
+  'it',
+  'es',
+  'nl',
+  'pl',
+  'pt-PT',
+  'pt-BR',
+  'ja',
+  'ko',
+  'zh-TW',
+  'ca',
+  'cs',
+  'sk',
+  'tr',
+  'sv',
+  'ar',
+  'uk',
+  'ru',
+  'th',
+] as const;
+export type Locale = (typeof SUPPORTED_LOCALES)[number];
+
+// English is EAGER; every other locale is LAZY.
+//
+// Every catalog used to be bundled eagerly, which put ~2.6 MB of JSON
+// (every locale x 16 namespaces) into the entry chunk - about 93% of it -
+// and every visitor downloaded all of it before the homepage could paint,
+// to use exactly one locale. English stays eager because it is the
+// guaranteed fallback for every other locale and what most visitors need
+// anyway; the rest is fetched per-locale, on demand.
+// Path shape: ./locales/<lng>/<namespace>.json
+//
+// `faq` and `guides` are build-only (see the header): help-page.ts renders
+// them into the static /help pages and no component calls
+// useTranslation('faq') or ('guides') any more. They are also the two
+// largest catalogs, so excluding them takes ~64 KB off the eager English
+// load and drops fourteen lazy chunks entirely. `extension` is the browser
+// extension's catalog (packages/extension bundles it); the app never reads it.
+// Spec: docs/contrib/bundle-size.md (build-only catalogs)
+const enModules = import.meta.glob<{ default: Record<string, unknown> }>(
+  ['./locales/en/*.json', '!./locales/en/faq.json', '!./locales/en/guides.json', '!./locales/en/looks.json', '!./locales/en/settingsSearch.json', '!./locales/en/importLog.json', '!./locales/en/extension.json'],
+  { eager: true },
+);
+const localeModules = import.meta.glob<{ default: Record<string, unknown> }>([
+  './locales/*/*.json',
+  '!./locales/en/*.json',
+  '!./locales/*/faq.json',
+  '!./locales/*/guides.json',
+  '!./locales/*/looks.json',
+  '!./locales/*/settingsSearch.json',
+  '!./locales/*/importLog.json',
+  '!./locales/*/extension.json',
+]);
+// `looks` is the one namespace that loads on its own, English included: the
+// folder and tag look picker is its only reader, and its icon names have no
+// business in any boot. ensureLooksLoaded() fetches it.
+// Spec: docs/internal/specs/folder-tag-icons.md (section 10)
+const looksModules = import.meta.glob<{ default: Record<string, unknown> }>('./locales/*/looks.json');
+const looksLoaded = new Set<string>();
+// `settingsSearch` loads the same way: its keywords and result lines are
+// read only once the settings search field has been focused.
+const settingsSearchModules = import.meta.glob<{ default: Record<string, unknown> }>('./locales/*/settingsSearch.json');
+const settingsSearchLoaded = new Set<string>();
+// `importLog` loads the same way: the importers' progress lines, warnings and
+// errors (about 13 kB gzipped of English) are read only while an import runs.
+// Every path that runs an importer awaits ensureImportLogLoaded() first.
+// Spec: docs/contrib/bundle-size.md (late namespaces)
+const importLogModules = import.meta.glob<{ default: Record<string, unknown> }>('./locales/*/importLog.json');
+const importLogLoaded = new Set<string>();
+
+type Catalogs = Record<string, Record<string, unknown>>;
+
+const enResources: Catalogs = {};
+for (const path in enModules) {
+  const ns = path.match(/\/([^/]+)\.json$/)?.[1];
+  const mod = enModules[path];
+  if (ns && mod) enResources[ns] = mod.default;
+}
+
+/**
+ * Map any browser or stored tag onto a locale we actually ship. Mirrors the
+ * `fallbackLng` table below, so the catalog we preload is the one i18next
+ * will resolve to.
+ */
+export function normalizeLocale(tag: string | null | undefined): Locale {
+  const lower = (tag || '').trim().toLowerCase();
+  if (!lower) return 'en';
+  const exact = SUPPORTED_LOCALES.find((l) => l.toLowerCase() === lower);
+  if (exact) return exact;
+  // We ship pt-PT and pt-BR (both matched above); every other Portuguese
+  // region follows the European norm.
+  if (lower === 'pt' || lower.startsWith('pt-')) return 'pt-PT';
+  // Traditional Chinese only. Hong Kong, Macau and bare zh-Hant read it;
+  // bare `zh` and `zh-CN` mean Simplified, where English is the better
+  // answer than Traditional. Mirrors seo.ts.
+  if (lower.startsWith('zh-hant') || lower === 'zh-hk' || lower === 'zh-mo') return 'zh-TW';
+  if (lower.startsWith('zh')) return 'en';
+  // Kazakh reads Russian, the one fallback that crosses languages
+  // (FALLBACK_BEFORE_ENGLISH below says why).
+  if (lower === 'kk' || lower.startsWith('kk-')) return 'ru';
+  // Region-stripped match, but only against the bare locales (de-AT -> de).
+  const two = lower.slice(0, 2);
+  return SUPPORTED_LOCALES.find((l) => !l.includes('-') && l === two) ?? 'en';
+}
+
+/** Detection precedence, mirroring the `lng` + `detection.order` config below. */
+function resolveInitialLocale(): Locale {
+  const fromPath = localeFromPath();
+  if (fromPath) return normalizeLocale(fromPath);
+  try {
+    const stored = localStorage.getItem('privacynotes.language');
+    if (stored) return normalizeLocale(stored);
+  } catch {
+    /* storage unavailable - fall through to the browser preference */
+  }
+  return normalizeLocale(navigator.language);
+}
+
+/**
+ * The locale on screen right now.
+ *
+ * The ONE accessor for "which language is the UI in". It lives here rather
+ * than beside the language menu because it is built from `normalizeLocale`,
+ * and a second normalizer is how this went wrong: three functions used to
+ * answer this question, each with its own hand-rolled matching, and the
+ * weakest of them resolved zh-HK to English while normalizeLocale resolved it
+ * to zh-TW. Read this, never `i18n.resolvedLanguage` or `i18n.language`.
+ *
+ * `resolvedLanguage` follows i18next's fallback chain, so a zh-HK request that
+ * landed on the zh-TW catalog already reports zh-TW; normalizing again is
+ * belt-and-braces for the window before init resolves anything, where only the
+ * raw requested tag exists.
+ */
+export function activeLocale(): Locale {
+  return normalizeLocale(i18n.resolvedLanguage || i18n.language);
+}
+
+/** The visitor's browser-preferred language, as one of the locales we ship. */
+export function preferredLocale(): Locale {
+  return normalizeLocale(navigator.language);
+}
+
+const loadedLocales = new Set<string>(['en']);
+
+/** Fetch every namespace catalog for one locale. */
+async function catalogsFor(lng: string): Promise<Catalogs> {
+  const prefix = `./locales/${lng}/`;
+  const out: Catalogs = {};
+  await Promise.all(
+    Object.entries(localeModules)
+      .filter(([p]) => p.startsWith(prefix))
+      .map(async ([p, load]) => {
+        const ns = p.match(/\/([^/]+)\.json$/)?.[1];
+        if (ns) out[ns] = (await load()).default;
+      }),
+  );
+  return out;
+}
+
+// i18next initializes with English only; the boot locale (if any) is added
+// by `i18nReady` below, which main.tsx waits on before the first render, so
+// a non-English visitor never sees an untranslated frame.
+/**
+ * Where a language looks BEFORE English, for the few that have somewhere to
+ * look. English is not written here: `withEnglish` appends it, and that is the
+ * point of the indirection.
+ *
+ * i18next's `default` entry applies ONLY to a language that has no entry of its
+ * own, so a hand-written `pt: ['pt-PT']` is the WHOLE chain for Portuguese, not
+ * a prefix to the default. It resolved pt-BR to ["pt-BR", "pt", "pt-PT"], and a
+ * key that existed only in `en` rendered its own NAME on screen inside a
+ * Portuguese app. Every Portuguese tag was affected; on the Chinese side only
+ * the three named here were, because zh-TW strips to a bare `zh` with no entry
+ * and so reached the default. Locale parity could never catch it: every key is
+ * in every catalog, so nothing reaches the end of a chain until a key is
+ * English-only, which is exactly the window between approving English copy and
+ * writing the batch.
+ *
+ * Write the real fallbacks here and nothing else. Adding an entry cannot drop
+ * the English tail, because no entry states it.
+ */
+const FALLBACK_BEFORE_ENGLISH: Record<string, string[]> = {
+  // Portuguese is the one language with no bare catalog: we ship pt-PT and
+  // pt-BR, not pt. i18next strips the region before falling back, so without
+  // this every Lusophone region except those two (pt-AO, pt-MZ, pt-CV, pt-TL,
+  // pt-MO, and a bare `pt`) would land straight on English. They all follow the
+  // European norm, so `pt` resolves there. de-AT still falls to de by itself
+  // because a bare `de` catalog exists; Portuguese has no such catalog.
+  // Matches the generic-`pt` hreflang alias in seo.ts.
+  pt: ['pt-PT'],
+  // Chinese is the same shape: we ship Traditional (zh-TW) only. Hong Kong and
+  // Macau read Traditional, and a bare `zh-Hant` should too, so map all three
+  // onto zh-TW. Bare `zh` and `zh-CN` are left to fall through to English on
+  // purpose: they overwhelmingly mean Simplified, and serving Traditional to a
+  // Simplified reader is worse than serving English. Mirrors seo.ts.
+  'zh-Hant': ['zh-TW'],
+  'zh-HK': ['zh-TW'],
+  'zh-MO': ['zh-TW'],
+  // Kazakh readers get Russian before English: Russian is an official language
+  // of Kazakhstan and the one we ship that most of them read. Belarusian gets
+  // no entry on purpose, and falls to English: which language a Belarusian
+  // reader wants is not ours to assume. Mirrored in normalizeLocale.
+  kk: ['ru'],
+  // Slovak reads Czech before English: the two languages are mutually
+  // intelligible, so a key the Slovak catalog lacks is closer in Czech.
+  sk: ['cs'],
+};
+
+/**
+ * The map i18next receives: every chain above, with English appended, plus the
+ * default for every language that named none. Pinned by
+ * `tests/localeResolution.test.ts` against the chain i18next actually walks, so
+ * composing the object by hand again would fail rather than ship quietly.
+ */
+const FALLBACK_LNG: Record<string, string[]> = {
+  ...Object.fromEntries(
+    Object.entries(FALLBACK_BEFORE_ENGLISH).map(([lng, before]) => [lng, [...before, 'en']]),
+  ),
+  default: ['en'],
+};
+
+const resources: Record<string, Catalogs> = { en: enResources };
+const namespaces = Object.keys(enResources);
+
+void i18n
+  .use(LanguageDetector)
+  .use(initReactI18next)
+  .init({
+    resources,
+    // Composed above, never inline: see FALLBACK_BEFORE_ENGLISH. Arabic needs
+    // no entry at all, because we ship a bare `ar` catalog and i18next's own
+    // region-stripping resolves ar-SA/ar-AE/ar-EG to it, the way it resolves
+    // de-AT to de.
+    fallbackLng: FALLBACK_LNG,
+    // A locale URL slug (/de, /pt, /br, ...) wins; apex falls to detection below.
+    lng: localeFromPath() ?? undefined,
+    // No supportedLngs filter: i18next resolves by what is loaded (pt-BR matches
+    // pt-BR; de-AT falls to de via load:'all'; anything unknown falls back to en).
+    // A supportedLngs filter rejected the region code pt-BR and dropped Brazilian
+    // users to English. Since v0.263.2 only English plus the boot locale are
+    // loaded at init - `normalizeLocale` above mirrors this table so the catalog
+    // we fetch is the one i18next would have resolved to.
+    ns: namespaces.length ? namespaces : ['common'],
+    defaultNS: 'common',
+    interpolation: { escapeValue: false }, // React already escapes
+    returnNull: false,
+    detection: {
+      order: ['localStorage', 'navigator'],
+      lookupLocalStorage: 'privacynotes.language',
+      caches: ['localStorage'],
+    },
+  });
+
+// Keep the document language and direction in sync (dir future-proofs RTL).
+i18n.on('languageChanged', (lng) => {
+  document.documentElement.lang = lng;
+  document.documentElement.dir = i18n.dir(lng);
+});
+
+/**
+ * Load a locale's catalogs into i18next if they aren't already there. Callers
+ * must await this BEFORE `changeLanguage`, or the UI renders one frame of
+ * untranslated English. `setLanguage` in languages.tsx does exactly that.
+ * No-op for English (eager) and for locales already fetched.
+ */
+export async function ensureLocaleLoaded(tag: string): Promise<void> {
+  const lng = normalizeLocale(tag);
+  if (loadedLocales.has(lng)) return;
+  const catalogs = await catalogsFor(lng);
+  for (const [ns, bundle] of Object.entries(catalogs)) {
+    i18n.addResourceBundle(lng, ns, bundle, true, true);
+  }
+  loadedLocales.add(lng);
+}
+
+/**
+ * Load the `looks` namespace for the language on screen and for English, its
+ * fallback. Resolves when both are in; a failed fetch leaves the keys to
+ * fall back, and the next call tries again.
+ */
+export async function ensureLooksLoaded(): Promise<void> {
+  const langs = [...new Set<string>(['en', activeLocale()])];
+  await Promise.all(
+    langs.map(async (lng) => {
+      if (looksLoaded.has(lng)) return;
+      const load = looksModules[`./locales/${lng}/looks.json`];
+      if (!load) return;
+      const mod = await load();
+      i18n.addResourceBundle(lng, 'looks', mod.default, true, true);
+      looksLoaded.add(lng);
+    }),
+  );
+}
+
+/**
+ * Load the `settingsSearch` namespace for the language on screen and for
+ * English, as `ensureLooksLoaded` does for `looks`.
+ */
+export async function ensureSettingsSearchLoaded(): Promise<void> {
+  const langs = [...new Set<string>(['en', activeLocale()])];
+  await Promise.all(
+    langs.map(async (lng) => {
+      if (settingsSearchLoaded.has(lng)) return;
+      const load = settingsSearchModules[`./locales/${lng}/settingsSearch.json`];
+      if (!load) return;
+      const mod = await load();
+      i18n.addResourceBundle(lng, 'settingsSearch', mod.default, true, true);
+      settingsSearchLoaded.add(lng);
+    }),
+  );
+}
+
+/**
+ * Load the `importLog` namespace for the language on screen and for English,
+ * as `ensureLooksLoaded` does for `looks`. Call it before an importer runs.
+ */
+export async function ensureImportLogLoaded(): Promise<void> {
+  const langs = [...new Set<string>(['en', activeLocale()])];
+  await Promise.all(
+    langs.map(async (lng) => {
+      if (importLogLoaded.has(lng)) return;
+      const load = importLogModules[`./locales/${lng}/importLog.json`];
+      if (!load) return;
+      const mod = await load();
+      i18n.addResourceBundle(lng, 'importLog', mod.default, true, true);
+      importLogLoaded.add(lng);
+    }),
+  );
+}
+
+/**
+ * Resolves once the boot locale is loaded and applied. main.tsx gates the
+ * first render on this, so a non-English visitor never sees an English frame
+ * before their catalog lands. Never rejects: if the fetch fails (offline, CDN
+ * hiccup) we boot in English, which is a complete catalog and the fallback for
+ * every string anyway.
+ */
+export const i18nReady: Promise<void> = (async () => {
+  const target = resolveInitialLocale();
+  if (target === 'en') return;
+  try {
+    await ensureLocaleLoaded(target);
+    await i18n.changeLanguage(target);
+  } catch {
+    /* stay on English */
+  }
+})();
+
+export default i18n;

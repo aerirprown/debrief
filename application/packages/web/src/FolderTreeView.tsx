@@ -1,0 +1,472 @@
+import { useCallback, useContext, useEffect, useRef, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { OverflowTip } from './OverflowTip';
+import { folderIndentPx, INDENT_PX, MAX_INDENT_LEVEL, useFolderExpansion } from './folderTreeState';
+import {
+  ancestorIds,
+  canDragReparentFolder,
+  childrenOf,
+  subtreeIds,
+  type FolderDef,
+} from './folders';
+import { CaretDown, DotsSixVertical } from './icons';
+import { FolderGlyph, LooksContext, sidebarRowTint } from './looks/LookGlyph';
+import { folderColor } from './itemStyles';
+import { DRAG_SOURCE, DROP_INSIDE, DropLine, usePointerReorder } from './ui';
+
+/**
+ * The folder tree itself - carets, guide lines, indent, the tinted expanded
+ * branch, and the drag that reorders and re-files folders. Rendered by BOTH
+ * the sidebar (`FolderTree`) and the Move dialog (`FolderPicker`), which is
+ * the point: the two drew their own trees and drifted, so the dialog had no
+ * carets, no guide lines and no memory of what the sidebar had open.
+ *
+ * What stays with the caller: what a click does (filter a list, or pick a
+ * destination), the search box, the Pro gate, the counts, the row menu, the
+ * Unfiled row and the inline create input. Those genuinely differ. Folding
+ * them in here would mean a prop per difference, which is harder to
+ * maintain, not easier.
+ *
+ * Spec: docs/internal/design/ui-patterns.md (section 86)
+ */
+
+/**
+ * Share of a row's height at each end that means "between the rows" rather
+ * than "into this folder". A quarter each way leaves the middle half as the
+ * drop-inside target, which is the ratio every file manager settled on: any
+ * smaller and re-parenting is a pixel hunt, any larger and reordering is.
+ */
+const EDGE_BAND = 0.25;
+/** How long a drag rests on a closed folder before it opens, as a note drag does. */
+const SPRING_OPEN_MS = 600;
+
+interface FolderReorder {
+  /**
+   * Land a dragged folder. `parentId` is where it goes (null = top level)
+   * and `orderedIds` is that parent's children as they will read on screen,
+   * the dragged folder included. Built from the RENDERED rows, so a drop
+   * under a name or entries sort writes what the user actually saw.
+   */
+  onReorder: (id: string, parentId: string | null, orderedIds: string[]) => void;
+}
+
+export interface FolderTreeViewProps {
+  folders: FolderDef[];
+  /** 'rail' is the sidebar's tighter scale, 'dialog' the modal's. */
+  density: 'rail' | 'dialog';
+  /** Sibling sort. Omit for the stored order, which is what Custom means. */
+  sortSiblings?: (list: FolderDef[]) => FolderDef[];
+  isActive?: (folder: FolderDef) => boolean;
+  isDisabled?: (folder: FolderDef) => boolean;
+  /** Drawn in the muted color: a folder that holds nothing the open section
+   *  shows. It stays a full row, a click and a drop target like any other. */
+  isDimmed?: (folder: FolderDef) => boolean;
+  onSelect: (folder: FolderDef) => void;
+  onContextMenu?: (e: React.MouseEvent, folder: FolderDef) => void;
+  /** A click on the folder's own icon, in place of `onSelect`. */
+  onGlyphClick?: (folder: FolderDef) => void;
+  /** Replaces the folder name, for the inline rename input. */
+  renderName?: (folder: FolderDef) => ReactNode;
+  /**
+   * True while `renderName` returns an EDITOR rather than a label. The row
+   * then drops its select button entirely: a text field and its save and
+   * cancel buttons cannot live inside a `<button>` - invalid HTML, and the
+   * nested controls do not reliably take their own clicks.
+   */
+  isEditing?: (folder: FolderDef) => boolean;
+  /** After the name: the count and "..." in the rail, a check in the dialog. */
+  renderTrailing?: (folder: FolderDef) => ReactNode;
+  /** Under the row, indented one level: the inline "new subfolder" input. */
+  renderAfter?: (folder: FolderDef, level: number) => ReactNode;
+  /** Omit to leave the tree read-only. */
+  reorder?: FolderReorder;
+  /**
+   * Lets a dragged list item file into a folder. The rail's list runs the
+   * drop (`useRailItemDrop`) and names the row the pointer is over. The Move
+   * dialog passes nothing, so its rows never advertise a drop.
+   */
+  itemDrop?: { overId: string | null };
+  ariaLabel: string;
+  mobileTabIndex?: number;
+}
+
+/** Where the pointer currently says the folder should land. */
+interface DropTarget {
+  /** The row the indicator is drawn against. */
+  overId: string;
+  place: 'before' | 'inside' | 'after';
+  /** Depth of the DESTINATION, so the line sits where the folder will land
+   *  rather than where the pointer happens to be. */
+  level: number;
+  /** Resolved destination, precomputed so the drop is a single call. */
+  parentId: string | null;
+  orderedIds: string[];
+}
+
+export function FolderTreeView({
+  folders,
+  density,
+  sortSiblings,
+  isActive,
+  isDisabled,
+  isDimmed,
+  onSelect,
+  onContextMenu,
+  onGlyphClick,
+  renderName,
+  isEditing,
+  renderTrailing,
+  renderAfter,
+  reorder,
+  itemDrop,
+  ariaLabel,
+  mobileTabIndex,
+}: FolderTreeViewProps) {
+  const { t } = useTranslation('shell');
+  const looks = useContext(LooksContext);
+  const { isExpanded, toggle, expand } = useFolderExpansion();
+  const rowEls = useRef(new Map<string, HTMLElement>());
+  const rail = density === 'rail';
+
+  /** The rendered children of one parent, in on-screen order. */
+  const renderedChildren = useCallback(
+    (parentId: string | null): FolderDef[] => {
+      const list = childrenOf(folders, parentId);
+      return sortSiblings ? sortSiblings(list) : list;
+    },
+    [folders, sortSiblings],
+  );
+
+  /**
+   * Which row the pointer is over, and what dropping there would mean.
+   *
+   * A row is three bands: the top and bottom quarters put the folder BEFORE
+   * or AFTER that row among its siblings, and the middle half puts it INSIDE
+   * that row as a child. One gesture then covers both reordering and
+   * re-filing, and neither needs a second drop target somewhere else.
+   */
+  const resolveTarget = useCallback(
+    (id: string, y: number): DropTarget | null => {
+      const refused = subtreeIds(folders, id);
+      /** Depth of a destination parent: 0 is the top level. */
+      const depthOf = (parentId: string | null) =>
+        parentId === null ? 0 : ancestorIds(folders, parentId).length + 1;
+
+      /** Build the destination's sibling sequence, or null if it is refused. */
+      const land = (
+        overId: string,
+        place: 'before' | 'inside' | 'after',
+        parentId: string | null,
+        anchorId: string | null,
+      ): DropTarget | null => {
+        if (!canDragReparentFolder(folders, id, parentId)) return null;
+        const siblings = renderedChildren(parentId)
+          .map((f) => f.id)
+          .filter((each) => each !== id);
+        let orderedIds: string[];
+        if (anchorId === null) {
+          // Append: a folder dropped INTO another, or past the end of the
+          // whole tree, lands last - the same place `createFolder` and
+          // `moveFolder` put one.
+          orderedIds = [...siblings, id];
+        } else {
+          const at = siblings.indexOf(anchorId);
+          if (at === -1) return null;
+          orderedIds = [...siblings];
+          orderedIds.splice(place === 'before' ? at : at + 1, 0, id);
+        }
+        const current = renderedChildren(parentId).map((f) => f.id);
+        const unchanged =
+          orderedIds.length === current.length && orderedIds.every((each, i) => current[i] === each);
+        if (unchanged) return null;
+        return { overId, place, level: depthOf(parentId), parentId, orderedIds };
+      };
+
+      let hit: { folder: FolderDef; place: 'before' | 'inside' | 'after' } | null = null;
+      let lastEl: { id: string; bottom: number } | null = null;
+      let firstEl: { id: string; top: number } | null = null;
+      // A point in the gap between two branches takes the nearer row, so the
+      // line does not blink off while it crosses the gap.
+      let near: { folder: FolderDef; gap: number; place: 'before' | 'after' } | null = null;
+      for (const [rowId, el] of rowEls.current) {
+        const folder = folders.find((f) => f.id === rowId);
+        if (!folder) continue;
+        const box = el.getBoundingClientRect();
+        if (!lastEl || box.bottom > lastEl.bottom) lastEl = { id: rowId, bottom: box.bottom };
+        if (!firstEl || box.top < firstEl.top) firstEl = { id: rowId, top: box.top };
+        if (y < box.top || y > box.bottom) {
+          const gap = y < box.top ? box.top - y : y - box.bottom;
+          if (!near || gap < near.gap) near = { folder, gap, place: y < box.top ? 'before' : 'after' };
+          continue;
+        }
+        const offset = (y - box.top) / box.height;
+        hit = {
+          folder,
+          place: offset < EDGE_BAND ? 'before' : offset > 1 - EDGE_BAND ? 'after' : 'inside',
+        };
+      }
+      const inside = firstEl && lastEl && y >= firstEl.top && y <= lastEl.bottom;
+      if (!hit && inside && near) hit = { folder: near.folder, place: near.place };
+
+      // Past the last row, or above the first, the pointer is over no row at
+      // all - and that empty space is the ONLY way to reach the top level
+      // when the tree holds a single expanded root. Every downward slot below
+      // it belongs to its own children, so without this a subfolder could
+      // only be lifted out by dragging it ABOVE its parent, and dragging it
+      // to the end of the list did nothing (reported 2026-08-27).
+      if (!hit) {
+        const roots = renderedChildren(null).map((f) => f.id);
+        if (lastEl && y > lastEl.bottom) {
+          const last = roots.filter((each) => each !== id).at(-1) ?? null;
+          return land(lastEl.id, 'after', null, last);
+        }
+        if (firstEl && y < firstEl.top) {
+          const first = roots.filter((each) => each !== id)[0] ?? null;
+          return land(firstEl.id, 'before', null, first);
+        }
+        return null;
+      }
+
+      // Dropping onto the dragged folder or into its own subtree is a cycle,
+      // and the rows are already greyed out to say so.
+      if (refused.has(hit.folder.id)) return null;
+
+      // The bottom band of an OPEN parent is the slot above its first child:
+      // that is where the line sits, so that is where the folder lands.
+      if (hit.place === 'after' && isExpanded(hit.folder)) {
+        const first = renderedChildren(hit.folder.id).find((f) => f.id !== id);
+        if (first) return land(first.id, 'before', hit.folder.id, first.id);
+      }
+
+      return hit.place === 'inside'
+        ? land(hit.folder.id, 'inside', hit.folder.id, null)
+        : land(hit.folder.id, hit.place, hit.folder.parentId, hit.folder.id);
+    },
+    [folders, renderedChildren, isExpanded],
+  );
+
+  const { drag, pressProps, endedDrag } = usePointerReorder<DropTarget>({
+    enabled: !!reorder,
+    resolve: (id, _x, y) => resolveTarget(id, y),
+    targetKey: (tg) => `${tg.overId}:${tg.place}:${tg.parentId}`,
+    onDrop: (id, { parentId, orderedIds }) => {
+      reorder?.onReorder(id, parentId, orderedIds);
+      // A folder dropped into a closed one would otherwise vanish behind
+      // its caret with nothing to say where it went.
+      if (parentId) expand(folders, parentId);
+    },
+  });
+  const refused = drag ? subtreeIds(folders, drag.id) : null;
+
+  // A drag that rests on a closed folder opens it, so a folder can be filed
+  // into a subfolder that was closed when the drag began.
+  const springId = drag?.target?.place === 'inside' ? drag.target.overId : null;
+  useEffect(() => {
+    if (!springId) return;
+    const folder = folders.find((f) => f.id === springId);
+    if (!folder || isExpanded(folder) || childrenOf(folders, springId).length === 0) return;
+    const timer = setTimeout(() => expand(folders, springId), SPRING_OPEN_MS);
+    return () => clearTimeout(timer);
+  }, [springId, folders, isExpanded, expand]);
+
+  const renderRow = (folder: FolderDef, level: number): React.JSX.Element => {
+    const kids = renderedChildren(folder.id);
+    const hasKids = kids.length > 0;
+    const expanded = isExpanded(folder);
+    const active = isActive?.(folder) ?? false;
+    const disabled = isDisabled?.(folder) ?? false;
+    const dimmed = !disabled && !active && (isDimmed?.(folder) ?? false);
+    const dragging = drag?.id === folder.id;
+    const refusedHere = !!refused?.has(folder.id) && !dragging;
+    const target = drag?.target?.overId === folder.id ? drag.target : null;
+    const editing = isEditing?.(folder) ?? false;
+    const takesItems = !!itemDrop && !editing;
+
+    const row = (
+      <div key={folder.id} role="none">
+        <div
+          role="treeitem"
+          aria-level={level + 1}
+          aria-selected={active}
+          {...(hasKids ? { 'aria-expanded': expanded } : {})}
+          data-drop-folder={takesItems ? folder.id : undefined}
+          data-drop-closed={takesItems && hasKids && !expanded ? '' : undefined}
+          ref={(el) => {
+            if (el) rowEls.current.set(folder.id, el);
+            else rowEls.current.delete(folder.id);
+          }}
+          onContextMenu={onContextMenu ? (e) => onContextMenu(e, folder) : undefined}
+          // Mouse and pen drag from anywhere on the row; touch drags from the
+          // grip only, because a row that swallowed a vertical swipe would
+          // stop the rail scrolling. Controls that own their own click are
+          // marked `data-no-drag` and never arm one - the caret and whatever
+          // the caller puts in the trailing slot.
+          {...(editing ? {} : pressProps(folder.id))}
+          className={rowClass({
+            rail,
+            active,
+            disabled: disabled || !!refusedHere,
+            dimmed,
+            dragging: !!dragging,
+            inside: target?.place === 'inside' || (takesItems && itemDrop?.overId === folder.id),
+          })}
+          // A colored folder tints its row the way a note row takes its
+          // note's color, drawn as an image so the active and hover colors
+          // still show through, and only while note colors are backgrounds.
+          style={sidebarRowTint(folderColor(folder.id, looks.styles), looks)}
+        >
+          {target?.place === 'before' && <DropLine edge="top" inset={folderIndentPx(target.level) + 8} />}
+          {target?.place === 'after' && <DropLine edge="bottom" inset={folderIndentPx(target.level) + 8} />}
+          {reorder && !editing && (
+            <span
+              role="button"
+              aria-label={t('folders.reorder', { folder: folder.name })}
+              {...pressProps(folder.id, { grip: true })}
+              className="pn-ftree-grip shrink-0 inline-flex items-center justify-center w-4 h-6 -ms-0.5 cursor-grab active:cursor-grabbing text-pn-muted hover:text-accent transition"
+            >
+              <DotsSixVertical aria-hidden="true" />
+            </span>
+          )}
+          {hasKids ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggle(folder.id);
+              }}
+              tabIndex={mobileTabIndex}
+              data-no-drag
+              aria-label={expanded ? t('folders.collapse') : t('folders.expand')}
+              className={`shrink-0 inline-flex items-center justify-center ${
+                rail ? 'w-5 h-8 ms-0.5' : 'w-4 h-7'
+              } text-pn-muted hover:text-accent transition`}
+            >
+              <CaretDown
+                className={`transition-transform ${expanded ? '' : '-rotate-90'}`}
+                aria-hidden="true"
+              />
+            </button>
+          ) : (
+            <span className={`shrink-0 ${rail ? 'w-5 ms-0.5' : 'w-4'}`} aria-hidden="true" />
+          )}
+          {editing ? (
+            <div
+              className={`flex-1 min-w-0 flex items-center ${
+                rail ? 'gap-2 py-2 pe-1' : 'gap-2 py-2 pe-1'
+              }`}
+            >
+              <span className="inline-flex shrink-0 text-label">
+                <FolderGlyph folderId={folder.id} size={rail ? 16 : 15} />
+              </span>
+              {renderName?.(folder)}
+            </div>
+          ) : (
+            <OverflowTip text={folder.name} className="flex-1 min-w-0 flex">
+              <button
+                type="button"
+                disabled={disabled}
+                tabIndex={mobileTabIndex}
+                onClick={(e) => {
+                  // The click that ends a drag is not a selection.
+                  if (endedDrag()) return;
+                  if (onGlyphClick && (e.target as HTMLElement).closest('[data-folder-glyph]')) {
+                    onGlyphClick(folder);
+                    return;
+                  }
+                  onSelect(folder);
+                }}
+                data-row-name={folder.name}
+                aria-current={active || undefined}
+                className={`flex-1 min-w-0 flex items-center text-start ${
+                  rail ? 'gap-2 py-2 pe-1' : 'gap-2 py-2 pe-1'
+                } ${disabled ? 'cursor-not-allowed' : ''}`}
+              >
+                <span
+                  data-folder-glyph
+                  className={`inline-flex shrink-0 ${
+                    disabled ? '' : active ? 'text-accent' : 'text-label'
+                  }${dimmed ? ' opacity-60' : ''}${onGlyphClick ? ' pn-look-glyph' : ''}`}
+                >
+                  <FolderGlyph folderId={folder.id} size={rail ? 16 : 15} />
+                </span>
+                {renderName ? renderName(folder) : <span className="truncate">{folder.name}</span>}
+              </button>
+            </OverflowTip>
+          )}
+          {renderTrailing && (
+            <span
+              data-no-drag
+              // Full row height on touch, so the row menu button inside can
+              // fill it (SIDEBAR_ROW_MENU_BUTTON in sidebarUI.ts).
+              className="shrink-0 inline-flex items-center [@media(hover:none)]:self-stretch"
+            >
+              {renderTrailing(folder)}
+            </span>
+          )}
+        </div>
+        {hasKids && expanded && (
+          <div
+            role="group"
+            className="pn-ftree-group"
+            // `level` is 0-based and this is the CHILD group's indent, so the
+            // cap compares the children's depth, not the parent's.
+            style={{ marginInlineStart: level + 1 < MAX_INDENT_LEVEL ? INDENT_PX : 0 }}
+          >
+            {kids.map((k) => renderRow(k, level + 1))}
+          </div>
+        )}
+        {renderAfter?.(folder, level)}
+      </div>
+    );
+
+    // The tint marks where one top-level branch ends and the next begins,
+    // which a guide line alone never did once two branches were open at
+    // once. Top level only: nested tints stack into mud.
+    return level === 0 && hasKids && expanded ? (
+      <div key={folder.id} className="pn-ftree-branch">
+        {row}
+      </div>
+    ) : (
+      row
+    );
+  };
+
+  return (
+    // The drag itself listens on the window (ui/reorder.tsx), so a release
+    // outside the tree still ends it.
+    <div role="tree" aria-label={ariaLabel}>
+      {renderedChildren(null).map((folder) => renderRow(folder, 0))}
+    </div>
+  );
+}
+
+function rowClass({
+  rail,
+  active,
+  disabled,
+  dimmed,
+  dragging,
+  inside,
+}: {
+  rail: boolean;
+  active: boolean;
+  disabled: boolean;
+  dimmed: boolean;
+  dragging: boolean;
+  inside: boolean;
+}): string {
+  const base = `pn-ftree-row relative w-full flex items-center group select-none transition ${
+    rail ? 'rounded text-row font-medium' : 'rounded-md text-body px-1'
+  }`;
+  // "Drop inside" outlines the whole row, because the thing being said is
+  // "into this folder", not "between two rows". The line says the other one.
+  if (inside) return `${base} ${DROP_INSIDE}`;
+  if (dragging) return `${base} ${DRAG_SOURCE}`;
+  if (disabled) return `${base} text-pn-muted/75 cursor-not-allowed`;
+  if (active) {
+    return rail
+      ? `${base} pn-on-tint bg-accent/15 text-accent-strong dark:bg-accent/20`
+      : `${base} pn-on-tint bg-accent/15 text-accent-strong dark:bg-accent/20 hover:bg-accent/20 dark:hover:bg-accent/25`;
+  }
+  return `${base} ${dimmed ? 'text-pn-muted' : 'text-pn'} hover:bg-pn/5`;
+}

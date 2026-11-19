@@ -1,0 +1,173 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { Editor as TipTapEditor } from '@tiptap/react';
+import { MagnifyingGlass, X } from './icons';
+import { HoverLabel } from './HoverLabel';
+import { isImeComposing } from './imeComposing';
+import { BAR_BTN, MatchNav, ReplaceToggle } from './MatchNav';
+import { keyText } from './shortcutMatch';
+import {
+  setSearchQuery,
+  setActiveMatch,
+  clearSearch,
+  getSearchInfo,
+  scrollToCurrentMatch,
+  scrollToCurrentMatchUntilSettled,
+  type SearchInfo,
+} from './editorSearch';
+
+type Props = {
+  editor: TipTapEditor;
+  /** Bumped by the parent on every Cmd/Ctrl+F so the input refocuses + selects. */
+  focusTick: number;
+  /** Word to open on when the list search is what opened the bar (GitHub
+   *  #288): the input starts filled, its hits marked, and the caret stays
+   *  where it was. */
+  initialQuery?: string;
+  /** The term to start on when the reader swapped here from the replace bar. */
+  startQuery?: string;
+  /** Grows the bar into the replace bar with the current term. Absent on a
+   *  read-only note, which refuses replace. */
+  onSwap?: (query: string) => void;
+  /** Free account: the swap button carries the Pro rocket. */
+  swapPro?: boolean;
+  onClose: () => void;
+};
+
+/**
+ * Floating find-in-note bar. Sits top-right just below the editor toolbar
+ * (positioned by the parent). Type to highlight matches; the up/down arrows
+ * (or Shift+Enter / Enter) jump between them and scroll the active match into
+ * view. Cmd/Ctrl+F or the X closes it and returns focus to the note; Esc
+ * deliberately does not (see onKeyDown).
+ *
+ * Opened by the list search it starts on the matched word (`initialQuery`)
+ * and then neither reads the selection nor takes focus.
+ *
+ * All match-finding and highlighting lives in editorSearch.ts; this is just
+ * the control surface. ReplaceBar.tsx is its Pro twin on the same plugin,
+ * and MatchNav.tsx holds the count and arrows both bars draw.
+ */
+export function FindBar({ editor, focusTick, initialQuery, startQuery, onSwap, swapPro = false, onClose }: Props) {
+  const { t } = useTranslation('editor');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState(initialQuery || startQuery || '');
+  const [info, setInfo] = useState<SearchInfo>({ active: -1, total: 0, activeIsNode: false });
+
+  const refresh = useCallback(() => {
+    setInfo(getSearchInfo(editor.view));
+  }, [editor]);
+
+  // Prefill from the current selection (single line, sane length), the way a
+  // browser find does. Runs once on open. A seeded open already has its word.
+  useEffect(() => {
+    if (initialQuery || startQuery) return;
+    const { from, to } = editor.state.selection;
+    if (to > from) {
+      const sel = editor.state.doc.textBetween(from, to, ' ').trim();
+      if (sel && sel.length <= 80 && !sel.includes('\n')) setQuery(sel);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Push the query into the plugin, refresh the count, jump to the first hit.
+  // The jump keeps re-centering until layout settles: a seeded bar opens on
+  // a note that has just mounted, whose images grow as they decode. The
+  // arrows below scroll once, because by then the note is laid out.
+  useEffect(() => {
+    setSearchQuery(editor.view, query);
+    refresh();
+    if (query) scrollToCurrentMatchUntilSettled(editor.view);
+  }, [query, editor, refresh]);
+
+  // Keep the count fresh while the note is edited under an open bar.
+  useEffect(() => {
+    editor.on('update', refresh);
+    return () => { editor.off('update', refresh); };
+  }, [editor, refresh]);
+
+  // Clear highlights when the bar closes.
+  useEffect(() => {
+    return () => { if (!editor.isDestroyed) clearSearch(editor.view); };
+  }, [editor]);
+
+  // Focus + select on open and on every subsequent Cmd/Ctrl+F. A seeded bar
+  // never focuses itself: the reader is typing in the list search box, not
+  // the bar, and on a phone a focused input raises the keyboard over the
+  // hits the bar was opened to show. The tick cannot move while a seeded bar is
+  // mounted (Cmd/Ctrl+F closes it), so the guard is the prop alone, which
+  // also survives StrictMode running the effect twice.
+  useEffect(() => {
+    if (initialQuery) return;
+    const el = inputRef.current;
+    if (!el) return;
+    el.focus();
+    el.select();
+  }, [focusTick, initialQuery]);
+
+  const go = useCallback((dir: 1 | -1) => {
+    const { active, total } = getSearchInfo(editor.view);
+    if (total === 0) return;
+    setActiveMatch(editor.view, (active < 0 ? 0 : active) + dir);
+    refresh();
+    requestAnimationFrame(() => scrollToCurrentMatch(editor.view));
+  }, [editor, refresh]);
+
+  /**
+   * Enter / Shift+Enter step through matches.
+   *
+   * NEITHER Esc NOR Cmd+F is handled here. Escape is a global "get me out"
+   * that scrolls the note back to the top, which fought the caret-parking fix
+   * (the bar closed correctly, then the note jumped anyway), so it is no
+   * longer a way to close the bar at all. Cmd+F IS the way to close it, but
+   * that shortcut is owned by a capture-phase document listener in Editor.tsx
+   * which runs before this bubble-phase handler could ever see the key - so
+   * the toggle lives there, next to the code that opens the bar. The X button
+   * is the mouse equivalent and calls onClose directly.
+   */
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !isImeComposing(e)) {
+      e.preventDefault();
+      go(e.shiftKey ? -1 : 1);
+    }
+  };
+
+  const hasQuery = query.trim().length > 0;
+  const noHits = info.total === 0 && hasQuery;
+  const count = info.total > 0 ? `${info.active + 1}/${info.total}` : hasQuery ? '0/0' : '';
+
+  return (
+    <div className="pointer-events-auto mt-1 me-2 flex items-center gap-0.5 rounded-lg border border-divider bg-surface-1 shadow-lg px-1.5 py-1">
+      <MagnifyingGlass className="text-pn-muted shrink-0 ms-0.5 me-0.5" />
+      <input
+        ref={inputRef}
+        type="text"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={onKeyDown}
+        placeholder={t('common:palette.commands.find')}
+        aria-label={t('common:palette.commands.find')}
+        spellCheck={false}
+        autoComplete="off"
+        className="w-36 sm:w-44 bg-transparent text-body text-pn placeholder:text-pn-muted outline-none px-1"
+      />
+      <MatchNav count={count} noHits={noHits} canStep={info.total > 0} onStep={go} />
+      {onSwap && <ReplaceToggle open={false} pro={swapPro} onClick={() => onSwap(query)} />}
+      <div className="w-px h-5 bg-divider mx-0.5 shrink-0" aria-hidden="true" />
+      <HoverLabel label={t('common:actions.close')} keys={keyText('find')} position="below-end">
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          // NOT `close` - that is `window.close`, a DOM global. When the local
+          // `close` helper was removed here, `onClick={close}` kept
+          // type-checking against it and silently did nothing at runtime.
+          onClick={onClose}
+          aria-label={t('find.close')}
+          className={BAR_BTN}
+        >
+          <X />
+        </button>
+      </HoverLabel>
+    </div>
+  );
+}

@@ -1,0 +1,493 @@
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import { createPortal } from 'react-dom';
+import { useEscapeToClose } from './useEscapeToClose';
+import { IconUpgrade } from './proMark';
+import { Check } from './icons';
+import { matchesKey } from './shortcutMatch';
+
+/**
+ * App-wide right-click context menu primitive.
+ *
+ * Why this exists: on native (Tauri) the default browser right-click
+ * menu makes the app feel like a website. We take over right-click on
+ * app chrome and list rows, but *intentionally* leave it alone on
+ * editable text (inputs, textareas, contenteditable) so copy/paste,
+ * spellcheck, and dictionary lookups still work. The note body makes two
+ * exceptions of its own in Editor.tsx: a link, and a click inside a
+ * selection the reader made before the click. A picture in the desktop app
+ * is a third, in EncryptedImage.tsx (#719).
+ *
+ * On touch a long-press is the platform's own gesture (select + copy) and
+ * the app's multi-select gesture on list rows, so it does not open this
+ * menu there - see isTouchContextMenu. Touch reaches it three ways: an
+ * explicit button that calls `open` from its click (the "..." a bookmark
+ * row wears on touch), a note-link's long press (NoteLink.tsx), and a long
+ * press on a URL link in the note body (Editor.tsx), which leaves the
+ * platform's word selection in place.
+ *
+ * Usage:
+ *   const ctx = useContextMenu();
+ *   <div onContextMenu={(e) => ctx.open(e, buildMenu())}>…</div>
+ *   <ContextMenu state={ctx.state} onClose={ctx.close} />
+ */
+
+export type ContextMenuItem =
+  | {
+      type?: 'item';
+      label: ReactNode;
+      onSelect: () => void;
+      shortcut?: string;
+      destructive?: boolean;
+      success?: boolean;
+      disabled?: boolean;
+      icon?: ReactNode;
+      /** When true, show Pro badge (rocket icon + "Pro" text). */
+      pro?: boolean;
+      /** A toggle that is currently on. Marked with a check on the trailing
+       *  edge, so one label serves both states. */
+      checked?: boolean;
+      /** A letter that picks this row while the menu is open. */
+      pick?: string;
+    }
+  | { type: 'separator' }
+  /** `keepCase` shows the label as written, for a name such as a username. */
+  | { type: 'header'; label: string; keepCase?: boolean };
+
+export type ContextMenuState = {
+  x: number;
+  y: number;
+  items: ContextMenuItem[];
+  /** Opened from the keyboard: the first row starts highlighted, so Enter picks it. */
+  keyboard?: boolean;
+  /** A band of the viewport the menu must not cover, such as a touch
+   *  selection and its handles. The menu goes below it, or above it when
+   *  there is no room below. Read again when the soft keyboard moves the
+   *  page, so the menu follows the band instead of staying behind the keys. */
+  clear?: () => { top: number; bottom: number };
+  /** The menu's end edge sits at `x` instead of its start edge, for a menu
+   *  opened from a button in a corner that should open beside it. */
+  alignEnd?: boolean;
+} | null;
+
+function isSelectable(it: ContextMenuItem): it is Extract<
+  ContextMenuItem,
+  { onSelect: () => void }
+> {
+  return !('type' in it && (it.type === 'separator' || it.type === 'header'));
+}
+
+/**
+ * Treat the target as "editable" if it accepts character input -
+ * inputs, textareas, the TipTap editor body. Used by useKeyboardShortcuts
+ * to gate global hotkeys so typing chars never collides with hotkeys.
+ */
+export function isEditableTarget(target: EventTarget | null): boolean {
+  if (!target || !(target instanceof HTMLElement)) return false;
+  return !!target.closest(
+    'input, textarea, [contenteditable="true"], [contenteditable=""]',
+  );
+}
+
+/**
+ * Right-click suppression rule (Strategy B - partial).
+ * Returns true when the browser's native menu should win - editable
+ * text (paste, spellcheck), a note body even when it is read-only
+ * (Copy), images (Save image as…), and links (Open in new tab, Copy
+ * link). Everywhere else, the app menu wins. Spec:
+ * docs/internal/backlog.md #74.
+ */
+export function shouldUseBrowserDefault(target: EventTarget | null): boolean {
+  if (!target || !(target instanceof HTMLElement)) return false;
+  return !!target.closest(
+    // `.ProseMirror` covers a read-only note body, which is
+    // contenteditable="false" and still text a reader wants to copy.
+    'input, textarea, [contenteditable="true"], [contenteditable=""], .ProseMirror, img, a[href]',
+  );
+}
+
+/**
+ * True when a `contextmenu` event came from a touch long-press rather
+ * than a mouse right-click. Long-press already belongs to the platform
+ * (select text, copy) and to the app's multi-select gesture, so the app
+ * menu must stay out of its way. Chromium reports `pointerType` on the
+ * event; WebKit and Firefox fire a plain MouseEvent, so fall back to
+ * asking whether the device has a pointer that can right-click at all.
+ *
+ * Android's WebView fires a second `contextmenu` after the long press has
+ * selected a word, from its own selection controller, and labels that one
+ * `pointerType: "mouse"` with `button: -1`. A mouse right-click reports
+ * button 2, so on a device that cannot hover the second event is the same
+ * long press. Taking it opened the link menu over the new selection and
+ * cancelled it, so a note of links alone could not be selected (issue #454).
+ * Spec: docs/internal/backlog.md #74 (issue #208).
+ */
+export function isTouchContextMenu(e: React.MouseEvent): boolean {
+  if (isLongPressEcho(e.nativeEvent)) return true;
+  const pointerType = (e.nativeEvent as PointerEvent).pointerType;
+  if (pointerType) return pointerType !== 'mouse';
+  return typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches;
+}
+
+/** The second `contextmenu` of an Android long press, described above. */
+export function isLongPressEcho(e: MouseEvent): boolean {
+  return (e as PointerEvent).pointerType === 'mouse' && e.button === -1
+    && typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches;
+}
+
+/**
+ * True when the target sits inside a subtree that opted out of the app
+ * menu with `data-no-app-menu`. Overlays use it - the global "New note /
+ * Sign out" menu is app chrome and means nothing on top of a settings
+ * dialog, where it only blocks selecting text. Spec: issue #208.
+ */
+export function optsOutOfAppMenu(target: EventTarget | null): boolean {
+  if (!target || !(target instanceof HTMLElement)) return false;
+  return !!target.closest('[data-no-app-menu]');
+}
+
+/** The press that last closed a menu from outside it. A button that opens a
+ *  menu reads it on click: the press on that button already closed its own
+ *  menu, and opening it again would make the button unable to close it. */
+let lastDismiss: { target: Node; at: number } | null = null;
+
+export function closedMenuJustNow(button: Element): boolean {
+  const hit = !!lastDismiss && performance.now() - lastDismiss.at < 1000 && button.contains(lastDismiss.target);
+  if (hit) lastDismiss = null;
+  return hit;
+}
+
+export function useContextMenu() {
+  const [state, setState] = useState<ContextMenuState>(null);
+  const open = (
+    e: { clientX: number; clientY: number; preventDefault: () => void; stopPropagation: () => void },
+    items: ContextMenuItem[],
+    keyboard = false,
+    clear?: () => { top: number; bottom: number },
+    alignEnd = false,
+  ) => {
+    if (items.length === 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setState({ x: e.clientX, y: e.clientY, items, keyboard, clear, alignEnd });
+  };
+  const close = () => setState(null);
+  return { state, open, close };
+}
+
+export function ContextMenu({
+  state,
+  onClose,
+}: {
+  state: ContextMenuState;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  /** What had the focus when the keyboard opened the menu. */
+  const openerRef = useRef<HTMLElement | null>(null);
+  // Outlives the listener effect below, which runs again on every render.
+  const keyboardMovedAt = useRef(-Infinity);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [activeIdx, setActiveIdx] = useState<number>(-1);
+  // On the shared Escape stack, which runs before the app's Escape cascade:
+  // a listener of the menu's own would run after it and close the open note
+  // as well.
+  useEscapeToClose(onClose, !!state);
+
+  const place = (st: NonNullable<ContextMenuState>) => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const m = 8;
+    const rtl = document.documentElement.dir === 'rtl';
+    let left = st.alignEnd && !rtl ? st.x - rect.width : st.x;
+    let top = st.y;
+    const band = st.clear?.();
+    if (band) {
+      top = band.bottom;
+      if (top + rect.height > vh - m && band.top - rect.height >= m) top = band.top - rect.height;
+    }
+    if (left + rect.width > vw - m) left = Math.max(m, vw - rect.width - m);
+    if (left < m) left = m;
+    if (top + rect.height > vh - m) top = Math.max(m, vh - rect.height - m);
+    setPos({ top, left });
+  };
+
+  // For each new menu: reset the highlighted row + measure/flip near
+  // viewport edges. Both jobs stay in one layout effect on purpose:
+  // resetting `pos` in a separate post-paint effect clobbers the
+  // just-measured position and makes the menu flash then vanish.
+  useLayoutEffect(() => {
+    if (!state) {
+      setActiveIdx(-1);
+      setPos(null);
+      // The focus goes back to where the keyboard opened the menu, unless the
+      // chosen row moved it on (a field, a window).
+      const opener = openerRef.current;
+      openerRef.current = null;
+      const now = document.activeElement;
+      if (opener?.isConnected && (!now || now === document.body || ref.current?.contains(now))) opener.focus({ preventScroll: true });
+      return;
+    }
+    setActiveIdx(state.keyboard ? state.items.findIndex((it) => isSelectable(it) && !it.disabled) : -1);
+    // Opened from the keyboard, the menu takes the focus, so Enter and the
+    // arrows reach it and not the editor behind it.
+    if (state.keyboard) {
+      const now = document.activeElement;
+      if (now instanceof HTMLElement && !ref.current?.contains(now)) openerRef.current = now;
+      ref.current?.focus({ preventScroll: true });
+    }
+    place(state);
+  }, [state]);
+
+  // Dismiss on outside mousedown, scroll, resize, or another contextmenu
+  // elsewhere (Escape is the hook above). Capture phase so we win over list
+  // clicks.
+  useEffect(() => {
+    if (!state) return;
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        lastDismiss = { target: e.target as Node, at: performance.now() };
+        onClose();
+      }
+    };
+    // The long press that opened the menu fires again on Android.
+    const onCtx = (e: MouseEvent) => {
+      if (isLongPressEcho(e)) return;
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    // A scroll inside the menu is the menu being read, not the page moving
+    // under it: a long menu on a short screen scrolls itself.
+    // The keyboard also scrolls the page to keep the caret in view, just
+    // after it resizes the viewport, and that scroll is the same chrome move.
+    const onScroll = (e: Event) => {
+      if (ref.current && e.target instanceof Node && ref.current.contains(e.target)) return;
+      if (performance.now() - keyboardMovedAt.current < 600) {
+        if (state.clear) place(state);
+        return;
+      }
+      onClose();
+    };
+    // A soft keyboard sliding in or out changes the viewport height and leaves
+    // the width alone. That is chrome moving, not the page under the menu, and
+    // it is the ordinary case on a phone: a long press takes focus off the
+    // editor, the keyboard retracts, and the resize lands about 20ms after the
+    // menu opened. Closing on it makes the menu flash and vanish on the first
+    // try, then work on the second, once the keyboard is already down. A
+    // rotation or a real window resize changes the width, and still closes.
+    let lastWidth = window.innerWidth;
+    const onResize = () => {
+      if (window.innerWidth === lastWidth) {
+        keyboardMovedAt.current = performance.now();
+        if (state.clear) place(state);
+        return;
+      }
+      lastWidth = window.innerWidth;
+      onClose();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      const items = state.items;
+      const selectableIdx: number[] = [];
+      items.forEach((it, i) => {
+        if (isSelectable(it) && !it.disabled) selectableIdx.push(i);
+      });
+      if (selectableIdx.length === 0 || e.defaultPrevented) return;
+
+      const picked = items.find(
+        (it) => isSelectable(it) && !it.disabled && it.pick && matchesKey(e, [{ key: it.pick }]),
+      );
+      if (picked && isSelectable(picked)) {
+        e.preventDefault();
+        picked.onSelect();
+        onClose();
+        return;
+      }
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveIdx((cur) => {
+          const curPos = selectableIdx.indexOf(cur);
+          const nextPos =
+            curPos < 0 ? 0 : (curPos + 1) % selectableIdx.length;
+          return selectableIdx[nextPos] ?? cur;
+        });
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveIdx((cur) => {
+          const curPos = selectableIdx.indexOf(cur);
+          const nextPos =
+            curPos < 0
+              ? selectableIdx.length - 1
+              : (curPos - 1 + selectableIdx.length) % selectableIdx.length;
+          return selectableIdx[nextPos] ?? cur;
+        });
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        if (activeIdx < 0) return;
+        const it = state.items[activeIdx];
+        if (it && isSelectable(it) && !it.disabled) {
+          e.preventDefault();
+          it.onSelect();
+          onClose();
+        }
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        const first = selectableIdx[0];
+        if (first !== undefined) setActiveIdx(first);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        const last = selectableIdx[selectableIdx.length - 1];
+        if (last !== undefined) setActiveIdx(last);
+      }
+    };
+
+    window.addEventListener('pointerdown', onPointerDown, true);
+    window.addEventListener('contextmenu', onCtx, true);
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown, true);
+      window.removeEventListener('contextmenu', onCtx, true);
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [state, onClose, activeIdx]);
+
+  if (!state) return null;
+
+  const style: React.CSSProperties = {
+    position: 'fixed',
+    top: pos?.top ?? state.y,
+    left: pos?.left ?? state.x,
+    // Hide until we've measured + flipped so it doesn't flash offscreen.
+    visibility: pos ? 'visible' : 'hidden',
+  };
+
+  const content = (
+    <div
+      ref={ref}
+      role="menu"
+      tabIndex={-1}
+      style={style}
+      // React bubbles a portal's events to the owner's ancestors, so without
+      // the stop a right click on the menu opens the app menu behind it.
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+      // A floor, not a width: no ceiling, so a long translation widens the menu.
+      // Touch opens it from a tap (a bookmark row's "..." button), so the rows
+      // grow to a finger's size there, and a menu taller than the screen
+      // scrolls instead of running off it.
+      className="z-[1000] min-w-[160px] max-h-[calc(100dvh-16px)] overflow-y-auto py-1 rounded-md border border-divider bg-surface-2/95 backdrop-blur shadow-xl text-compact [@media(hover:none)]:text-body text-pn select-none"
+    >
+      {state.items.map((it, i) => {
+        if ('type' in it && it.type === 'separator') {
+          return (
+            <div
+              key={`sep-${i}`}
+              className="my-1 border-t border-divider"
+            />
+          );
+        }
+        if ('type' in it && it.type === 'header') {
+          return (
+            <div
+              key={`hdr-${i}`}
+              className={`px-3 pt-1.5 pb-0.5 text-meta font-semibold tracking-wider text-pn-muted ${it.keepCase ? '' : 'uppercase'}`}
+            >
+              {it.label}
+            </div>
+          );
+        }
+        const item = it;
+        const active = activeIdx === i && !item.disabled;
+        const base =
+          'w-full text-start flex items-center gap-2.5 px-3 py-1.5 [@media(hover:none)]:py-2.5 outline-none';
+        const tone = item.disabled
+          ? 'opacity-40 cursor-default'
+          : active
+            ? item.destructive
+              ? 'bg-red-500 text-white dark:bg-red-600'
+              : item.success
+                ? 'bg-emerald-500 text-white dark:bg-emerald-600'
+                : 'bg-accent-fill text-white'
+            : item.destructive
+              ? 'text-danger cursor-pointer'
+              : item.success
+                ? 'text-success cursor-pointer'
+                : 'cursor-pointer';
+        return (
+          <button
+            key={`item-${i}`}
+            role="menuitem"
+            type="button"
+            disabled={item.disabled}
+            onMouseEnter={() => !item.disabled && setActiveIdx(i)}
+            onMouseLeave={() => setActiveIdx(-1)}
+            // Preserve the selection / focus in whatever element the
+            // user right-clicked on. Without this, clicking Cut/Copy
+            // would blur the editor and collapse the selection, so
+            // execCommand would fire with nothing selected.
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              if (item.disabled) return;
+              item.onSelect();
+              onClose();
+            }}
+            className={`${base} ${tone}`}
+          >
+            {/* Accent, like every other menu in the app. Three cases keep the
+                row's own colour instead, because there the colour IS the
+                message: a hovered row (white on a filled band), a destructive
+                row (red) and a success row (green). A glyph that sets its own
+                colour, such as the burn flame, wins over this from inside. */}
+            <span
+              className={`w-4 h-4 shrink-0 inline-flex items-center justify-center ${
+                active || item.destructive || item.success ? '' : 'text-accent'
+              }`}
+            >
+              {item.icon}
+            </span>
+            <span className="flex-1 truncate">{item.label}</span>
+            {/* The word and the rocket turn white on a hovered row for the
+                same reason the check mark does: the band underneath it IS the
+                accent, so an accent word or a Pro colour on it is invisible. */}
+            {item.pro && (
+              <span className={`shrink-0 inline-flex items-center gap-1 text-meta font-semibold ${active ? 'text-white' : 'text-accent'}`}>
+                <IconUpgrade size={12} onFill={active} /> Pro
+              </span>
+            )}
+            {item.checked && (
+              <span className={`shrink-0 ${active ? 'text-white' : 'text-accent'}`}>
+                <Check />
+              </span>
+            )}
+            {item.shortcut && (
+              <span
+                className={`text-meta ms-4 tabular-nums ${
+                  active
+                    ? 'text-white/70'
+                    : 'text-pn-muted'
+                }`}
+              >
+                {item.shortcut}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  return createPortal(content, document.body);
+}

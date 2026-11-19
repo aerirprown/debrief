@@ -1,0 +1,206 @@
+import { useEffect, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Fingerprint, Key, Lock, Shield } from './icons';
+import { isDemoMode } from './demo';
+import { DemoAccountTeaser } from './DemoAccountTeaser';
+import { SettingsTabStrip, settingsTabClass } from './settingsUI';
+import { Modal } from './ui';
+import { BiometricTab } from './security/BiometricTab';
+import { PhraseTab } from './security/PhraseTab';
+import { PinTab } from './security/PinTab';
+import { TwoFactorTab } from './security/TwoFactorTab';
+import type { UserSettings } from './userSettings';
+import { usePaneTab } from './settingsPaneTab';
+
+type Tab = 'pin' | 'phrase' | 'biometric' | 'twoFactor';
+
+type Props = {
+  phrase: string;
+  onClose: () => void;
+  onOpenCustody?: () => void;
+  /** Which tab to open on. Defaults to 'pin'. */
+  defaultTab?: Tab;
+  /** Why the PIN tab was opened, when something else opened it. */
+  reason?: 'protect';
+  /** Current PIN-unlock timeout from UserSettings. Governs the phrase view
+   *  and PIN-protected notes. */
+  pinTimeoutMinutes: number;
+  /** Persist a new timeout. Parent owns the settings blob + sync. */
+  onPinTimeoutChange: (minutes: number) => void;
+  /** Current app-lock re-lock window from UserSettings. Separate from the
+   *  PIN one: the two gates guard different things. */
+  appLockTimeoutMinutes: number;
+  /** Persist a new app-lock window. Parent owns the settings blob + sync. */
+  onAppLockTimeoutChange: (minutes: number) => void;
+  /** Current settings - needed so PIN set/clear can return updated blob. */
+  userSettings: UserSettings;
+  /** Persist updated settings (PIN changes). Parent owns save + sync. */
+  /** `base` is the copy this surface was rendered with; the parent applies
+   *  only the credential keys that differ between it and `next`. */
+  onSettingsChange: (next: UserSettings, base: UserSettings) => void;
+  /** The user's hex pubkey - needed for WebAuthn credential creation. */
+  pubkey: string;
+  /** Render inline as a settings pane (no overlay, no own header/escape). */
+  embedded?: boolean;
+};
+
+/**
+ * Security modal - dialog for biometric enrollment, PIN, two-factor sign-in
+ * management, and viewing the recovery phrase. The tab bodies live in
+ * `./security/`; this file owns the chrome (overlay, tab strip, close
+ * handling) and dispatches to the active tab.
+ */
+export function SecurityModal({
+  phrase,
+  onClose,
+  onOpenCustody,
+  defaultTab = 'pin',
+  reason,
+  pinTimeoutMinutes,
+  onPinTimeoutChange,
+  appLockTimeoutMinutes,
+  onAppLockTimeoutChange,
+  userSettings,
+  onSettingsChange,
+  pubkey,
+  embedded = false,
+}: Props) {
+  const { t } = useTranslation('security');
+  const [tab, setTab] = usePaneTab<Tab>('security', defaultTab);
+  // The Biometric tab sends a user with no credential off to create a PIN,
+  // and this brings them back once it exists, so the round trip ends where it
+  // started. A tab the user picks themselves clears it: the intent belongs to
+  // that one link, not to the pane it landed on.
+  const [returnToBiometric, setReturnToBiometric] = useState(false);
+
+  function pickTab(next: Tab) {
+    setReturnToBiometric(false);
+    setTab(next);
+  }
+
+  // Guard against ghost clicks from the element that opened us (e.g. the
+  // mobile drawer "Security" button fires a delayed synthetic click at the
+  // same coordinates after the drawer unmounts, landing on our backdrop).
+  const [mountReady, setMountReady] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMountReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  // Tab strip - underlined, full-width, minimal chrome. Embedded, it sits
+  // outside the scroll area, under the pane title, as in every other pane.
+  const strip = (
+    <SettingsTabStrip className={embedded ? 'shrink-0 px-4 sm:px-6' : '-mx-6 px-4 sm:px-6'}>
+      <TabButton setting="security.pin" active={tab === 'pin'} onClick={() => pickTab('pin')}>
+        <Lock className="text-accent" aria-hidden="true" />
+        <span>{t('modal.tabPin')}</span>
+      </TabButton>
+      <TabButton setting="security.biometric" active={tab === 'biometric'} onClick={() => pickTab('biometric')}>
+        <Fingerprint className="text-accent" aria-hidden="true" />
+        <span>{t('modal.tabBiometricShort')}</span>
+      </TabButton>
+      <TabButton setting="security.phrase" active={tab === 'phrase'} onClick={() => pickTab('phrase')}>
+        <Key className="text-accent" aria-hidden="true" />
+        <span>{t('modal.tabPhraseShort')}</span>
+      </TabButton>
+      <TabButton setting="security.twoFactor" active={tab === 'twoFactor'} onClick={() => pickTab('twoFactor')}>
+        <Shield className="text-accent" aria-hidden="true" />
+        <span>{t('modal.tabTwoFactor')}</span>
+      </TabButton>
+    </SettingsTabStrip>
+  );
+  const body = (
+    <>
+    {tab === 'twoFactor' && (isDemoMode() ? <DemoAccountTeaser kind="twoFactor" /> : <TwoFactorTab />)}
+
+    {tab === 'pin' && (
+      <PinTab
+        phrase={phrase}
+        onOpenLockTab={() => pickTab('biometric')}
+        userSettings={userSettings}
+        onSettingsChange={onSettingsChange}
+        reason={reason}
+        onPinCreated={() => {
+          if (!returnToBiometric) return;
+          setReturnToBiometric(false);
+          setTab('biometric');
+        }}
+      />
+    )}
+
+    {tab === 'biometric' && (
+      <BiometricTab
+        phrase={phrase}
+        pubkey={pubkey}
+        userSettings={userSettings}
+        onSettingsChange={onSettingsChange}
+        timeoutMinutes={appLockTimeoutMinutes}
+        onTimeoutChange={onAppLockTimeoutChange}
+        pinTimeoutMinutes={pinTimeoutMinutes}
+        onPinTimeoutChange={onPinTimeoutChange}
+        onSetUpPin={() => {
+          setReturnToBiometric(true);
+          setTab('pin');
+        }}
+      />
+    )}
+
+    {tab === 'phrase' && (
+      <PhraseTab
+        phrase={phrase}
+        pubkey={pubkey}
+        pinTimeoutMinutes={pinTimeoutMinutes}
+        // Derived from synced settings, NOT pin.hasPin() - on a
+        // fresh device the localStorage cache lags settings sync.
+        hasPin={Boolean(userSettings.pinHash && userSettings.pinSalt)}
+        onCancel={onClose}
+        pinCredential={`${userSettings.pinHash ?? ''}:${userSettings.pinSalt ?? ''}`}
+        onOpenCustody={isDemoMode() ? undefined : onOpenCustody}
+        onOpenTwoFactor={() => setTab('twoFactor')}
+        recovery={{ phrase, userSettings, onSettingsChange }}
+      />
+    )}
+    </>
+  );
+
+  return (
+    <Modal
+      embedded={embedded}
+      embeddedClassName="flex-1 min-h-0 flex flex-col text-pn"
+      onClose={onClose}
+      closeOnBackdrop={mountReady}
+      title={t('notes:settings.securityLabel')}
+      className="max-w-md p-6 space-y-5 max-h-[90vh] overflow-y-auto"
+    >
+        {strip}
+        {embedded ? (
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6 pt-4 space-y-5">{body}</div>
+        ) : body}
+    </Modal>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  children,
+  setting,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+  /** The settings search id of this tab. */
+  setting: string;
+}) {
+  return (
+    <button
+      type="button"
+      data-setting={setting}
+      onClick={onClick}
+      aria-pressed={active}
+      className={settingsTabClass(active)}
+    >
+      {children}
+    </button>
+  );
+}

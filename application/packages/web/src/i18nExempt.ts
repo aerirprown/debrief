@@ -1,0 +1,139 @@
+// Some UI strings are rendered in English even when the app is in another
+// locale, because their translation overflows tight chrome (the footer gear
+// label, the sync status pill, the half-width sidebar buttons). Render an exempt
+// string with t(key, exemptOpts('<ns>:<key>')).
+//
+// The forcing is per-key, not blanket, because overflow depends on the script:
+// Romance and Germanic translations run ~30% longer than English, whereas
+// Japanese, Korean and Traditional Chinese words are far SHORTER. "Settings" is
+// 8 characters; 設定 /
+// 설정 is two. So most of these keys can safely show their real translation in
+// CJK even though they cannot in German or French. Each key names the locales
+// where its translation is verified to fit; everywhere else it falls back to
+// English. Catalan runs long like Spanish and is excluded from exactly the
+// slots where the Spanish form overflows.
+//
+// Shape: keys are namespace-qualified ('notes:footer.settings') so two
+// namespaces can't collide. A call site passes the qualified key to exemptOpts
+// and the short key to t(): t('footer.settings', exemptOpts('notes:footer.settings')).
+//
+// THIS FILE is the single source of truth for which UI strings render in
+// English regardless of the active locale, and in which locales. If an
+// "exempt" string ever looks unexpectedly translated (or unexpectedly
+// English), the answer is in the RENDER_TRANSLATED map below - nothing else
+// decides it. Human-readable explanation of the per-locale model, and how to
+// change a key: docs/contrib/i18n-spec.md section 10b.
+// Design rationale + the CJK unlock: docs/internal/specs/i18n-cjk-plan.md section 3.
+import { activeLocale } from './i18n';
+
+export const FORCE_EN = { lng: 'en' } as const;
+
+const CJK = ['ja', 'ko', 'zh-TW'] as const;
+// The target locales whose labels are measured slot by slot: Latin script,
+// plus Cyrillic and Thai, which run as long or as wide. The name predates the
+// non-Latin ones, and tools/check-help-paths.mjs and tools/locale-review.mjs
+// read the list by it. (en is the source and always shows its own text.)
+const LATIN = ['de', 'fr', 'it', 'es', 'nl', 'pl', 'pt-PT', 'pt-BR', 'ca', 'cs', 'sk', 'tr', 'sv', 'uk', 'ru', 'th'] as const;
+// Every translated locale EXCEPT the few whose translation overflows a given
+// slot. CJK forms are short and always fit, so they are always included.
+const allBut = (...tooWide: string[]): readonly string[] => [
+  ...LATIN.filter((l) => !tooWide.includes(l)),
+  ...CJK,
+];
+
+// Per-key allow list: the locales that render the REAL translation. A key that
+// is ABSENT from this map is not exempt at all - it is translated everywhere. A
+// key present is forced to English in every locale NOT in its list. An empty
+// array means English in every locale (a deliberate do-not-translate).
+//
+// The per-locale lists were measured in-browser on 2026-07-21 by injecting each
+// translation into the real slot and checking for truncation and wrap, INCLUDING
+// the Tags|Folders toggle. `upload` translates everywhere; `import` everywhere
+// but Dutch. The three footer/rail slots below (Settings, sync pill, Import &
+// Export) are English in all Latin because their slots are too tight to measure
+// reliably. Spec: docs/contrib/i18n-spec.md section 10b.
+const RENDER_TRANSLATED: Record<string, readonly string[]> = {
+  // Product terms and dev-facing jargon: English in every locale, CJK included.
+  'notes:vaultNew.sshKey': [], // "SSH Key" in the vault New menu
+  'shell:vaultItem.badgeSshKey': [], // "SSH Key" vault row badge
+  'notes:settings.accountLabel': [], // "ID & Sync" - product term
+  'settings:syncStatus.notSynced': [], // footer pill word; the slot is narrow and ID & Sync carries the translation
+  'notes:vaultFilter.keys': [], // Vault "Keys" filter chip, pairs with the SSH badge
+  'shell:tagsRail.viewAuto': [], // "Auto" view mode
+  'settings:appearance.viewAuto': [], // "Auto" view mode
+  'settings:appearance.modeAuto': [], // "Auto" light/dark mode
+
+  // Tags|Folders toggle: both labels share the narrow rail (content-width since
+  // v0.253.1). fr/es/ca overflow (Etiquettes+Dossiers, Etiquetas+Carpetas,
+  // Etiquetes+Carpetes); de/it/nl/pl/pt fit (Tag+Cartelle, Etiquetas+Pastas).
+  // tr joins the overflow set: Etiketler + Klasörler is 9+9 glyphs, wider than
+  // the es/ca pairs already excluded here (9+8) and level with fr (10+8). sv
+  // stays translated at Taggar + Mappar (6+6), between de (10) and cs (12).
+  'shell:browseToggle.tags': allBut('fr', 'es', 'ca', 'tr'),
+  'shell:browseToggle.folders': allBut('fr', 'es', 'ca', 'tr'),
+
+  // Sidebar footer pair (Feedback / Import). feedback: es "Comentarios", ca
+  // "Comentaris" and cs "Zpetna vazba" (12ch, two words) truncate. import: nl
+  // "Importeren" (10ch) truncates; the other Latin forms (Importer/Importar,
+  // <=8ch, and cs "Import") fit. Everywhere else both translate.
+  // tr "Geri bildirim" is 13 glyphs over two words, the same shape that got cs
+  // excluded. sv takes the loanword "Feedback" (8), as de/it/nl/pt-PT already do.
+  // sk "Spätná väzba" is the cs shape, 12 glyphs over two words.
+  'shell:tagsRail.feedback': allBut('es', 'ca', 'cs', 'sk', 'tr'),
+  // tr "İçe aktar" is two words in a slot where nl's single 10-glyph
+  // "Importeren" already overflows; sv "Importera" (9) sits just under it.
+  'shell:tagsRail.import': allBut('nl', 'tr'),
+
+  // Sidebar footer icon-row hover pill (the label that expands beside the
+  // hovered icon; touch shows icons only, so this is the only label slot).
+  // One label renders at a time but the w-60 rail still caps it at ~80px:
+  // fr "Téléchargements" and pt-PT "Transferências" exceed that and render
+  // English. tagsRail.help and tagsRail.rate are absent from this map
+  // because every translation fits the pill. Estimated by glyph count;
+  // re-measure in-browser (2026-07-21 method) if the row layout changes.
+  // sv "Nedladdningar" (13) lands in the fr/pt-PT class here; tr "İndirmeler"
+  // (10) matches cs "Ke stažení" (10), which already fits this pill.
+  // uk "Завантаження" (12) joins the sv class; ru "Загрузки" (8) fits.
+  // sk "Na stiahnutie" (13, two words) joins it too.
+  'shell:tagsRail.downloads': allBut('fr', 'pt-PT', 'sv', 'sk', 'uk'),
+
+  // The footer Settings label and the sync-status pill beside it are English
+  // in EVERY Latin locale (translated in CJK only). The footer row is too
+  // tight to translate reliably per-locale - long words wrap or crowd the sync
+  // icon at narrower window widths, so a measured allow list is fragile.
+  // Decided 2026-07-21. The settings rail's "Import & Export" was on this list
+  // until it became the one-word "Transfer" (2026-11-11), which translates.
+  'notes:footer.settings': CJK,
+  'settings:syncStatus.synced': CJK,
+  'settings:syncStatus.notSaved': CJK,
+  'settings:syncStatus.offline': CJK,
+  'settings:syncStatus.syncing': CJK,
+  'settings:syncStatus.uploading': CJK,
+  // "Storage full" pill state (backlog #143): same slot, same call. The CJK
+  // forms (容量不足 / 저장 공간 부족 / 儲存空間已滿) are shorter than the
+  // already-approved uploading forms; Latin ones (Almacenamiento lleno,
+  // Armazenamento cheio) are exactly the overflow class this map exists for.
+  'settings:syncStatus.storageFull': CJK,
+};
+
+function fits(allow: readonly string[]): boolean {
+  const loc = activeLocale();
+  // Arabic is never forced to English, for any key - including the
+  // deliberate-English-everywhere product-jargon keys (empty allow arrays).
+  // Its UI terms run compact, like CJK, and the ar catalog carries its own
+  // translation for every one of those jargon keys, so there is no slot this
+  // needs to protect. Unconditional, ahead of the allow-list check below.
+  if (loc === 'ar' || loc.startsWith('ar-')) return true;
+  return allow.some((l) => loc === l || loc.startsWith(`${l}-`));
+}
+
+/**
+ * Options for t() on an overflow-prone key: FORCE_EN when the active locale
+ * would overflow this slot, otherwise undefined (render the real translation).
+ */
+export function exemptOpts(qualifiedKey: string): typeof FORCE_EN | undefined {
+  const allow = RENDER_TRANSLATED[qualifiedKey];
+  // A key not in the map is not exempt at all: render its real translation.
+  // (Only keys listed above are ever forced to English.)
+  return allow === undefined || fits(allow) ? undefined : FORCE_EN;
+}

@@ -1,0 +1,170 @@
+import { lazy, Suspense, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useAuth } from './auth';
+import { db } from './db';
+import { sync } from './sync';
+import { APP_ORIGIN } from './hosts';
+import { marketingHomeHref } from './siteLinks';
+import { loadLocalSettings } from './userSettings';
+
+const APP_HOME = `${APP_ORIGIN}/`;
+
+// Settings' own phrase tab, fetched on the click that asks for it.
+const PhraseTab = lazy(() =>
+  import('./security/PhraseTab').then((m) => ({ default: m.PhraseTab })),
+);
+
+/**
+ * Full-page apex retirement screen (web apex, signed-in, non-demo).
+ *
+ * The apex stopped booting the notes app (domain-split retirement): a
+ * straggler whose session still lives on privacynotes.app lands here
+ * instead of NotesView, with exactly one job - send the person to
+ * use.privacynotes.app, where they sign in with the recovery phrase or
+ * the QR scanner. Its button syncs first, the same gate as the
+ * MoveBanner: a full sync, then a dirty-row count, and only a clean state
+ * leaves, so nothing written on this device stays behind. It is a button
+ * rather than a link so that no way of opening it skips the sync. Nothing
+ * on the apex is wiped, ever.
+ *
+ * The escape hatch: a sync error or conflict cannot be fixed on this
+ * screen, so those states offer one legacy boot of the notes app
+ * (onOpenNotes; App.tsx then renders NotesView for this session). Its
+ * own sync pass re-raises any conflict into the ConflictModal, the
+ * MoveBanner it still carries offers the move again, and the
+ * retirement metric (NotesView-chunk fetches on the apex) stays honest
+ * because only stuck sessions ever take this path.
+ *
+ * Signing in there takes the recovery phrase, so the screen offers it
+ * through Settings > Security > Your phrase itself (PhraseTab): the same
+ * PIN entry when a PIN is set and due, the same reveal gate, and the same
+ * copy, download and QR controls. The QR names the app host.
+ *
+ * App lock needs no special handling here: the LockScreen and the
+ * normal auth restore run before App.tsx picks this screen, so the
+ * session the sync needs always exists by now.
+ *
+ * Spec: docs/internal/domain-split.md (retirement phase)
+ */
+
+type MoveState = 'idle' | 'syncing' | 'error' | 'conflict';
+
+export function MoveScreen({ onOpenNotes }: { onOpenNotes: () => void }) {
+  const { t } = useTranslation('notesChrome');
+  const { auth, supabase } = useAuth();
+  const [state, setState] = useState<MoveState>('idle');
+  // The PIN facts PhraseTab gates on, read from the local settings when
+  // the phrase is asked for, the source Settings reads them from.
+  const [phraseGate, setPhraseGate] = useState<{ hasPin: boolean; pinTimeoutMinutes: number } | null>(null);
+
+  // Rendered only for an authenticated session (App.tsx routing), but
+  // the union still needs narrowing before the fields can be captured.
+  if (auth.status !== 'authenticated') return null;
+  const { phrase, pubkey, encryptionKey, deviceId } = auth;
+
+  function openPhrase() {
+    const settings = loadLocalSettings();
+    setPhraseGate({
+      hasPin: Boolean(settings.pinHash && settings.pinSalt),
+      pinTimeoutMinutes: settings.pinTimeoutMinutes,
+    });
+  }
+
+  async function handleMove() {
+    setState('syncing');
+    let pushErrors = 0;
+    let conflicts = 0;
+    try {
+      await sync(
+        supabase,
+        pubkey,
+        encryptionKey,
+        deviceId,
+        undefined,
+        () => {
+          pushErrors++;
+        },
+        () => {
+          conflicts++;
+        },
+      );
+      const dirty = await db.notes.where('dirty').anyOf(1, 2).count();
+      if (conflicts > 0) {
+        setState('conflict');
+        return;
+      }
+      if (pushErrors > 0 || dirty > 0) {
+        setState('error');
+        return;
+      }
+    } catch {
+      setState('error');
+      return;
+    }
+    // Clean state confirmed - leave for the app host's sign-in screen.
+    // Navigates away; nothing wiped.
+    window.location.assign(APP_HOME);
+  }
+
+  const stuck = state === 'error' || state === 'conflict';
+
+  return (
+    <div className="min-h-dvh bg-surface-0 text-pn flex items-center justify-center p-4">
+      <div className="w-full max-w-md space-y-5 rounded-xl border border-divider bg-surface-2 p-6 sm:p-8">
+        <h1 className="text-display font-semibold">{t('moveScreen.title')}</h1>
+        <p className="text-body leading-relaxed text-pn-muted">
+          {t('moveScreen.bodySignIn', { scanQr: t('importPhrase.scanQr', { ns: 'auth' }) })}
+        </p>
+        {stuck && (
+          <p className="text-body leading-relaxed text-warning">
+            {state === 'conflict' ? t('moveBanner.conflict') : t('moveBanner.error')}
+          </p>
+        )}
+        <button
+          type="button"
+          disabled={state === 'syncing'}
+          onClick={() => void handleMove()}
+          className="w-full rounded-lg bg-accent-fill hover:bg-accent-fill-hover text-white text-body font-semibold px-4 py-2.5 transition disabled:opacity-60"
+        >
+          {state === 'syncing' ? t('moveBanner.syncing') : t('moveBanner.cta')}
+        </button>
+        {stuck && (
+          <button
+            type="button"
+            onClick={onOpenNotes}
+            className="w-full rounded-lg border border-divider hover:bg-surface-1 text-body font-medium px-4 py-2.5 transition"
+          >
+            {t('moveScreen.openNotes')}
+          </button>
+        )}
+        {phraseGate ? (
+          <Suspense fallback={null}>
+            <PhraseTab
+              phrase={phrase}
+              pubkey={pubkey}
+              pinTimeoutMinutes={phraseGate.pinTimeoutMinutes}
+              hasPin={phraseGate.hasPin}
+              onCancel={() => setPhraseGate(null)}
+            />
+          </Suspense>
+        ) : (
+          <button
+            type="button"
+            onClick={openPhrase}
+            className="w-full rounded-lg border border-divider hover:bg-surface-1 text-body font-medium px-4 py-2.5 transition"
+          >
+            {t('moveScreen.showPhrase')}
+          </button>
+        )}
+        <p className="text-center text-body">
+          <a
+            href={marketingHomeHref()}
+            className="text-pn-muted underline underline-offset-2 hover:text-pn transition"
+          >
+            {t('moveScreen.website')}
+          </a>
+        </p>
+      </div>
+    </div>
+  );
+}

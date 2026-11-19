@@ -1,0 +1,161 @@
+{
+  "moveBanner": {
+    "bodySignIn": "Sign in there with your recovery phrase or “{{scanQr}}”.",
+    "cta": "Move now",
+    "syncing": "Syncing your notes…",
+    "error": "Couldn't sync everything just now. Check your connection and try again.",
+    "conflict": "One of your notes has a sync conflict that needs your decision. Resolve it in the dialog, then try again."
+  },
+  "movedHint": {
+    "body": "This is the app's new home. Update your bookmark to use.privacynotes.app and re-add any home screen shortcut.",
+    "gotIt": "Got it"
+  },
+  "moveScreen": {
+    "title": "The app has moved to use.privacynotes.app",
+    "bodySignIn": "Sign in there with your recovery phrase or “{{scanQr}}”. This device syncs first, so all your notes are waiting for you, and nothing here is deleted.",
+    "openNotes": "Open your notes here once to fix this",
+    "showPhrase": "Show my recovery phrase",
+    "website": "Browse the website instead"
+  },
+  "quota": {
+    "frozen": {
+      "configured": "Sync paused. You've been over your storage limit for 90+ days. Your notes are safe locally. Re-subscribe or export your data.",
+      "unconfigured": "Sync paused. You've been over your storage limit for 90+ days. Your notes are safe locally. Export and trim notes to resume sync."
+    },
+    "grace": {
+      "configured_one": "Storage add-on expired. {{count}} day left to reduce usage or re-subscribe before sync pauses.",
+      "configured_other": "Storage add-on expired. {{count}} days left to reduce usage or re-subscribe before sync pauses.",
+      "unconfigured_one": "Over your storage limit. {{count}} day left to trim notes before sync pauses.",
+      "unconfigured_other": "Over your storage limit. {{count}} days left to trim notes before sync pauses."
+    },
+    "full": {
+      "configured": "Storage full. Some notes couldn't sync. Free up space or add more storage.",
+      "unconfigured": "Storage full. Some notes couldn't sync. Free up space by trimming notes."
+    },
+    "manageStorage": "Manage storage",
+    "viewUsage": "View usage"
+  },
+  "syncError": {
+    "failed_one": "1 note failed to sync. It'll retry automatically.",
+    "failed_other": "{{count}} notes failed to sync. They'll retry automatically.",
+    "lastError": "Last error: {{message}}"
+  },
+  "sessionExpired": {
+    "title": "Session expired",
+    "body": "Your session has expired. Your notes are safe on this device. Sign in again to resume syncing.",
+    "signInAgain": "Sign in again"
+  },
+  "signOutConfirm": {
+    "title": "Did you save your recovery phrase?",
+    "body": "Your phrase is the <only>only</only> way back in. No email reset, no support line. If you haven't written it down yet, tap <action>No, show phrase</action> and we'll open it for you right now.",
+    "unsyncedWarn_one": "1 note on this device hasn't synced yet. It will be permanently lost if it can't be uploaded while signing out.",
+    "unsyncedWarn_other": "{{count}} notes on this device haven't synced yet. They will be permanently lost if they can't be uploaded while signing out.",
+    "unsyncedKept_one": "1 note on this device hasn't synced yet. It stays on this device and syncs after you sign in again.",
+    "unsyncedKept_other": "{{count}} notes on this device haven't synced yet. They stay on this device and sync after you sign in again.",
+    "unsyncedFilesWarn_one": "{{count}} file on this device hasn't synced. Signing out deletes it for good.",
+    "unsyncedFilesWarn_other": "{{count}} files on this device haven't synced. Signing out deletes them for good.",
+    "dontRemind": "Don't remind me again",
+    "showPhrase": "No, show phrase",
+    "confirm": "Yes, sign out",
+    "stay": "Stay signed in",
+    "signOutLose_one": "Sign out and lose {{count}} note",
+    "signOutLose_other": "Sign out and lose {{count}} notes",
+    "signOutLoseFiles_one": "Sign out and lose {{count}} file",
+    "signOutLoseFiles_other": "Sign out and lose {{count}} files",
+    "signOutLoseBoth_one": "Sign out and lose {{count}} note and {{files}}",
+    "signOutLoseBoth_other": "Sign out and lose {{count}} notes and {{files}}",
+    "fileCount_one": "{{count}} file",
+    "fileCount_other": "{{count}} files",
+    "neverBackedUp_one": "Only on this device:",
+    "neverBackedUp_other": "Only on this device:",
+    "moreNotes": "and {{count}} more",
+    "appLockHint": "Shared device? Turn on app lock under Settings > Security."
+  },
+  "signOutUpload": {
+    "uploading": "Uploading your last changes…",
+    "title": "Some changes are not uploaded yet",
+    "body": "If you sign out now, changes made on this device since the last sync are lost. Connect to the internet to keep them.",
+    "signOutAnyway": "Sign out anyway"
+  },
+  "burnShareModal": {
+    "title": "Share & Burn After Reading",
+    "body": "<lead>Your original note will not be deleted.</lead> It stays safe in your account. The burn link is a separate encrypted copy that self-destructs after being read.",
+    "readTime": "Reading time",
+    "readTimeHint": "Clears from the screen after",
+    "lifetime": "Link expires",
+    "lifetimeHint": "If nobody opens it",
+    "minutes_one": "{{count}} minute",
+    "minutes_other": "{{count}} minutes",
+    "hours_one": "{{count}} hour",
+    "hours_other": "{{count}} hours",
+    "afterHours_one": "After {{count}} hour",
+    "afterHours_other": "After {{count}} hours",
+    "afterDays_one": "After {{count}} day",
+    "afterDays_other": "After {{count}} days",
+    "create": "Create and copy link",
+    "share": "Share link",
+    "imagesStripped": "Only text is shown, files are hidden in this note."
+  },
+  "burnView": {
+    "title": "Burn After Reading",
+    "tagline": "Encrypted. Ephemeral. Eyes only.",
+    "toggleTheme": "Toggle theme",
+    "revealing": "Fetching and decrypting...",
+    "goToApp": "Go to <brand/>",
+    "footerTagline": "- Encrypted notes, hosted in Switzerland.",
+    "sealed": {
+      "heading": "You received an encrypted note.",
+      "subheading": "This message will self-destruct after reading. Unread links expire on their own.",
+      "reveal": "Reveal Message",
+      "warning": "The server deletes the note the moment you reveal it. No second chances."
+    },
+    "revealed": {
+      "countdown": "Plaintext clears in {{time}}",
+      "clearNow": "Clear now",
+      "emptyNote": "(empty note)",
+      "deletedNotice": "This shared copy has been deleted from the server. It cannot be viewed again."
+    },
+    "destroyed": {
+      "heading": "Message destroyed.",
+      "body": "Deleted from the server and cleared from memory. This message cannot be read again."
+    },
+    "gone": {
+      "heading": "This note is gone.",
+      "body": "It was already read or has expired. Burn links can only be opened once and expire on their own."
+    },
+    "error": {
+      "heading": "Something went wrong.",
+      "fallback": "The link may be corrupted or incomplete.",
+      "server": "Server error. The note may have already been read or expired.",
+      "decryption": "Decryption failed. The link may be corrupted.",
+      "network": "Could not reach the server. Check your connection and try again."
+    },
+    "noPayload": {
+      "heading": "No message found.",
+      "body": "This URL doesn’t contain a burn note reference. Make sure you have the complete link."
+    }
+  },
+  "burnShare": {
+    "offline": "You're offline. Burn links require a server round-trip. Try again when you're back online.",
+    "demo": "Burn links are stored on a server, and the demo never contacts one. Sign up to create real burn links.",
+    "tooLarge": "Note is too large to share via burn link ({{size}}KB). Maximum is {{max}}KB.",
+    "storeFailed": "Failed to store burn note on server.",
+    "rateLimited": "Too many burn links were made from this connection. Try again later."
+  },
+  "dms": {
+    "returnTitle": "Your server copy was deleted",
+    "returnBody_one": "Your dead man's switch deleted your notes from the server on {{date}}. This device still has {{count}} note. Download a backup if you want to keep it, then delete it from this device.",
+    "returnBody_other": "Your dead man's switch deleted your notes from the server on {{date}}. This device still has {{count}} notes. Download a backup if you want to keep them, then delete them from this device.",
+    "returnBackup": "Download a backup",
+    "returnDelete": "Delete from this device"
+  },
+  "massDelete": {
+    "title": "Notes deleted on another device",
+    "body_one": "You, or another of your devices, deleted {{count}} note that this device still has. If that was you, delete it here too. If it was not you, someone may have access to your account: keep it to put it back on all your devices.",
+    "body_other": "You, or another of your devices, deleted {{count}} notes that this device still has. If that was you, delete them here too. If it was not you, someone may have access to your account: keep them to put them back on all your devices.",
+    "refusedTitle": "Your notes are back",
+    "refusedBody_one": "{{count}} note was deleted from the server, but not by any of your devices. This device did not accept the delete and put the note back on all your devices. Check your devices and remove any you do not know.",
+    "refusedBody_other": "{{count}} notes were deleted from the server, but not by any of your devices. This device did not accept the delete and put them back on all your devices. Check your devices and remove any you do not know.",
+    "showDevices": "Show devices"
+  }
+}

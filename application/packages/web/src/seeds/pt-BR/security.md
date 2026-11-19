@@ -1,0 +1,52 @@
+---
+id: 5ec1
+title: Como suas notas são protegidas
+---
+
+> [!info]- Cada nota é criptografada no seu dispositivo, antes de ser guardada em qualquer lugar.
+> &nbsp;
+
+![A tabela de notas no nosso banco de dados real. Cada nota é um bloco longo de texto ilegível.](/onboarding/database.webp)
+
+Aquele é o nosso banco de dados de verdade em Zurique, não um desenho. Sua nota vai para a coluna `ciphertext`, qualquer que seja a opção escolhida abaixo. Ao lado dela guardamos só o que faz o serviço funcionar: sua chave pública, tamanhos, horários e o e-mail por trás de um login do Google, Apple ou GitHub.
+
+## O que acontece quando você escreve uma nota
+
+1. Sua frase de recuperação vira uma chave. Isso acontece no seu dispositivo.
+2. A nota é criptografada com essa chave, no seu dispositivo. É assim que ela fica guardada no seu próprio disco, e é assim que ela viaja até nós.
+3. Recebemos a nota criptografada e guardamos. A imagem acima é a cara disso.
+4. Qualquer dispositivo com a mesma frase cria a mesma chave e abre a nota.
+
+## Quem tem a sua chave
+
+Todas as opções mantêm suas notas criptografadas no seu dispositivo. Elas diferem em onde a sua frase fica.
+
+| Opção | Onde sua frase fica | O que isso te dá |
+| --- | --- | --- |
+| **Login, chave conosco** | No nosso servidor, criptografada | Um dispositivo novo entra só com essa conta |
+| **Login, chave no seu dispositivo** | Com você, em nenhum outro lugar | Entre com Google, Apple ou GitHub e continue com a chave |
+| **Só a frase, sem login** | Com você, em nenhum outro lugar | Sem e-mail, sem nome, sem login nenhum |
+
+As duas de baixo são de zero conhecimento: não existe nenhuma chave das suas notas no nosso servidor, então uma ordem judicial não consegue abri-las. A primeira troca isso por comodidade: sua frase fica no nosso servidor sob uma chave nossa, então um dispositivo novo não precisa de nada além da sua conta. Se o nosso servidor fosse invadido algum dia, essa chave poderia ficar exposta.
+
+Entrou com Google, Apple ou GitHub? Você pode alternar entre as duas primeiras depois, em **Configurações > Conta > Custódia da chave**. Com uma conta só de frase, a frase fica sempre com você.
+
+> [!warning] Tenha sua própria cópia da frase
+> Sua frase abre suas notas. Na autocustódia, ninguém consegue recuperar uma frase perdida. <span style="color: #e03131">Escreva no papel hoje.</span>
+
+## Confira você mesmo
+
+[Instruções detalhadas de verificação no GitHub](https://github.com/LifetimeLabsHQ/PrivacyNotes.app/blob/main/VERIFY.md)
+
+- [ ] Abra a aba de rede do seu navegador e depois edite uma nota. Veja o que chega para nós: um bloco de texto ilegível.
+- [ ] Leia o código da criptografia. Ele é público e curto o bastante para terminar de uma vez.
+
+| O quê | Onde |
+| --- | --- |
+| A criptografia em si | [crypto.ts](https://github.com/LifetimeLabsHQ/PrivacyNotes.app/blob/main/crypto/crypto.ts) |
+| O que o nosso servidor recebe | [VERIFY.md](https://github.com/LifetimeLabsHQ/PrivacyNotes.app/blob/main/VERIFY.md#tier-1-one-minute-no-tools) |
+| O que um atacante pode e não pode fazer | [THREAT_MODEL.md](https://github.com/LifetimeLabsHQ/PrivacyNotes.app/blob/main/THREAT_MODEL.md) |
+| Como relatar uma falha | [SECURITY.md](https://github.com/LifetimeLabsHQ/PrivacyNotes.app/blob/main/SECURITY.md) |
+
+> [!info] Uma fechadura cobre tudo
+> Notas, entradas de diário, marcadores, itens do cofre e anexos são criptografados do mesmo jeito. [[A mudança]] mostra como trazer cada um deles.

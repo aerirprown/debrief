@@ -1,0 +1,2237 @@
+// jszip is ~95 KB minified and only needed when the user actually
+// exports a zip, so it is imported dynamically inside the two zip
+// functions instead of statically here.
+import type { CarriedSettings } from './backupRestore';
+import type { CustomHabitDef } from './habitList';
+import {
+  buildBackupPayload,
+  encodeBackup,
+  decodeBackup,
+  encodeZipBackup,
+  decodeZipBackup,
+  BACKUP_TOO_SMALL,
+  bytesToBase64,
+} from '@notes/shared';
+import type { BackupPayload } from '@notes/shared';
+import i18n from './i18n';
+import { trackerRows, trackerHeading } from './trackerExport';
+import { loadLocalSettings } from './userSettings';
+import { openWithRing } from './keyRing';
+import { dateLocale, formatInstant } from './intlFormat';
+import { saveBlob } from './saveFile';
+import { detectPlatform } from './devices';
+import type { LocalNote } from './db';
+import { noteToMarkdown } from './noteMarkdown';
+import { editedAtOf, toLocalIso } from './notesViewUtils';
+import { scheduleOf } from './schedule';
+import { describeSchedule } from './scheduleText';
+import type { ImageStore as BlobImageStore } from './imageStore';
+import type { AttachmentStore as BlobAttachmentStore } from './attachmentStore';
+/** What an export reads of the blob stores: the store itself, or a reader of
+ *  this device's own cache alone (the screen of a replaced phrase, which has
+ *  no session to download with). */
+type ImageStore = Pick<BlobImageStore, 'getImage'>;
+type AttachmentStore = Pick<BlobAttachmentStore, 'getAttachment'>;
+import { attachmentLinks, unescapeMarkdownText } from './fileNames';
+import { FILE_PICTURE, markdownLinks, replaceMatches } from './linkScan';
+import { extractImageIds } from './imageProcessing';
+import { renderMarkdown, renderNoteBody, prepareRender, inlineSameOriginImages, inlineRenderedFavicons } from './markdownRender';
+import { parseLoginBody } from './LoginForm';
+import { isPublicField, loginExtrasOf } from './loginExtras';
+import { parseCardBody, detectCardNetwork } from './CardForm';
+import { parseSshKeyBody } from './SshKeyForm';
+import { vaultContent, vaultToMarkdown } from './vaultFields';
+import { hasVaultFiles, noteFileLinks } from './vaultBody';
+import type { VaultContent } from './vaultFields';
+import { ancestorIds, folderNamePath, type FolderDef } from './folders';
+import type { ItemStyles } from './itemStyles';
+import type { CustomThemes } from './customThemes';
+import type { CustomTrackerTemplate, FactorDef, MedicationTemplate } from './trackerTypes';
+import { linkExportMarkdown } from './linkBody';
+import { slugify, zipEntryStems } from './exportNames';
+import { parseScene, toExcalidrawFile } from './drawing/scene';
+import { lineHeightCss, paragraphGapCss, readLineSpacing, readNestedNumbers } from './theme';
+import { isSameOriginPath } from './sameOriginPath';
+import { IMAGE_REF_RE } from './mediaRefs';
+import { contactDisplayName, contactFullName, contactInitialsFor, formatAddressLines, formatContactDate, parseContactBody, telHref, type Contact } from './contactBody';
+import { escapeHtml } from './escapeHtml';
+
+/** Export helpers. All exports are generated client-side as Blob downloads. */
+
+// ─── Image resolution helpers ──────────────────────────────────────────
+//
+// All export paths that output note body content need to resolve
+// `pn:img/<uuid>` references into real images. Two strategies:
+//
+// 1. Data URI - inline `data:image/jpeg;base64,...` for single-file
+//    exports (.md, .html) and JSON.
+// 2. Bundled files - `images/<uuid>.jpg` alongside the note in zip
+//    exports, with the body rewritten to use relative paths.
+
+/**
+ * A picture or file a note refers to that an export could not put in its
+ * file. `failed`: the read threw, which for a blob this device never opened
+ * means the download failed (offline, a link that drops, a server error).
+ * `notFound`: neither this device nor the server has it.
+ */
+export interface MissingBlob {
+  id: string;
+  /** The store it lives in: `image` for `pn:img/`, `file` for `pn:file/`. */
+  kind: 'image' | 'file';
+  reason: 'failed' | 'notFound';
+}
+
+/**
+ * Read one blob for an export. A blob it cannot read goes on `missing`,
+ * never only to the console: every export returns that list, and a file
+ * saved without something its notes refer to is never reported complete.
+ * Without a store every read fails.
+ */
+async function readForExport<T>(
+  read: (() => Promise<T | null>) | null | undefined,
+  blob: Pick<MissingBlob, 'id' | 'kind'>,
+  missing: MissingBlob[],
+): Promise<T | null> {
+  if (!read) {
+    missing.push({ ...blob, reason: 'failed' });
+    return null;
+  }
+  try {
+    const data = await read();
+    if (data) return data;
+    missing.push({ ...blob, reason: 'notFound' });
+  } catch (err) {
+    console.warn(`Export: failed to read ${blob.kind} ${blob.id}:`, err);
+    missing.push({ ...blob, reason: 'failed' });
+  }
+  return null;
+}
+
+/** "3 pictures and 1 file", in the reader's language. */
+export function missingItemsLabel(missing: ReadonlyArray<Pick<MissingBlob, 'kind'>>): string {
+  const pictures = missing.filter((m) => m.kind === 'image').length;
+  const files = missing.length - pictures;
+  const p = i18n.t('importExport:missing.pictures', { count: pictures });
+  const f = i18n.t('importExport:missing.files', { count: files });
+  if (pictures > 0 && files > 0) return i18n.t('importExport:missing.both', { pictures: p, files: f });
+  return pictures > 0 ? p : f;
+}
+
+/** What the export window says about a file saved without some of the
+ *  pictures and files its notes refer to. Empty when nothing is missing. */
+export function describeMissing(missing: readonly MissingBlob[]): string {
+  const failed = missing.filter((m) => m.reason === 'failed');
+  const notFound = missing.filter((m) => m.reason === 'notFound');
+  const lines: string[] = [];
+  if (failed.length > 0) {
+    lines.push(i18n.t('importExport:exportProgress.missingFailed', {
+      count: failed.length,
+      items: missingItemsLabel(failed),
+    }));
+  }
+  if (notFound.length > 0) {
+    lines.push(i18n.t('importExport:exportProgress.missingNotFound', {
+      count: notFound.length,
+      items: missingItemsLabel(notFound),
+    }));
+  }
+  return lines.join(' ');
+}
+
+/** Read every pn:img/ picture in a body, keyed by uuid. */
+async function resolveImages(
+  body: string,
+  imageStore: ImageStore | null | undefined,
+  missing: MissingBlob[],
+): Promise<Map<string, Uint8Array>> {
+  const resolved = new Map<string, Uint8Array>();
+  await Promise.all(
+    [...extractImageIds(body)].map(async (uuid) => {
+      const data = await readForExport(
+        imageStore && (() => imageStore.getImage(uuid)),
+        { id: uuid, kind: 'image' },
+        missing,
+      );
+      if (data) resolved.set(uuid, data);
+    }),
+  );
+  return resolved;
+}
+
+/** Sniff image MIME from magic bytes. A stored image is JPEG, PNG when the
+ *  source carried transparency, or the source's own format when the space
+ *  saver was off (see imageProcessing.ts). Defaults to JPEG for any
+ *  pre-existing/unknown blob. */
+function sniffImageMime(bytes: Uint8Array): string {
+  const tag = (at: number, len: number) => String.fromCharCode(...bytes.subarray(at, at + len));
+  if (bytes.length < 12) return 'image/jpeg';
+  if (bytes[0] === 0x89 && tag(1, 3) === 'PNG') return 'image/png';
+  if (tag(0, 4) === 'GIF8') return 'image/gif';
+  if (tag(0, 4) === 'RIFF' && tag(8, 4) === 'WEBP') return 'image/webp';
+  if (tag(0, 2) === 'BM') return 'image/bmp';
+  return 'image/jpeg';
+}
+
+/** File extension matching the sniffed image format. */
+function sniffImageExt(bytes: Uint8Array): string {
+  const mime = sniffImageMime(bytes);
+  return mime === 'image/jpeg' ? 'jpg' : mime.slice('image/'.length);
+}
+
+/** Replace pn:img/<uuid> refs with data URIs in a body string. */
+function replaceWithDataUris(
+  body: string,
+  images: Map<string, Uint8Array>,
+): string {
+  return body.replace(IMAGE_REF_RE, (match, uuid: string) => {
+    const data = images.get(uuid);
+    if (!data) return match; // leave as-is if unresolved
+    return `data:${sniffImageMime(data)};base64,${bytesToBase64(data)}`;
+  });
+}
+
+/**
+ * Pictures placed from the Files pillar: `![alt](pn:file/<uuid>)`. One shows
+ * an upload's attachment blob instead of a copy in the picture store, so
+ * every export that resolves `pn:img/` refs has to resolve these too. The alt
+ * text excludes newlines, like the attachment link. `uuid` is the blob's id.
+ */
+function filePictures(body: string): { index: number; end: number; alt: string; uuid: string }[] {
+  return markdownLinks(body, FILE_PICTURE).map((p) => ({ ...p, alt: p.text, uuid: p.target.slice('pn:file/'.length) }));
+}
+
+/** Resolve all picture references in a body to inline data URIs: `pn:img/`
+ *  through the picture store, pictures placed from Files through the
+ *  attachment store. A picture it cannot read stays a reference and is
+ *  returned in `missing`. */
+async function resolveBodyImages(
+  source: string,
+  imageStore?: ImageStore | null,
+  attachmentStore?: AttachmentStore | null,
+): Promise<{ body: string; missing: MissingBlob[] }> {
+  const missing: MissingBlob[] = [];
+  let body = source;
+  if (extractImageIds(body).size > 0) {
+    body = replaceWithDataUris(body, await resolveImages(body, imageStore, missing));
+  }
+  body = await resolveFilePictures(body, attachmentStore, missing);
+  return { body, missing };
+}
+
+/** Replace pictures placed from Files with data URIs. Unresolved ones stay. */
+async function resolveFilePictures(
+  body: string,
+  attachmentStore: AttachmentStore | null | undefined,
+  missing: MissingBlob[],
+): Promise<string> {
+  const ids = new Set<string>();
+  for (const { uuid } of filePictures(body)) ids.add(uuid);
+  if (ids.size === 0) return body;
+  const uris = new Map<string, string>();
+  for (const uuid of ids) {
+    const att = await readForExport(
+      attachmentStore && (() => attachmentStore.getAttachment(uuid)),
+      { id: uuid, kind: 'file' },
+      missing,
+    );
+    if (!att) continue;
+    const mime = att.meta.mime.startsWith('image/') ? att.meta.mime : sniffImageMime(att.data);
+    uris.set(uuid, `data:${mime};base64,${bytesToBase64(att.data)}`);
+  }
+  return replaceMatches(body, filePictures(body), ({ alt, uuid }) => {
+    const uri = uris.get(uuid);
+    return uri ? `![${alt}](${uri})` : null;
+  });
+}
+
+// ─── Attachment resolution helpers ────────────────────────────────────
+//
+// File attachments use `[name|size|mime](pn:file/<uuid>)` in note bodies.
+// The full backup zip resolves these into real files in organized folders.
+
+
+/** Files a table cell holds. A table with a file in a cell is stored as
+ *  HTML, where the file is `<a data-attachment href="pn:file/<uuid>">`, not
+ *  the markdown link above, so the full backup left the file out and said
+ *  nothing (external report, 2026-10-24, bug report 5). The link stays as it
+ *  is in the backup: a restore keeps the file's id, so it resolves again. */
+function extractHtmlAttachmentLinks(body: string): Map<string, { name: string; size: string; mime: string }> {
+  const map = new Map<string, { name: string; size: string; mime: string }>();
+  if (typeof body !== 'string' || !body.includes('data-attachment')) return map;
+  const doc = new DOMParser().parseFromString(body, 'text/html');
+  for (const a of doc.querySelectorAll('a[data-attachment]')) {
+    const uuid = /^pn:file\/([0-9a-f-]{36})$/.exec(a.getAttribute('href') ?? '')?.[1];
+    if (!uuid || map.has(uuid)) continue;
+    map.set(uuid, {
+      name: a.getAttribute('data-filename') ?? '',
+      size: a.getAttribute('data-filesize') ?? '',
+      mime: a.getAttribute('data-mimetype') ?? '',
+    });
+  }
+  return map;
+}
+
+/** Determine export folder for an attachment based on MIME type. */
+function attachmentFolder(mime: string): 'audio' | 'video' | 'docs' | 'files' {
+  if (mime.startsWith('audio/')) return 'audio';
+  if (mime.startsWith('video/')) return 'video';
+  if (
+    mime === 'application/pdf' ||
+    mime.startsWith('application/msword') ||
+    mime.startsWith('application/vnd.openxmlformats') ||
+    mime.startsWith('application/vnd.apple.') ||
+    mime === 'text/plain' ||
+    mime === 'text/markdown' ||
+    mime === 'text/csv' ||
+    mime === 'text/rtf' ||
+    mime === 'application/rtf'
+  ) return 'docs';
+  return 'files';
+}
+
+/** Get file extension from a filename, or guess from MIME. */
+function extensionFromName(name: string, mime?: string): string {
+  const dot = name.lastIndexOf('.');
+  if (dot >= 0) return name.slice(dot + 1).toLowerCase();
+  // Fallback: guess from MIME
+  if (mime) {
+    const sub = mime.split('/')[1];
+    if (sub === 'mpeg') return 'mp3';
+    if (sub === 'mp4') return 'mp4';
+    if (sub === 'pdf') return 'pdf';
+    if (sub === 'plain') return 'txt';
+    if (sub) return sub.split('+')[0]!.split(';')[0]!;
+  }
+  return 'bin';
+}
+
+/** Sanitize an attachment's original name into a zip-safe filename and make
+ *  sure it carries the right extension. Strips path separators and
+ *  filesystem-illegal characters, collapses whitespace, and drops leading
+ *  dots so the file can't become hidden or empty. */
+function safeAttachmentName(name: string, ext: string): string {
+  let safe = name
+    .replace(/[/\\]+/g, '-')
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\x00-\x1f<>:"|?*]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^\.+/, '');
+  if (!safe) safe = 'file';
+  if (ext && !safe.toLowerCase().endsWith(`.${ext.toLowerCase()}`)) {
+    safe = `${safe}.${ext}`;
+  }
+  return safe;
+}
+
+/** Per-export-unique filename for an attachment. On collision within the
+ *  same folder, insert -2, -3, ... before the extension. Dedup is
+ *  case-insensitive so it also holds on case-insensitive filesystems.
+ *  `taken` accumulates the lowercased folder/name paths already used. */
+function uniqueAttachmentName(
+  name: string,
+  ext: string,
+  folder: string,
+  taken: Set<string>,
+): string {
+  const base = safeAttachmentName(name, ext);
+  const dot = base.lastIndexOf('.');
+  const stem = dot > 0 ? base.slice(0, dot) : base;
+  const tail = dot > 0 ? base.slice(dot) : '';
+  let candidate = base;
+  let n = 1;
+  while (taken.has(`${folder}/${candidate}`.toLowerCase())) {
+    n += 1;
+    candidate = `${stem}-${n}${tail}`;
+  }
+  taken.add(`${folder}/${candidate}`.toLowerCase());
+  return candidate;
+}
+
+/** Wrap a markdown link destination in <> when it contains a space or paren,
+ *  which would otherwise break a bare link target. */
+function mdLinkTarget(path: string): string {
+  return /[ ()]/.test(path) ? `<${path}>` : path;
+}
+
+/** Manifest shape for the full backup zip. */
+export interface BackupManifest {
+  version: number;
+  format: 'privacynotes-backup';
+  exportedAt: string;
+  noteCount: number;
+  images: Record<string, { folder: string }>;
+  attachments: Record<string, {
+    name: string;
+    mime: string;
+    size: number;
+    folder: string;
+    file?: string;
+  }>;
+  /** What the export could not read. Written only when there is something
+   *  to list, so a whole backup's manifest has no such key; a restore of a
+   *  backup that has one reports each entry. */
+  missing?: Pick<MissingBlob, 'id' | 'kind'>[];
+  /** The looks of folders, tags and notes, the custom themes and the factor
+   *  names, the settings the notes alone cannot carry. Written only when there
+   *  is something to carry; the restore validates each. */
+  settings?: { itemStyles?: unknown; customThemes?: unknown; factors?: unknown; customHabits?: unknown; medications?: unknown; customTrackers?: unknown; favoriteTags?: unknown; calendarFeeds?: unknown; dashboard?: unknown; agentFolder?: unknown; trackerSetup?: unknown };
+}
+
+/**
+ * Rewrite pn:img/ and pn:file/ refs in a note body to relative paths
+ * for the full backup zip. Returns the rewritten body.
+ */
+function rewriteBodyForExport(
+  body: string,
+  resolvedImageExts: Map<string, string>,
+  attachmentMap: Map<string, { path: string; name: string }>,
+  /** `../` once per folder level, for a note filed in a folder directory
+   *  (the Notes only zip); empty for a note at the top of the zip. */
+  up = '',
+): string {
+  // Rewrite images: pn:img/<uuid> → images/<uuid>.<ext> (jpg or png)
+  let result = body.replace(IMAGE_REF_RE, (match, uuid: string) => {
+    const ext = resolvedImageExts.get(uuid);
+    if (!ext) return match;
+    return `${up}images/${uuid}.${ext}`;
+  });
+  // Pictures placed from Files point at the upload's file in the zip, and
+  // the restore maps that path back (import/privacynotes.ts).
+  result = replaceMatches(result, filePictures(result), ({ alt, uuid }) => {
+    const info = attachmentMap.get(uuid);
+    return info ? `![${alt}](${mdLinkTarget(up + info.path)})` : null;
+  });
+  // Rewrite attachments: [name|size|mime](pn:file/<uuid>) → [name](<folder/original name.ext>)
+  return replaceMatches(result, attachmentLinks(result), (link) => {
+    const info = attachmentMap.get(link.uuid);
+    // Each reference keeps its OWN label. One file can be referenced from
+    // two notes under two names, so collapsing them onto the first-seen
+    // name would throw one of them away.
+    return info ? `[${link.name || info.name}](${mdLinkTarget(up + info.path)})` : null;
+  });
+}
+
+/** Cross-platform save: web anchor-download trick, native Save As dialog.
+ *  Throws when the save failed, which saveBlob reports rather than throws:
+ *  every export caller shows a thrown error, and a failed save that resolved
+ *  would read as a finished export (issue #193). A dismissed dialog is the
+ *  reader's choice, not a failure. Resolves to the path a native save wrote,
+ *  which the export window offers to show in the file manager. */
+async function downloadBlob(blob: Blob, filename: string): Promise<string | undefined> {
+  const saved = await saveBlob(blob, filename);
+  if (!saved.ok && saved.reason === 'failed') throw saved.error;
+  return saved.ok ? saved.path : undefined;
+}
+
+/** Where a bulk export is: its step, and how far into it for a step that
+ *  counts. The export window owns the wording. */
+export type ExportStepName = 'pictures' | 'files' | 'notes' | 'zip';
+export interface ExportStep {
+  step: ExportStepName;
+  done?: number;
+  total?: number;
+}
+/** The steps each bulk export goes through, in order. */
+export const FULL_BACKUP_STEPS: readonly ExportStepName[] = ['pictures', 'files', 'notes', 'zip'];
+export const HTML_ARCHIVE_STEPS: readonly ExportStepName[] = ['notes', 'zip'];
+export const DRAWINGS_STEPS: readonly ExportStepName[] = ['pictures', 'zip'];
+
+/** What a bulk export saved: the blobs it left out, and where a native save
+ *  put the file. */
+export interface BulkExportResult {
+  missing: MissingBlob[];
+  savedPath?: string;
+}
+
+// noteToMarkdown lives in ./noteMarkdown so the round-trip test can drive it
+// without going through a browser download - see that file's header.
+
+/**
+ * Export a single note as .md. Picture references are resolved to inline
+ * data URIs so the .md file is self-contained. Returns the pictures it could
+ * not read, which stay references in the file.
+ */
+
+export async function exportSingleMarkdown(
+  note: LocalNote,
+  imageStore?: ImageStore | null,
+  folders: FolderDef[] = [],
+  attachmentStore?: AttachmentStore | null,
+): Promise<MissingBlob[]> {
+  // A vault item is written out readable here, and as its stored JSON in the
+  // backup zip below. Nothing reads a single .md back as a vault item - it
+  // carries no `type` line and `import/markdown.ts` reads none - so the blob
+  // would restore nothing and hide every field. See vaultToMarkdown.
+  const vault = vaultContent(note);
+  // A bookmark exports as its bare autolink - readable as text in the
+  // .md file, clickable everywhere markdown renders. See linkExportMarkdown.
+  const plain = linkExportMarkdown(note) ?? (vault ? vaultToMarkdown(vault) : null);
+  const { body, missing } = plain === null
+    ? await resolveBodyImages(note.body, imageStore, attachmentStore)
+    : { body: plain, missing: [] };
+  const md = noteToMarkdown({ ...note, body }, false, folderNamePath(folders, note.folderId));
+  await downloadBlob(
+    new Blob([md], { type: 'text/markdown;charset=utf-8' }),
+    `${slugify(note.title)}.md`
+  );
+  return missing;
+}
+
+/**
+ * Full backup zip - the canonical lossless backup format.
+ *
+ * Structure:
+ *   manifest.json                    - format version, attachment metadata
+ *   images/<uuid>.<ext>              - all images (extension from the bytes)
+ *   audio/<name>.<ext>               - audio attachments, under the name shown
+ *   video/<name>.<ext>               - video attachments
+ *   docs/<name>.<ext>                - document attachments
+ *   files/<name>.<ext>               - other file attachments
+ *                                      (a repeated name takes -2, -3; the
+ *                                      manifest maps each uuid to its file)
+ *   <slug>.md                        - one markdown file per note (full frontmatter)
+ *
+ * Images and attachments are resolved one at a time (streamed) so peak
+ * memory is one file + the growing zip buffer, not the entire account.
+ *
+ * Every blob a note refers to ends up either in the zip or in `missing`.
+ */
+async function buildFullBackupZip(
+  notes: LocalNote[],
+  imageStore?: ImageStore | null,
+  attachmentStore?: AttachmentStore | null,
+  onProgress?: (at: ExportStep) => void,
+  folders: FolderDef[] = [],
+  settings: CarriedSettings = {},
+  signal?: AbortSignal,
+  /** The Notes only zip (#682): each note in its folder's directory, and no
+   *  manifest.json or calendar.ics. The Restore tab reads only top-level
+   *  files, so this zip is for reading; Import > Markdown reads it back. */
+  reading = false,
+): Promise<{ blob: Blob; missing: MissingBlob[] }> {
+  // A cancelled export stops at its next step. A read that hangs cannot be
+  // interrupted, but the window has already closed and nothing gets saved.
+  const progress = (at: ExportStep) => {
+    signal?.throwIfAborted();
+    onProgress?.(at);
+  };
+  const { default: JSZip } = await import('jszip');
+  const zip = new JSZip();
+
+  // ── 1. Collect all unique image + attachment UUIDs across all notes ──
+
+  const allImageIds = new Set<string>();
+  // Map<uuid, { name, size, mime }> - merged from all notes
+  const allAttLinks = new Map<string, { name: string; size: string; mime: string }>();
+
+  for (const note of notes) {
+    for (const id of extractImageIds(note.body)) allImageIds.add(id);
+    for (const { uuid, name, size, mime } of noteFileLinks(note)) {
+      if (!allAttLinks.has(uuid)) allAttLinks.set(uuid, { name, size, mime });
+    }
+  }
+  for (const note of notes) {
+    for (const [uuid, meta] of extractHtmlAttachmentLinks(note.body)) {
+      if (!allAttLinks.has(uuid)) allAttLinks.set(uuid, meta);
+    }
+  }
+  // A picture placed from Files carries the upload's blob too. Collected
+  // after every chip, so a chip's name wins over the picture's empty one and
+  // the blob is still exported when no chip in this export names it.
+  for (const note of notes) {
+    for (const { uuid } of filePictures(note.body)) {
+      if (!allAttLinks.has(uuid)) allAttLinks.set(uuid, { name: '', size: '', mime: '' });
+    }
+  }
+
+  // ── 2. Resolve and add images to zip ────────────────────────────────
+
+  const resolvedImageExts = new Map<string, string>();
+  const manifestImages: BackupManifest['images'] = {};
+  const missing: MissingBlob[] = [];
+
+  if (allImageIds.size > 0) {
+    let done = 0;
+    for (const uuid of allImageIds) {
+      progress({ step: 'pictures', done: ++done, total: allImageIds.size });
+      const data = await readForExport(
+        imageStore && (() => imageStore.getImage(uuid)),
+        { id: uuid, kind: 'image' },
+        missing,
+      );
+      if (!data) continue;
+      const ext = sniffImageExt(data);
+      zip.file(`images/${uuid}.${ext}`, data);
+      resolvedImageExts.set(uuid, ext);
+      manifestImages[uuid] = { folder: 'images' };
+    }
+  }
+
+  // ── 3. Resolve and add attachments to zip ───────────────────────────
+
+  // Map<uuid, { path, name }> - path is the zip-relative file path (used to
+  // rewrite body links), name is the original display name (link text).
+  const attachmentMap = new Map<string, { path: string; name: string }>();
+  const manifestAttachments: BackupManifest['attachments'] = {};
+  // Lowercased folder/name paths already written, so two attachments sharing
+  // a name get -2, -3 suffixes instead of overwriting each other.
+  const takenAttPaths = new Set<string>();
+
+  if (allAttLinks.size > 0) {
+    let done = 0;
+    for (const [uuid] of allAttLinks) {
+      progress({ step: 'files', done: ++done, total: allAttLinks.size });
+      const att = await readForExport(
+        attachmentStore && (() => attachmentStore.getAttachment(uuid)),
+        { id: uuid, kind: 'file' },
+        missing,
+      );
+      if (!att) continue;
+      // The name the user sees is the link text, which a rename changes;
+      // the blob header keeps whatever the file was called when it was
+      // uploaded. The zip follows the reader, so a renamed file arrives
+      // under the name they gave it. Size and mime still come from the
+      // header, because those describe the bytes rather than the label.
+      const shownName = unescapeMarkdownText(allAttLinks.get(uuid)?.name || '') || att.meta.name;
+      const folder = attachmentFolder(att.meta.mime);
+      const ext = extensionFromName(shownName, att.meta.mime);
+      const filename = uniqueAttachmentName(shownName, ext, folder, takenAttPaths);
+      const path = `${folder}/${filename}`;
+      zip.file(path, att.data);
+      attachmentMap.set(uuid, { path, name: shownName });
+      manifestAttachments[uuid] = {
+        // Restoring rebuilds the link from this, so a stale name here
+        // would undo the rename on the way back in.
+        name: shownName,
+        mime: att.meta.mime,
+        size: att.meta.size,
+        folder,
+        file: filename,
+      };
+    }
+  }
+
+  // ── 4. Add notes as .md files with rewritten body refs ──────────────
+
+  progress({ step: 'notes' });
+
+  const stems = zipEntryStems(notes);
+  for (const [i, note] of notes.entries()) {
+    const stem = stems[i]!;
+
+    // A vault item keeps its pn:file links: its body is JSON, which the text
+    // rewrite would break, and the restore puts each file back under the
+    // same uuid (manifest.attachments), so the links still resolve.
+    const folderPath = folderNamePath(folders, note.folderId);
+    // A folder name becomes a safe directory name: no separators, no
+    // characters Windows refuses, no leading dot. The note keeps its real
+    // folder names in its `folder:` line.
+    const dirs = reading ? folderPath.map((name) => safeAttachmentName(name, '')) : [];
+    const up = '../'.repeat(dirs.length);
+    const body = hasVaultFiles(note.type) ? note.body : rewriteBodyForExport(note.body, resolvedImageExts, attachmentMap, up);
+    zip.file([...dirs, `${stem}.md`].join('/'), noteToMarkdown({ ...note, body }, true, folderPath));
+  }
+  if (reading) {
+    progress({ step: 'zip' });
+    const blob = await zip.generateAsync({ type: 'blob' });
+    signal?.throwIfAborted();
+    return { blob, missing };
+  }
+
+  // The calendar as one .ics for other apps. A restore reads only the
+  // root .md files, so it never brings an event back twice.
+  // Spec: docs/internal/specs/google-calendar-import.md (section 6)
+  const calendar = await calendarFileForBackup(notes);
+  if (calendar) zip.file('calendar.ics', calendar);
+
+  // ── 5. Add manifest.json ────────────────────────────────────────────
+
+  const manifest: BackupManifest = {
+    version: 2,
+    format: 'privacynotes-backup',
+    exportedAt: new Date().toISOString(),
+    noteCount: notes.length,
+    images: manifestImages,
+    attachments: manifestAttachments,
+    ...(missing.length > 0 ? { missing: missing.map(({ id, kind }) => ({ id, kind })) } : {}),
+  };
+  const carried = {
+    ...(Object.keys(settings.itemStyles ?? {}).length > 0 ? { itemStyles: settings.itemStyles } : {}),
+    ...(Object.keys(settings.customThemes ?? {}).length > 0 ? { customThemes: settings.customThemes } : {}),
+    ...((settings.factors ?? []).length > 0 ? { factors: settings.factors } : {}),
+    ...((settings.customHabits ?? []).length > 0 ? { customHabits: settings.customHabits } : {}),
+    // Medications and custom tracker definitions live in the settings only;
+    // without them a restore brought back journal values with no tracker or
+    // medication to draw them (external report, 2026-10-24, bug report 6).
+    ...((settings.medications ?? []).length > 0 ? { medications: settings.medications } : {}),
+    ...((settings.customTrackers ?? []).length > 0 ? { customTrackers: settings.customTrackers } : {}),
+    // The rest of what a person set up by hand, so "everything" holds
+    // (owner, 2026-11-11). The lock, the device list and the wrapped keys
+    // stay out: tests/backupSettingsInventory.test.ts names each one.
+    ...((settings.favoriteTags ?? []).length > 0 ? { favoriteTags: settings.favoriteTags } : {}),
+    ...(Object.keys(settings.calendarFeeds ?? {}).length > 0 ? { calendarFeeds: settings.calendarFeeds } : {}),
+    ...(Object.keys(settings.dashboard ?? {}).length > 0 ? { dashboard: settings.dashboard } : {}),
+    ...(settings.agentFolder ? { agentFolder: settings.agentFolder } : {}),
+    ...(settings.trackerSetup ? { trackerSetup: settings.trackerSetup } : {}),
+  };
+  if (Object.keys(carried).length > 0) manifest.settings = carried;
+  zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+
+  // ── 6. Generate and download ────────────────────────────────────────
+
+  progress({ step: 'zip' });
+  const blob = await zip.generateAsync({ type: 'blob' });
+  signal?.throwIfAborted();
+  return { blob, missing };
+}
+
+/** Returns the pictures and files the zip could not include. The zip is
+ *  saved either way, because a backup short of a few blobs beats none, and
+ *  the caller says which ones are missing. */
+export async function exportAllMarkdownZip(
+  notes: LocalNote[],
+  imageStore?: ImageStore | null,
+  attachmentStore?: AttachmentStore | null,
+  onProgress?: (at: ExportStep) => void,
+  folders: FolderDef[] = [],
+  settings: CarriedSettings = {},
+  signal?: AbortSignal,
+  /** `privacynotes-selection` for a picked set, so it never passes for a
+   *  full backup (#682). */
+  fileStem = 'privacynotes-backup',
+): Promise<BulkExportResult> {
+  const { blob, missing } = await buildFullBackupZip(notes, imageStore, attachmentStore, onProgress, folders, settings, signal);
+  const stamp = toLocalIso(new Date());
+  return { missing, savedPath: await downloadBlob(blob, `${fileStem}-${stamp}.zip`) };
+}
+
+/**
+ * Only the notes, as Markdown files in a zip (#682): no tasks, journal
+ * entries, events, vault items, bookmarks, contacts or drawings, and nothing
+ * from the trash. Each note sits in its folder's directory, with its
+ * pictures and files beside the full backup's images/ and files/ folders.
+ * It is a reading copy: no manifest.json, so the Restore tab does not take
+ * it; Import > Markdown reads it back, folders included.
+ */
+export async function exportNotesMarkdownZip(
+  notes: LocalNote[],
+  imageStore?: ImageStore | null,
+  attachmentStore?: AttachmentStore | null,
+  onProgress?: (at: ExportStep) => void,
+  folders: FolderDef[] = [],
+  signal?: AbortSignal,
+): Promise<BulkExportResult> {
+  const only = notes.filter((n) => n.type === 'note' && n.deleted !== 1 && n.trashed !== 1);
+  const { blob, missing } = await buildFullBackupZip(only, imageStore, attachmentStore, onProgress, folders, {}, signal, true);
+  const stamp = toLocalIso(new Date());
+  return { missing, savedPath: await downloadBlob(blob, `privacynotes-notes-${stamp}.zip`) };
+}
+
+/**
+ * The full backup, sealed: the exact zip exportAllMarkdownZip writes,
+ * encrypted as one blob under the sync encryption key (.pnbackupz,
+ * format in packages/shared/src/backup.ts). It opens with the phrase on
+ * any device, like the .pnbackup - and unlike it, carries the blobs.
+ * Returns what the zip could not include, like exportAllMarkdownZip.
+ */
+export async function exportEncryptedFullBackup(
+  notes: LocalNote[],
+  imageStore: ImageStore | null,
+  attachmentStore: AttachmentStore | null,
+  encryptionKey: Uint8Array,
+  onProgress?: (at: ExportStep) => void,
+  folders: FolderDef[] = [],
+  settings: BackupSettings = {},
+  signal?: AbortSignal,
+): Promise<BulkExportResult> {
+  const { sealed, missing } = await buildEncryptedFullBackup(notes, imageStore, attachmentStore, encryptionKey, onProgress, folders, settings, signal);
+  const stamp = toLocalIso(new Date());
+  const savedPath = await downloadBlob(
+    new Blob([sealed as BlobPart], { type: 'application/octet-stream' }),
+    `privacynotes-backup-${stamp}.pnbackupz`,
+  );
+  return { missing, savedPath };
+}
+
+/** The settings a full backup carries beside the items. */
+type BackupSettings = CarriedSettings;
+
+/**
+ * The bytes of a .pnbackupz, with no save: the manual export above and the
+ * automatic backup (autoBackup/runner.ts) both build through here, so they
+ * cannot drift apart. `zip` is the plain zip that went into the seal, which
+ * the automatic backup compares with the seal opened again.
+ */
+export async function buildEncryptedFullBackup(
+  notes: LocalNote[],
+  imageStore: ImageStore | null,
+  attachmentStore: AttachmentStore | null,
+  encryptionKey: Uint8Array,
+  onProgress?: (at: ExportStep) => void,
+  folders: FolderDef[] = [],
+  settings: BackupSettings = {},
+  signal?: AbortSignal,
+): Promise<{ sealed: Uint8Array; zip: Uint8Array; missing: MissingBlob[] }> {
+  const { blob, missing } = await buildFullBackupZip(notes, imageStore, attachmentStore, onProgress, folders, settings, signal);
+  const zip = new Uint8Array(await blob.arrayBuffer());
+  return { sealed: encodeZipBackup(zip, encryptionKey), zip, missing };
+}
+
+/**
+ * JSON text backup (v3). All note metadata, no image/attachment blobs.
+ *
+ * Body text keeps raw pn:img/ and pn:file/ references as-is so the
+ * file is small and fast to generate regardless of account size.
+ * For a full backup with blobs, use exportAllMarkdownZip.
+ */
+export async function exportAllJson(
+  notes: LocalNote[],
+  folders: FolderDef[] = [],
+  itemStyles: ItemStyles = {},
+  customThemes: CustomThemes = {},
+  factors: FactorDef[] = [],
+  customHabits: CustomHabitDef[] = [],
+): Promise<void> {
+  // Same payload builder as the encrypted .pnbackup, folders included since
+  // 2026-08-26. It used to pass none, which meant every note carried a
+  // `folderId` pointing at a folder the file did not contain: a restore had
+  // the membership and no tree to hang it on. The field is additive, so an
+  // older reader ignores it.
+  const payload = buildBackupPayload(notes, folders, undefined, itemStyles, customThemes, factors, customHabits);
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: 'application/json',
+  });
+  const stamp = toLocalIso(new Date());
+  await downloadBlob(blob, `privacynotes-backup-${stamp}.json`);
+}
+
+/**
+ * Bookmarks as a Netscape bookmark file - the one format Chrome, Firefox,
+ * Safari and Edge all import. Writes the folder tree with them, minus the
+ * importer's own "Bookmarks" root, so an export and a re-import land the
+ * same shape they started in. See ./bookmarksNetscape for the format.
+ */
+export async function exportBookmarksHtml(
+  notes: LocalNote[],
+  folders: FolderDef[]
+): Promise<void> {
+  const bookmarks = notes.filter(
+    (n) => n.type === 'link' && n.deleted !== 1 && n.trashed !== 1
+  );
+  // Loaded on demand, the way jszip is above: the writer is only ever
+  // reached by a click on the export row, and export.ts sits on the boot
+  // path, where the chunk budget is measured.
+  const { buildBookmarksHtml } = await import('./bookmarksNetscape');
+  const html = buildBookmarksHtml(bookmarks, folders);
+  const stamp = toLocalIso(new Date());
+  await downloadBlob(
+    new Blob([html], { type: 'text/html;charset=utf-8' }),
+    `privacynotes-bookmarks-${stamp}.html`
+  );
+}
+
+/**
+ * Contacts as a vCard 3.0 file, the format every phone and address book
+ * reads. Labels go back out in Apple's dialect and every unmodelled line
+ * is written back verbatim, which is what makes the file readable by the
+ * phone it came from. Loaded on demand like the bookmarks writer.
+ * Spec: docs/internal/specs/contacts-pillar.md (section 8)
+ */
+export async function exportContactsVcf(notes: LocalNote[]): Promise<void> {
+  const contacts = notes.filter(
+    (n) => n.type === 'contact' && n.deleted !== 1 && n.trashed !== 1
+  );
+  const { buildVcardFile, vcardPhoto } = await import('./contactsVcard');
+  const { loadStoredImageBytes } = await import('./EncryptedImage');
+  // A stored picture is a blob the store decrypts; the seeded contact's is a
+  // static asset every install ships. A photo that cannot be read is left
+  // out, because a contact without its picture beats a failed export.
+  const loadPhoto = async (ref: string): Promise<Uint8Array | null> => {
+    if (ref.startsWith('pn:img/')) return loadStoredImageBytes(ref.slice('pn:img/'.length));
+    if (!isSameOriginPath(ref)) return null;
+    try {
+      const res = await fetch(ref);
+      if (!res.ok) return null;
+      return new Uint8Array(await res.arrayBuffer());
+    } catch {
+      return null;
+    }
+  };
+  const sources = await Promise.all(
+    contacts.map(async (n) => ({
+      title: n.title,
+      body: n.body,
+      tags: n.tags,
+      updatedAt: editedAtOf(n),
+      photo: await vcardPhoto(n.body, loadPhoto),
+    })),
+  );
+  const text = buildVcardFile(sources);
+  const stamp = toLocalIso(new Date());
+  await downloadBlob(
+    new Blob([text], { type: 'text/vcard;charset=utf-8' }),
+    `privacynotes-contacts-${stamp}.vcf`
+  );
+}
+
+/**
+ * The calendar as an .ics file for Google Calendar, Apple Calendar or
+ * Outlook. Past Google's 1 MB import limit the file is cut into parts of
+ * whole events and saved as one .zip. Loaded on demand like the vCard writer.
+ * Spec: docs/internal/specs/google-calendar-import.md (section 5)
+ */
+export async function exportCalendarIcs(notes: LocalNote[]): Promise<void> {
+  const { buildCalendarFiles } = await import('./calendarIcs');
+  const parts = buildCalendarFiles(notes, { split: true });
+  if (parts.length === 0) return;
+  const stamp = toLocalIso(new Date());
+  if (parts.length === 1) {
+    await downloadBlob(new Blob([parts[0]!], { type: 'text/calendar;charset=utf-8' }), `privacynotes-calendar-${stamp}.ics`);
+    return;
+  }
+  const { default: JSZip } = await import('jszip');
+  const zip = new JSZip();
+  parts.forEach((text, i) => zip.file(`calendar-${i + 1}.ics`, text));
+  await downloadBlob(await zip.generateAsync({ type: 'blob' }), `privacynotes-calendar-${stamp}.zip`);
+}
+
+/**
+ * Every live drawing as its own `.excalidraw` file, which excalidraw.com and
+ * Obsidian open, in one .zip. Each picture gets its bytes back as a data URL
+ * (`toExcalidrawFile`); one that cannot be read is left out of its file and
+ * reported, like every bulk export. The trash stays home, as for contacts.
+ * Spec: docs/internal/specs/drawing.md (section 0, Exports)
+ */
+export async function exportDrawingsZip(
+  notes: LocalNote[],
+  imageStore?: ImageStore | null,
+  onProgress?: (at: ExportStep) => void,
+  signal?: AbortSignal,
+): Promise<BulkExportResult> {
+  const progress = (at: ExportStep) => {
+    signal?.throwIfAborted();
+    onProgress?.(at);
+  };
+  const drawings = notes
+    .filter((n) => n.type === 'drawing' && n.deleted !== 1 && n.trashed !== 1)
+    .flatMap((note) => {
+      const scene = parseScene(note.body);
+      return scene ? [{ note, scene }] : [];
+    });
+  const uuids = new Set<string>();
+  for (const { scene } of drawings) {
+    for (const file of Object.values(scene.files)) {
+      if (file.src.startsWith('pn:img/')) uuids.add(file.src.slice('pn:img/'.length));
+    }
+  }
+  const missing: MissingBlob[] = [];
+  const dataUris = new Map<string, string>();
+  let done = 0;
+  for (const uuid of uuids) {
+    progress({ step: 'pictures', done: ++done, total: uuids.size });
+    const data = await readForExport(imageStore && (() => imageStore.getImage(uuid)), { id: uuid, kind: 'image' }, missing);
+    if (data) dataUris.set(`pn:img/${uuid}`, `data:${sniffImageMime(data)};base64,${bytesToBase64(data)}`);
+  }
+  progress({ step: 'zip' });
+  const { default: JSZip } = await import('jszip');
+  const zip = new JSZip();
+  const stems = zipEntryStems(drawings.map((d) => d.note));
+  drawings.forEach(({ scene }, i) => {
+    const urls = new Map<string, string>();
+    for (const [id, file] of Object.entries(scene.files)) {
+      const uri = dataUris.get(file.src);
+      if (uri) urls.set(id, uri);
+    }
+    zip.file(`${stems[i]!}.excalidraw`, toExcalidrawFile(scene, urls));
+  });
+  const blob = await zip.generateAsync({ type: 'blob' });
+  signal?.throwIfAborted();
+  const stamp = toLocalIso(new Date());
+  return { missing, savedPath: await downloadBlob(blob, `privacynotes-drawings-${stamp}.zip`) };
+}
+
+/** The one-file calendar a backup zip carries, or null when nothing is dated. */
+async function calendarFileForBackup(notes: LocalNote[]): Promise<string | null> {
+  const { buildCalendarFiles } = await import('./calendarIcs');
+  return buildCalendarFiles(notes, { split: false })[0] ?? null;
+}
+
+// ─── Printable HTML export ─────────────────────────────────────────────
+//
+// Pure client-side: renders the note's markdown body into a standalone
+// HTML document with embedded print CSS, then hands the user a .html
+// download. Nothing about this file ever hits a PrivacyNotes server.
+// The markdown → HTML converter lives in markdownRender.ts and is
+// shared with the Burn-After-Reading viewer.
+
+/**
+ * Build a standalone printable HTML document for one note.
+ *
+ * - White background, black serif body, readable line length.
+ * - @media print rules so File → Print produces A4-friendly output
+ *   with no browser chrome and a sensible title in the header.
+ * - Embedded CSS only (no external fonts, no CDN calls) so the file
+ *   works fully offline after download.
+ */
+/** Render a vault item's fields as a table instead of its raw JSON body. */
+function renderVaultHtml(vault: VaultContent): string {
+  let html = '<table class="vault-fields">' +
+    vault.fields
+      .map(
+        (f) =>
+          `<tr><th>${escapeHtml(f.label)}</th><td${f.mono ? ' class="mono"' : ''}>${escapeHtml(f.value)}</td></tr>`,
+      )
+      .join('') +
+    '</table>';
+  if (vault.notes) {
+    html += `<div class="vault-notes"><strong>${escapeHtml(vault.notesLabel)}</strong><p>${escapeHtml(vault.notes)}</p></div>`;
+  }
+  // The files are named, not carried: the page has nowhere to put them.
+  if (vault.files?.length) {
+    html += `<div class="vault-notes"><strong>${escapeHtml(i18n.t('shell:tagsRail.files'))}</strong><ul>${vault.files.map((n) => `<li>${escapeHtml(n)}</li>`).join('')}</ul></div>`;
+  }
+  return html;
+}
+
+/**
+ * A contact as the app's detail pane draws it: one titled group per kind of
+ * value (Phone, Email, Address...), each row its label and its value, in the
+ * pane's order. The flat vault table put a 20-row contact into one block that
+ * a print engine could only move whole, so the first page came out empty.
+ * Numbers, emails and web addresses stay links, so the exported page dials
+ * and mails like the app does.
+ */
+function renderContactHtml(title: string, c: Contact): string {
+  const t = (key: string, opts?: Record<string, unknown>) => i18n.t(`shell:contacts.${key}`, opts);
+  const labelText = (raw: string) => (raw ? t(`labels.${raw}`, { defaultValue: raw }) : '');
+  const row = (label: string, valueHtml: string) =>
+    `<div class="contact-row"><dt>${escapeHtml(label)}</dt><dd dir="auto">${valueHtml}</dd></div>`;
+  const link = (href: string, text: string) => `<a href="${escapeHtml(href)}">${escapeHtml(text)}</a>`;
+  const web = (v: string) => (/^https?:\/\//i.test(v.trim()) ? link(v.trim(), v) : escapeHtml(v));
+  const group = (heading: string, rows: string[]) =>
+    rows.length === 0
+      ? ''
+      : `<section class="contact-group"><h2 class="contact-group-title">${escapeHtml(heading)}</h2><dl class="contact-rows">${rows.join('')}</dl></section>`;
+
+  const locale = dateLocale();
+  const nameRows: string[] = [];
+  if (c.nickname.trim()) nameRows.push(row(t('nickname'), escapeHtml(c.nickname)));
+  const phonetic = [c.phonetic.first, c.phonetic.middle, c.phonetic.last].map((s) => s.trim()).filter(Boolean).join(' ');
+  if (phonetic) nameRows.push(row(t('itemPhonetic'), escapeHtml(phonetic)));
+  const full = contactFullName(c);
+  if (full && full !== contactDisplayName(title, c)) nameRows.push(row(t('menuName'), escapeHtml(full)));
+  if (c.department.trim()) nameRows.push(row(t('department'), escapeHtml(c.department)));
+
+  let html = [
+    group(t('groupPhone'), c.phones.map((p) => row(labelText(p.label), link(telHref(p.value), p.value)))),
+    group(t('groupEmail'), c.emails.map((e) => row(labelText(e.label), link(`mailto:${e.value}`, e.value)))),
+    group(t('groupAddress'), c.addresses.map((a) => row(labelText(a.label), escapeHtml(formatAddressLines(a).join('\n'))))),
+    group(t('groupWebsite'), c.urls.map((u) => row(labelText(u.label), web(u.value)))),
+    group(t('labels.profile'), c.profiles.map((p) => row(labelText(p.label), web(p.value)))),
+    group(t('groupDates'), c.dates.map((d) => row(labelText(d.label), escapeHtml(formatContactDate(d.value, locale))))),
+    group(t('groupRelated'), c.related.map((r) => row(labelText(r.label), escapeHtml(r.value)))),
+    group(t('menuName'), nameRows),
+  ].join('');
+  if (c.notes.trim()) {
+    html += `<section class="contact-group"><h2 class="contact-group-title">${escapeHtml(t('itemNote'))}</h2><p class="contact-notes" dir="auto">${escapeHtml(c.notes)}</p></section>`;
+  }
+  // The owner's own sections, after the note as in the app. A print is an
+  // export the owner asked for, so a hidden value is printed too.
+  for (const sec of c.sections) {
+    html += group(
+      sec.title || i18n.t('auth:loginForm.customFieldsLabel'),
+      sec.fields.map((f) => row(
+        f.label || i18n.t('shell:vaultItem.customField'),
+        escapeHtml(f.type === 'yesno' ? i18n.t(f.value === 'yes' ? 'trackers:custom.yes' : 'trackers:custom.no') : f.value),
+      )),
+    );
+  }
+  return html;
+}
+
+/**
+ * Put a contact's photo into its body as a data URI, so the page carries it.
+ * A stored photo already is one by now, because `resolveBodyImages` rewrites
+ * every `pn:img/` ref; the seeded contact's is a file the app serves. A photo
+ * that cannot be read is left alone and the initials stand in for it.
+ */
+async function inlineContactPhoto(note: LocalNote, body: string): Promise<string> {
+  if (note.type !== 'contact') return body;
+  const photo = parseContactBody(body).photo;
+  if (!photo || !isSameOriginPath(photo)) return body;
+  try {
+    const res = await fetch(photo);
+    if (!res.ok) return body;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const raw = JSON.parse(body) as Record<string, unknown>;
+    raw.photo = `data:${sniffImageMime(bytes)};base64,${bytesToBase64(bytes)}`;
+    return JSON.stringify(raw);
+  } catch {
+    return body;
+  }
+}
+
+/** The contact's round tile for the page header: the photo, else the initials. */
+function contactTileHtml(title: string, c: Contact): string {
+  if (/^data:image\//.test(c.photo)) {
+    return `<img class="contact-tile" src="${escapeHtml(c.photo)}" alt="" />`;
+  }
+  const initials = contactInitialsFor(title, c);
+  return initials ? `<div class="contact-tile contact-initials" aria-hidden="true">${escapeHtml(initials)}</div>` : '';
+}
+
+/**
+ * Two notes on the vault-table CSS in the stylesheet below, both learned the
+ * hard way.
+ *
+ * The frame is drawn by the TABLE box and every line inside it is a cell's top
+ * or right edge, never a bottom one. Collapsed borders put the last row's
+ * bottom line half outside that row's box, and a print engine that paginates
+ * drops the outside half - which is how the PDF lost the line that closes the
+ * table while the same document looked right on screen.
+ *
+ * The `.content` prefix on those rules is load-bearing. `.content table`
+ * earlier in the sheet is more specific than a bare `.vault-fields`, so
+ * without it that rule keeps winning `border-collapse` and no frame appears.
+ *
+ * `titleOnly` keeps the title and drops the date, folder and tags, for a page
+ * meant for somebody else. Tracker rows stay: they are what the entry recorded.
+ */
+export function buildNoteHtmlDocument(note: LocalNote, folderPath: string[] = [], titleOnly = false): string {
+  const title = note.title.trim() || 'Untitled';
+  const vault = vaultContent(note);
+  const linkMd = linkExportMarkdown(note);
+  const contact = note.type === 'contact' ? parseContactBody(note.body) : null;
+  const rendered = linkMd
+    ? renderMarkdown(linkMd)
+    : contact
+      ? renderContactHtml(note.title, contact)
+      : vault
+        ? renderVaultHtml(vault)
+        // A drawing's body is its scene: the page carries the title alone.
+        : note.type === 'drawing'
+          ? ''
+          : renderMarkdown(note.body || '');
+  // A contact's header is the pane's hero: the tile beside the name, the job
+  // and the company under it.
+  const contactTile = contact ? contactTileHtml(note.title, contact) : '';
+  const contactRole = contact ? [contact.jobTitle.trim(), contact.org.trim()].filter(Boolean).join(', ') : '';
+  const bodyHtml = renderNoteBody(rendered, readLineSpacing());
+  const tagsHtml =
+    note.tags.length > 0
+      ? `<div class="tags">${note.tags
+          .map((t) => `<span class="tag">#${escapeHtml(t)}</span>`)
+          .join('')}</div>`
+      : '';
+  // Where the note lived. A printed page that says only "Kyoto" loses the
+  // one piece of context the sidebar was giving it for free.
+  const folderHtml =
+    folderPath.length > 0
+      ? `<div class="note-folder">${escapeHtml(folderPath.join(' / '))}</div>`
+      : '';
+  // A printed journal entry without its mood, sleep and step count is
+  // missing half of what the entry recorded. HTML and print are terminal
+  // formats (nothing reads them back), so this is the readable rendering;
+  // the machine-readable copy rides in the markdown front-matter instead.
+  // The schedule under the title: an event's, or a dated note's or task
+  // list's, and a journal entry's time when it has one. The day of a journal
+  // entry is its title already.
+  // Spec: docs/internal/specs/calendar-pillar-spec.md (step 4)
+  const schedule = scheduleOf(note.trackers as Record<string, unknown> | undefined, note.type);
+  const scheduleHtml = schedule && !titleOnly && (note.type !== 'journal' || schedule.time)
+    ? `\n      <div class="meta schedule">${escapeHtml(describeSchedule(schedule, i18n.getFixedT(null, 'shell')))}</div>`
+    : '';
+  const settings = loadLocalSettings();
+  const trackerSettings = settings.trackerSettings;
+  const rows = trackerRows(note.trackers, trackerSettings, trackerSettings.customTrackers, settings.factors);
+  const trackersHtml =
+    rows.length > 0
+      ? `<section class="trackers">
+      <h2 class="trackers-title">${escapeHtml(trackerHeading())}</h2>
+      <dl class="tracker-list">${rows
+        .map(
+          (r) =>
+            `<div class="tracker-row"><dt>${escapeHtml(r.label)}</dt><dd>${escapeHtml(r.value)}</dd></div>`,
+        )
+        .join('')}</dl>
+    </section>`
+      : '';
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<!-- This document leaves every policy the app runs under: the print view is
+     a webview with a null base URL, and an exported file opens from file://
+     in whatever browser the reader has. It is self-contained by
+     construction - the images it shows are already inlined - so nothing it
+     needs is a fetch, and a note that names a remote host must not turn a
+     print into a call to it. default-src covers neither where a form sends
+     nor what a base element points at, so both are named. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: blob:; style-src 'unsafe-inline'; font-src data:; form-action 'none'; base-uri 'none'" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>${escapeHtml(title)}</title>
+<style>
+  :root {
+    color-scheme: light;
+    /* The editor's own two stacks, so an exported note reads as the note
+       that was written. The body used to be Georgia while every other
+       element here was already sans, which is the mismatch that made the
+       export look like a different document from the editor rather than a
+       printed version of it. Both stacks are what the app computes
+       (Tailwind's defaults, no webfont anywhere) - change them together
+       with the app or the two drift apart again.
+       Spec: docs/internal/design-decisions.md (export typography) */
+    --pn-sans: -apple-system, "system-ui", "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    --pn-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
+    color: #111111;
+    font-family: var(--pn-sans);
+    font-size: 16px;
+    line-height: ${lineHeightCss()};
+    /* The app renders with class="antialiased" on its own body. Without
+       the same two declarations the very same stack renders heavier here
+       than in the editor on macOS, which reads as a different, muddier
+       face. No backticks in this comment on purpose: the whole stylesheet
+       is one template literal and a backtick ends it. */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  .page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 32px 64px;
+  }
+  header.note-head {
+    border-bottom: 1px solid #e5e5e5;
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+  }
+  h1.note-title {
+    font-size: 2.4rem;
+    line-height: 1.2;
+    margin: 0 0 8px;
+    font-weight: 700;
+  }
+  .meta {
+    font-size: 0.85rem;
+    color: #666;
+    font-family: var(--pn-sans);
+  }
+  .tags {
+    margin-top: 8px;
+    font-family: var(--pn-sans);
+    font-size: 0.8rem;
+  }
+  .tag {
+    display: inline-block;
+    margin-right: 6px;
+    color: #555;
+  }
+  .content h1, .content h2, .content h3,
+  .content h4, .content h5, .content h6 {
+    font-family: var(--pn-sans);
+    font-weight: 700;
+    line-height: 1.3;
+    margin-top: 1.6em;
+    margin-bottom: 0.4em;
+    color: #000;
+  }
+  /* The editor's heading ladder, same six ratios against body copy (the
+     editor anchors on --pn-editor-body, here body copy is the 16px root).
+     H4, H5 and H6 all read 1rem until v0.422.0, so three of the six levels
+     exported as the same size as each other AND as the paragraph under
+     them. The note title above sits a step clear of a body H1.
+     Spec: docs/internal/design-decisions.md (editor heading scale) */
+  .content h1 { font-size: 1.867rem; }
+  .content h2 { font-size: 1.667rem; }
+  .content h3 { font-size: 1.493rem; }
+  .content h4 { font-size: 1.333rem; }
+  .content h5 { font-size: 1.2rem; }
+  .content h6 { font-size: 1.067rem; }
+  .content {
+    /* A pasted URL or an unbroken long word must wrap, not push the page
+       sideways (or off the printable area). Inherited, so it covers
+       paragraphs, list items, links and table cells alike. */
+    overflow-wrap: break-word;
+  }
+  /* Per-block direction resolution, mirroring the editor's rule in
+     index.css: each block reads its own text and resolves LTR or RTL from
+     its first strong character, so an Arabic paragraph right-aligns in the
+     export and the PDF exactly as it does in the editor. Explicit
+     text-align styles keep winning on top, unchanged. */
+  .content p, .content h1, .content h2, .content h3,
+  .content h4, .content h5, .content h6, .content li {
+    unicode-bidi: plaintext;
+  }
+  /* Code stays LTR always, even inside an RTL note - same as the editor:
+     identifiers and syntax are not bidi text, and isolate keeps a code span
+     from perturbing the surrounding RTL runs. */
+  .content pre, .content code {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+  /* The reader's own paragraph gap, so an exported or printed note lays out
+     the way it looked on screen. A fixed 1em here reopened every break a
+     compact editor closes.
+     Spec: docs/internal/design-decisions.md (editor paragraph rhythm) */
+  .content p {
+    margin: ${paragraphGapCss()} 0;
+  }
+  /* Logical sides: a list or quote takes its dir from its own text
+     (markdownRender.ts), so a Persian list indents and puts its bullets on
+     the right, as in the editor (GitHub #725). */
+  .content ul, .content ol {
+    margin: 0 0 1em;
+    margin-inline-start: 1.5em;
+    padding: 0;
+  }
+  .content li {
+    margin-bottom: 0.25em;
+  }
+${nestedNumbersCss()}  .content blockquote {
+    border-inline-start: 3px solid #ccc;
+    margin: 0 0 1em;
+    padding-block: 0.1em;
+    padding-inline: 1em 0;
+    color: #444;
+    font-style: italic;
+  }
+  .content a {
+    color: #2060c0;
+    text-decoration: underline;
+  }
+  /* Highlights. The document had no rule at all, so a plain ==highlight==
+     fell back to the browser's flat yellow instead of the wash the editor
+     shows. These values mirror the light-theme mark rule in index.css -
+     the exported page is always a white page, so there is no dark pair. A
+     COLORED highlight carries its own inline background-color, which beats
+     this rule, so one declaration serves both. */
+  .content mark {
+    background: rgb(250 224 108 / 0.55);
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 0.1em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  /* A spoiler stays blurred until it is clicked or tabbed to. Print shows
+     it: paper cannot be clicked. */
+  .content .pn-spoiler {
+    padding: 0 2px;
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: rgb(0 0 0 / 0.1);
+    background-image: repeating-linear-gradient(135deg, rgb(0 0 0 / 0.07) 0 3px, transparent 3px 7px);
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  .content .pn-spoiler-text { filter: blur(4px); opacity: 0.6; }
+  .content .pn-spoiler:focus { outline: none; background: rgb(0 0 0 / 0.05); }
+  .content .pn-spoiler:focus .pn-spoiler-text { filter: none; opacity: 1; }
+  .content code {
+    font-family: var(--pn-mono);
+    background: #f3f3f3;
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+    font-size: 0.92em;
+  }
+  /* Code blocks are a dark panel with the editor's own syntax palette -
+     the editor's panel is dark in BOTH app themes, so the export matches
+     what the note looks like where it was written. */
+  .content pre {
+    background: #262626;
+    color: #e5e5e5;
+    border: none;
+    padding: 12px 16px;
+    overflow-x: auto;
+    border-radius: 6px;
+    margin: 0 0 1em;
+  }
+  .content pre code {
+    background: transparent;
+    padding: 0;
+    font-size: 0.9em;
+  }
+  /* hljs token colors, mirroring the hand-picked palette in index.css
+     (the .prose pre .hljs-* block) - change the two together. */
+  .content pre .hljs-comment, .content pre .hljs-quote { color: #8b949e; font-style: italic; }
+  .content pre .hljs-keyword, .content pre .hljs-selector-tag, .content pre .hljs-meta { color: #c297ff; }
+  .content pre .hljs-string, .content pre .hljs-regexp, .content pre .hljs-addition { color: #7ee787; }
+  .content pre .hljs-number, .content pre .hljs-literal, .content pre .hljs-deletion { color: #ffa657; }
+  .content pre .hljs-title, .content pre .hljs-section { color: #79c0ff; }
+  .content pre .hljs-title.class_, .content pre .hljs-type, .content pre .hljs-built_in { color: #f2cc60; }
+  .content pre .hljs-attr, .content pre .hljs-attribute, .content pre .hljs-variable,
+  .content pre .hljs-template-variable, .content pre .hljs-selector-class, .content pre .hljs-selector-id { color: #6fd7e4; }
+  .content pre .hljs-symbol, .content pre .hljs-bullet { color: #f1a5c0; }
+  .content pre .hljs-emphasis { font-style: italic; }
+  .content pre .hljs-strong { font-weight: 700; }
+  .content img {
+    max-width: 100%;
+    border-radius: 4px;
+    margin: 0.5em 0;
+  }
+  .content table {
+    border-collapse: collapse;
+    width: 100%;
+    /* Equal columns unless the note stores widths (markdownRender writes
+       them as a colgroup), matching the editor. Sizing from content here
+       would give the same table different proportions on paper than on
+       screen. */
+    table-layout: fixed;
+    margin: 1em 0;
+  }
+  .content th, .content td {
+    border: 1px solid #d4d4d4;
+    padding: 6px 10px;
+    text-align: left;
+  }
+  .content th {
+    font-weight: 600;
+    background: #f8f8f8;
+  }
+  .content hr {
+    border: none;
+    border-top: 1px solid #ddd;
+    margin: 2em 0;
+  }
+  /* Frame on the table box, inner lines on cell top/right edges only, and
+     the .content prefix is required - see the note above this function. */
+  .content .vault-fields {
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid #d4d4d4;
+    width: 100%;
+    margin: 0 0 1.5em;
+    table-layout: fixed;
+  }
+  .content .vault-fields th {
+    width: 140px;
+    font-weight: 600;
+    text-align: left;
+    padding: 8px 12px;
+    border: none;
+    border-right: 1px solid #d4d4d4;
+    background: #f8f8f8;
+    font-family: var(--pn-sans);
+    font-size: 0.9em;
+    vertical-align: top;
+  }
+  .content .vault-fields td {
+    padding: 8px 12px;
+    border: none;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+  .content .vault-fields tr + tr th,
+  .content .vault-fields tr + tr td {
+    border-top: 1px solid #d4d4d4;
+  }
+  .content .vault-fields td.mono {
+    font-family: var(--pn-mono);
+    font-size: 0.85em;
+    word-break: break-all;
+  }
+  .vault-notes {
+    margin-top: 1em;
+  }
+  .vault-notes strong {
+    display: block;
+    margin-bottom: 4px;
+    font-family: var(--pn-sans);
+    font-size: 0.9em;
+  }
+  .vault-notes p {
+    margin: 0;
+    white-space: pre-wrap;
+  }
+  /* A value keeps its own line breaks: a private key, a multi-line note. */
+  .content .vault-fields td {
+    white-space: pre-wrap;
+  }
+  /* The contact hero: the round tile beside the name, like the app pane. */
+  header.note-head.has-tile {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .note-head-text {
+    min-width: 0;
+  }
+  .contact-tile {
+    flex: none;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    object-fit: cover;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .contact-initials {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ece9e4;
+    color: #57534e;
+    font-size: 1.6rem;
+    font-weight: 600;
+  }
+  .contact-role {
+    margin: -2px 0 6px;
+    font-size: 1.05rem;
+    color: #444;
+  }
+  .contact-group {
+    margin: 0 0 1.1rem;
+  }
+  /* The .content prefix outranks the body heading rules above. */
+  .content .contact-group-title {
+    margin: 0 0 0.25rem;
+    line-height: 1.4;
+    font-family: var(--pn-sans);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6b6660;
+  }
+  .contact-rows {
+    margin: 0;
+  }
+  .contact-row {
+    display: grid;
+    grid-template-columns: 9rem minmax(0, 1fr);
+    gap: 1rem;
+    padding: 0.3rem 0;
+    border-top: 1px solid #eeece7;
+  }
+  .contact-row dt {
+    color: #6b6660;
+    overflow-wrap: anywhere;
+  }
+  .contact-row dd {
+    margin: 0;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
+  .contact-notes {
+    margin: 0;
+    padding-top: 0.3rem;
+    border-top: 1px solid #eeece7;
+    white-space: pre-wrap;
+  }
+  summary.pn-callout-summary::-webkit-details-marker { display: none }
+  summary.pn-callout-summary { list-style: none }
+  details.pn-callout:not([open]) > summary .pn-caret-down { display: none }
+  details.pn-callout:not([open]) > summary .pn-caret-right { display: inline !important }
+  details.pn-callout:dir(rtl) > summary .pn-caret-right { transform: scaleX(-1) }
+  @media print {
+    .content .pn-spoiler { background: none; }
+    .content .pn-spoiler-text { filter: none; opacity: 1; }
+    @page {
+      size: A4;
+      margin: 0;
+    }
+    html, body {
+      background: #ffffff;
+      color: #000;
+      font-size: 12pt;
+      margin: 0;
+      padding: 0;
+    }
+    .page {
+      max-width: none;
+      margin: 0;
+      padding: 20mm;
+      -webkit-box-decoration-break: clone;
+      box-decoration-break: clone;
+    }
+    .content a {
+      color: #000;
+      text-decoration: underline;
+    }
+    .content code {
+      background: #f3f3f3 !important;
+    }
+    /* The dark code panel and its token colors survive printing - print
+       engines drop backgrounds unless told not to, same as the callout and
+       highlight rules below. The inline-code chip above stays light. */
+    .content pre, .content pre code {
+      background: #262626 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .content pre code {
+      background: transparent !important;
+    }
+    /* Checkbox fill and check glyph are backgrounds too. */
+    .content input[type="checkbox"] {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .content pre, .content blockquote, .content img,
+    .content ul, .content ol {
+      break-inside: avoid;
+    }
+    /* A table kept whole moves to the next page when it does not fit and
+       leaves the rest of the page empty, so a table breaks between rows and
+       only a row stays whole. The header row repeats on each page. A vault
+       key row can itself be longer than a page, so it is the one row that
+       may break. */
+    .content table {
+      break-inside: auto;
+    }
+    .content thead {
+      display: table-header-group;
+    }
+    .content tr:not(:has(td.mono)), .contact-row {
+      break-inside: avoid;
+    }
+    /* Firefox leaves the header row alone at the foot of a page when the
+       first row does not fit under it, and repeats it over the rows on the
+       next page. No break rule keeps the two together there (it splits
+       neither a short row nor honors break-after: avoid), so Firefox keeps
+       a table whole, and splits only one taller than a page. */
+    @supports (-moz-appearance: none) {
+      .content table:not(.vault-fields) {
+        break-inside: avoid;
+      }
+    }
+    .vault-notes strong, .content .contact-group-title {
+      break-after: avoid;
+    }
+    details.pn-callout { break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    /* Print engines drop background colors unless asked not to, which is why
+       the callout rule above exists - and why a highlight printed as plain
+       text, its whole point gone, both before the palette shipped and after. */
+    .content mark { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    /* A colored table cell (#616), for the same reason. */
+    .content td[data-fill], .content th[data-fill] { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    details.pn-callout:not([open]) > .pn-callout-body { display: block !important; }
+    .content h1, .content h2, .content h3,
+    .content h4, .content h5, .content h6 {
+      break-after: avoid;
+    }
+    .content p, .content li {
+      orphans: 3;
+      widows: 3;
+    }
+  }
+  .note-folder {
+    margin-top: 0.35rem;
+    font-family: var(--pn-sans);
+    font-size: 0.8rem;
+    color: #6b6660;
+  }
+  /* Trackers - a quiet data block between the header and the prose, so a
+     printed journal entry carries what the pill row shows in the app. */
+  .trackers {
+    margin: 0 0 1.75rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid #e6e3dd;
+    border-radius: 8px;
+    background: #fbfaf8;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .trackers-title {
+    margin: 0 0 0.6rem;
+    font-family: var(--pn-sans);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6b6660;
+  }
+  .tracker-list {
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 0.4rem 1.25rem;
+  }
+  .tracker-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    border-bottom: 1px solid #eeece7;
+    padding-bottom: 0.3rem;
+  }
+  .tracker-row dt {
+    font-family: var(--pn-sans);
+    font-size: 0.82rem;
+    color: #6b6660;
+  }
+  .tracker-row dd {
+    margin: 0;
+    font-family: var(--pn-sans);
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #1c1917;
+    text-align: end;
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <header class="note-head${contactTile ? ' has-tile' : ''}">${contactTile}<div class="note-head-text">
+      <h1 class="note-title">${escapeHtml(title)}</h1>${scheduleHtml}${contactRole ? `
+      <div class="contact-role" dir="auto">${escapeHtml(contactRole)}</div>` : ''}${titleOnly ? '' : `
+      <div class="meta">${escapeHtml(formatInstant(editedAtOf(note), 'dateTime'))}</div>
+      ${folderHtml}
+      ${tagsHtml}`}
+    </div></header>
+    ${trackersHtml}
+    <article class="content">
+${bodyHtml}
+    </article>
+  </div>
+</body>
+</html>
+`;
+}
+
+/**
+ * Export a single note as self-contained .html with images embedded
+ * as data URIs. Returns the pictures it could not read, which stay
+ * pn: references in the file.
+ */
+export async function exportSingleHtml(
+  note: LocalNote,
+  imageStore?: ImageStore | null,
+  folders: FolderDef[] = [],
+  attachmentStore?: AttachmentStore | null,
+): Promise<MissingBlob[]> {
+  const resolved = await resolveBodyImages(note.body, imageStore, attachmentStore);
+  // Fetch and inline any remaining same-origin image paths
+  // (e.g. /onboarding/japan.jpg) so the .html is self-contained
+  // when opened from disk.
+  let body = await inlineContactPhoto(note, await inlineSameOriginImages(resolved.body));
+  // KaTeX and lowlight are fetched on demand, only for a body that needs them.
+  await prepareRender(body);
+  let html = buildNoteHtmlDocument({ ...note, body }, folderNamePath(folders, note.folderId));
+  // Inline favicon images so the .html works fully offline.
+  html = await inlineRenderedFavicons(html);
+  await downloadBlob(
+    new Blob([html], { type: 'text/html;charset=utf-8' }),
+    `${slugify(note.title)}.html`
+  );
+  return resolved.missing;
+}
+
+/**
+ * Bulk HTML export: one self-contained .html per note, zipped.
+ * Each file is identical in layout to the single-note export -
+ * white page, serif body, embedded print CSS, no external calls.
+ */
+/**
+ * Bulk HTML zip. Images are embedded as data URIs in each .html file
+ * so every file is self-contained and works offline. Returns each picture
+ * it could not read, once however many notes show it.
+ */
+export async function exportAllHtmlZip(
+  notes: LocalNote[],
+  imageStore?: ImageStore | null,
+  folders: FolderDef[] = [],
+  onProgress?: (at: ExportStep) => void,
+  attachmentStore?: AttachmentStore | null,
+  signal?: AbortSignal,
+  fileStem = 'privacynotes-backup',
+): Promise<BulkExportResult> {
+  const { default: JSZip } = await import('jszip');
+  const zip = new JSZip();
+  // A drawing has no page to print: it leaves as a file or a picture from
+  // its share menu, and the full backup keeps it.
+  // Spec: docs/internal/specs/drawing.md (section 7, Export)
+  notes = notes.filter((n) => n.type !== 'drawing');
+  const stems = zipEntryStems(notes);
+  const missing = new Map<string, MissingBlob>();
+  for (const [i, note] of notes.entries()) {
+    signal?.throwIfAborted();
+    onProgress?.({ step: 'notes', done: i + 1, total: notes.length });
+    const filename = `${stems[i]!}.html`;
+
+    const resolved = await resolveBodyImages(note.body, imageStore, attachmentStore);
+    for (const gap of resolved.missing) if (!missing.has(gap.id)) missing.set(gap.id, gap);
+    let body = await inlineContactPhoto(note, await inlineSameOriginImages(resolved.body));
+    await prepareRender(body);
+    let noteHtml = buildNoteHtmlDocument({ ...note, body }, folderNamePath(folders, note.folderId));
+    noteHtml = await inlineRenderedFavicons(noteHtml);
+    zip.file(filename, noteHtml);
+  }
+  const calendar = await calendarFileForBackup(notes);
+  if (calendar) zip.file('calendar.ics', calendar);
+  onProgress?.({ step: 'zip' });
+  const blob = await zip.generateAsync({ type: 'blob' });
+  signal?.throwIfAborted();
+  const stamp = toLocalIso(new Date());
+  return { missing: [...missing.values()], savedPath: await downloadBlob(blob, `${fileStem}-${stamp}-html.zip`) };
+}
+
+declare global {
+  interface Window {
+    /** Installed by MainActivity.kt in the Android app; absent everywhere else. */
+    __pnPrint?: { print: (html: string, jobName: string) => void };
+  }
+}
+
+/**
+ * Hand the document to the OS print UI in the native apps.
+ *
+ * Three of the four native webviews ignore JavaScript's `window.print()`: the
+ * call returns without opening anything and without an error, so the iframe
+ * path below printed nothing at all in the macOS, iOS and Android apps. Each
+ * needs its own native route, and they are not reachable the same way:
+ * macOS and iOS go through Rust (packages/desktop/src-tauri/src/print.rs),
+ * while Android has no Rust route to take - wry's Android `print()` is an
+ * empty stub - so it goes through the `__pnPrint` bridge in MainActivity.kt.
+ * Either way the document handed over is the one built above, so a printout
+ * looks the same everywhere.
+ *
+ * False means "print it yourself": the web build, and the Windows and Linux
+ * apps, whose webviews do implement `window.print()` and are left on that path.
+ */
+async function printViaOs(html: string, jobName: string): Promise<boolean> {
+  if (detectPlatform() === 'web') return false;
+  const android = window.__pnPrint;
+  if (android) {
+    android.print(html, jobName);
+    return true;
+  }
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('print_html', { html, jobName });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Print a single note (opens the print dialog → "Save as PDF").
+ *
+ * Renders the same standalone HTML document used by exportSingleHtml, then
+ * either hands it to the OS (native Apple apps) or opens it in a hidden iframe
+ * and triggers window.print(). The @media print CSS in buildNoteHtmlDocument
+ * produces A4-friendly output either way.
+ */
+export async function printNote(
+  note: LocalNote,
+  imageStore?: ImageStore | null,
+  folders: FolderDef[] = [],
+  attachmentStore?: AttachmentStore | null,
+  titleOnly = false,
+): Promise<void> {
+  const resolved = await resolveBodyImages(note.body, imageStore, attachmentStore);
+  let body = await inlineContactPhoto(note, await inlineSameOriginImages(resolved.body));
+  // KaTeX and lowlight are fetched on demand, only for a body that needs them.
+  await prepareRender(body);
+  let html = buildNoteHtmlDocument({ ...note, body }, folderNamePath(folders, note.folderId), titleOnly);
+  // Inline favicons so they appear in the printed/PDF output.
+  html = await inlineRenderedFavicons(html);
+
+  const jobName = note.title.trim() || 'Untitled';
+  if (await printViaOs(html, jobName)) return;
+
+  // Use a hidden iframe so the print dialog targets only the note,
+  // not the app itself.
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.left = '-9999px';
+  iframe.style.top = '-9999px';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  document.body.appendChild(iframe);
+
+  const iframeDoc = iframe.contentDocument ?? iframe.contentWindow?.document;
+  if (!iframeDoc) {
+    document.body.removeChild(iframe);
+    return;
+  }
+
+  iframeDoc.open();
+  iframeDoc.write(html);
+  iframeDoc.close();
+
+  // Wait for every <img> in the iframe to finish decoding (data-URI
+  // favicons and inlined images need a decode pass before the print
+  // dialog captures the page), then print.
+  //
+  // Run-once guard: print() fires either when images finish loading OR
+  // from the safety timeout. Without the guard both paths fire, so the
+  // print dialog reopens on its own right after the user dismisses the
+  // first one. printed=true + clearing the timer makes print() happen
+  // exactly once.
+  let printed = false;
+  let safetyTimer: ReturnType<typeof setTimeout> | undefined;
+  const doPrint = () => {
+    if (printed) return;
+    printed = true;
+    if (safetyTimer) clearTimeout(safetyTimer);
+    // Chromium (Chrome, Edge, the Windows app's WebView2) names the "Save as
+    // PDF" file after the TOP document's title, not the printed iframe's, so
+    // every PDF came out as "PrivacyNotes.pdf" (#720). Lend the note title to
+    // the app for the length of the print.
+    const appTitle = document.title;
+    document.title = jobName;
+    try {
+      iframe.contentWindow?.print();
+    } finally {
+      setTimeout(() => {
+        document.title = appTitle;
+        document.body.removeChild(iframe);
+      }, 1000);
+    }
+  };
+
+  const waitForImages = () => {
+    const images = Array.from(iframeDoc!.querySelectorAll('img'));
+    const pending = images.filter((img) => !img.complete);
+    if (pending.length === 0) { doPrint(); return; }
+    let loaded = 0;
+    const check = () => { if (++loaded >= pending.length) doPrint(); };
+    for (const img of pending) {
+      img.addEventListener('load', check);
+      img.addEventListener('error', check);
+    }
+    // Safety timeout - don't block indefinitely on broken images.
+    safetyTimer = setTimeout(doPrint, 3000);
+  };
+
+  if (iframeDoc.readyState === 'complete') {
+    waitForImages();
+  } else {
+    iframe.onload = () => waitForImages();
+  }
+}
+
+// ─── Encrypted backup export/import ───────────────────────────────────
+//
+// Binary format: [24-byte nonce][xchacha20poly1305 ciphertext]
+// The plaintext is the same JSON structure as exportAllJson.
+// Extension: .pnbackup (PrivacyNotes backup - distinct from .json
+// so users don't confuse encrypted and plaintext exports).
+//
+// The format itself (payload assembly, encode, decode) lives in
+// packages/shared/src/backup.ts so tools/backup-kat.mjs can test the real
+// code headlessly; this file only adds the browser glue: file download and
+// translated error messages.
+
+/**
+ * Encrypted text backup. All note metadata, no image/attachment blobs.
+ *
+ * Same payload structure as JSON v3 but encrypted with xchacha20poly1305.
+ * Binary format: [24-byte nonce][ciphertext]. See packages/shared/src/backup.ts.
+ */
+export async function exportEncryptedBackup(
+  notes: LocalNote[],
+  encryptionKey: Uint8Array,
+  /** Folder definitions (userSettings.folders) so a restore can rebuild
+   *  the tree, not just the per-note membership pointers. */
+  folders: FolderDef[] = [],
+  /** Folder and tag looks (userSettings.itemStyles). */
+  itemStyles: ItemStyles = {},
+  /** The custom color themes (userSettings.customThemes). */
+  customThemes: CustomThemes = {},
+  /** The factor names (userSettings.factors). */
+  factors: FactorDef[] = [],
+  /** The person's own habit questions (userSettings.customHabits). */
+  customHabits: CustomHabitDef[] = [],
+): Promise<void> {
+  const out = buildEncryptedTextBackup(notes, encryptionKey, folders, itemStyles, customThemes, factors, customHabits);
+
+  const stamp = toLocalIso(new Date());
+  await downloadBlob(
+    new Blob([out as BlobPart], { type: 'application/octet-stream' }),
+    `privacynotes-backup-${stamp}.pnbackup`
+  );
+}
+
+/** The bytes of a .pnbackup, with no save; shared with the automatic backup
+ *  like buildEncryptedFullBackup. */
+export function buildEncryptedTextBackup(
+  notes: LocalNote[],
+  encryptionKey: Uint8Array,
+  folders: FolderDef[] = [],
+  itemStyles: ItemStyles = {},
+  customThemes: CustomThemes = {},
+  factors: FactorDef[] = [],
+  customHabits: CustomHabitDef[] = [],
+): Uint8Array {
+  return encodeBackup(buildBackupPayload(notes, folders, undefined, itemStyles, customThemes, factors, customHabits), encryptionKey);
+}
+
+/** Decoded .pnbackup contents. Alias of the shared format type; kept under
+ *  the old name for existing importers. */
+export type DecryptedBackup = BackupPayload;
+
+/**
+ * Decrypt a .pnbackup file with the user's encryption key.
+ *
+ * Every failure here is translated before it leaves. The raw ones are library
+ * strings written for cryptographers - noble-ciphers says "invalid tag" for
+ * both a wrong key and a damaged file - and that text was reaching users
+ * verbatim in the import dialog (issue #193). Which of the two happened is not
+ * knowable from the failure itself, by design: an authentication tag that does
+ * not verify tells you nothing about why. So the message names both causes and
+ * leads with the one that is far more common, restoring into the wrong account.
+ */
+export function decryptBackup(
+  data: Uint8Array,
+  encryptionKey: Uint8Array
+): DecryptedBackup {
+  try {
+    // A backup made under an earlier phrase opens through the key ring; the
+    // error below is the current key's, as before the ring.
+    return openWithRing('sync', encryptionKey, (key) => decodeBackup(data, key));
+  } catch (e) {
+    // Truncated below one nonce + one tag. Our own check covers < 25 bytes;
+    // noble rejects the 25..39 range with a length message of its own. Both
+    // mean the same thing to a user, and an empty file lands here.
+    const msg = e instanceof Error ? e.message : '';
+    if (msg === BACKUP_TOO_SMALL || msg.includes('tagLength')) {
+      throw new Error(
+        i18n.t('importExport:decryptErrors.tooSmall', { size: data.length }),
+      );
+    }
+    throw new Error(i18n.t('importExport:decryptErrors.notThisAccount'));
+  }
+}
+
+/** Decrypt a .pnbackupz file into the plain full-backup zip, which the
+ *  restore then reads like any zip. The same translated errors as
+ *  decryptBackup, and the same key ring: a backup made under an earlier
+ *  phrase opens with no extra step. */
+export function decryptFullBackupZip(bytes: Uint8Array, encryptionKey: Uint8Array): Uint8Array {
+  try {
+    return openWithRing('sync', encryptionKey, (key) => decodeZipBackup(bytes, key));
+  } catch (err) {
+    if (err instanceof Error && err.name === BACKUP_TOO_SMALL) {
+      throw new Error(i18n.t('importExport:decryptErrors.tooSmall', { size: bytes.length }));
+    }
+    throw new Error(i18n.t('importExport:decryptErrors.notThisAccount'));
+  }
+}
+
+// ─── Bitwarden-compatible vault export ───────────────────────────────
+//
+// Exports only vault items (login, card, ssh-key) in Bitwarden's
+// unencrypted JSON format. The output is importable by Bitwarden,
+// 1Password, KeePass, and most other password managers.
+//
+// Bitwarden item types: 1=Login, 2=SecureNote, 3=Card, 5=SshKey
+// (type 4=Identity is not used here - we don't store identities).
+//
+// What Bitwarden has no slot for travels as a custom field on its item, so
+// every manager that reads the file shows it: an SSH key's label and
+// passphrase, a card's billing ZIP, and the tags. Folders are Bitwarden
+// folders. The Bitwarden importer puts each of them back in its place.
+
+/**
+ * The custom fields written for what Bitwarden has no slot for. The names
+ * are part of the file format: the Bitwarden importer finds the fields by
+ * name, so renaming one strands every file already written.
+ */
+export const BW_OWN_FIELDS = {
+  tags: 'PrivacyNotes tags',
+  label: 'PrivacyNotes key label',
+  passphrase: 'PrivacyNotes key passphrase',
+  billingZip: 'PrivacyNotes billing ZIP',
+} as const;
+
+/**
+ * The file's `exportedBy`. The Bitwarden importer turns a folder into tags,
+ * which is the documented mapping for a file Bitwarden wrote; in a file
+ * carrying this, a folder comes back as a folder.
+ */
+export const BW_EXPORTED_BY = 'PrivacyNotes';
+
+interface BwExportUri {
+  match: null;
+  uri: string;
+}
+
+interface BwExportLogin {
+  uris: BwExportUri[];
+  username: string;
+  password: string;
+  totp: string | null;
+}
+
+interface BwExportCard {
+  cardholderName: string;
+  brand: string;
+  number: string;
+  expMonth: string;
+  expYear: string;
+  code: string;
+}
+
+interface BwExportSshKey {
+  privateKey: string;
+  publicKey: string;
+  keyFingerprint: string;
+}
+
+/** Bitwarden's custom field. Type 0 is text, 1 is hidden. */
+interface BwExportField {
+  name: string;
+  value: string;
+  type: 0 | 1;
+  linkedId: null;
+}
+
+interface BwExportFolder {
+  id: string;
+  /** The full path, "Parent/Child", because Bitwarden nests folders by name. */
+  name: string;
+}
+
+interface BwExportItem {
+  id: string;
+  organizationId: null;
+  folderId: string | null;
+  type: number;
+  reprompt: number;
+  name: string;
+  notes: string;
+  favorite: boolean;
+  fields?: BwExportField[];
+  login?: BwExportLogin | null;
+  card?: BwExportCard | null;
+  sshKey?: BwExportSshKey | null;
+  creationDate: string;
+  revisionDate: string;
+}
+
+interface BwExportPayload {
+  encrypted: false;
+  exportedBy: typeof BW_EXPORTED_BY;
+  folders: BwExportFolder[];
+  items: BwExportItem[];
+}
+
+/**
+ * Export vault items (logins, cards, SSH keys) in Bitwarden's
+ * unencrypted JSON format. Non-vault notes are excluded. `folders` is the
+ * account's folder tree, which names the folders the items sit in.
+ */
+export async function exportVaultBitwarden(notes: LocalNote[], folders: FolderDef[]): Promise<void> {
+  const vaultNotes = notes.filter(
+    (n) => n.type === 'login' || n.type === 'card' || n.type === 'ssh-key',
+  );
+
+  // Each folder an item sits in goes out under its full path, with every
+  // ancestor beside it: Bitwarden nests by name, and a child whose parent is
+  // missing shows there as one flat folder.
+  const bwFolders = new Map<string, BwExportFolder>();
+  for (const id of new Set(vaultNotes.map((n) => n.folderId))) {
+    if (!id) continue;
+    for (const fid of [...ancestorIds(folders, id).reverse(), id]) {
+      const path = folderNamePath(folders, fid);
+      if (path.length > 0 && !bwFolders.has(fid)) bwFolders.set(fid, { id: fid, name: path.join('/') });
+    }
+  }
+
+  const items: BwExportItem[] = vaultNotes.map((note) => {
+    const base: BwExportItem = {
+      id: note.id,
+      organizationId: null,
+      folderId: note.folderId && bwFolders.has(note.folderId) ? note.folderId : null,
+      type: 1,
+      reprompt: note.pinProtected === 1 ? 1 : 0,
+      name: note.title || 'Untitled',
+      notes: '',
+      favorite: note.starred === 1,
+      creationDate: note.createdAt,
+      revisionDate: editedAtOf(note),
+    };
+    const fields: BwExportField[] = [];
+    const addField = (name: string, value: string, type: 0 | 1 = 0) => {
+      if (value) fields.push({ name, value, type, linkedId: null });
+    };
+    // A login's own custom fields, written after ours so the importer finds
+    // our tags field first even when a user field carries the same name.
+    const userFields: BwExportField[] = [];
+
+    if (note.type === 'login') {
+      const login = parseLoginBody(note.body);
+      const extras = loginExtrasOf(note.trackers);
+      base.type = 1;
+      base.notes = login.notes;
+      for (const f of extras.fields) {
+        userFields.push({ name: f.label, value: f.value, type: isPublicField(f) ? 0 : 1, linkedId: null });
+      }
+      base.login = {
+        uris: [login.url, ...extras.extraUrls].filter(Boolean).map((uri) => ({ match: null, uri })),
+        username: login.username,
+        password: login.password,
+        totp: login.totp || null,
+      };
+    } else if (note.type === 'card') {
+      const card = parseCardBody(note.body);
+      base.type = 3;
+      base.notes = card.notes;
+      base.card = {
+        cardholderName: card.cardholderName,
+        brand: detectCardNetwork(card.cardNumber),
+        number: card.cardNumber,
+        expMonth: card.expMonth,
+        expYear: card.expYear,
+        code: card.cvv,
+      };
+      addField(BW_OWN_FIELDS.billingZip, card.billingZip);
+    } else if (note.type === 'ssh-key') {
+      const key = parseSshKeyBody(note.body);
+      base.type = 5;
+      base.notes = key.notes;
+      base.sshKey = {
+        privateKey: key.privateKey,
+        publicKey: key.publicKey,
+        keyFingerprint: '',
+      };
+      addField(BW_OWN_FIELDS.label, key.label);
+      addField(BW_OWN_FIELDS.passphrase, key.passphrase, 1);
+    }
+
+    // One field for all of them: a tag cannot hold a comma.
+    addField(BW_OWN_FIELDS.tags, note.tags.join(', '));
+    fields.push(...userFields);
+    if (fields.length > 0) base.fields = fields;
+    return base;
+  });
+
+  const payload: BwExportPayload = {
+    encrypted: false,
+    exportedBy: BW_EXPORTED_BY,
+    folders: [...bwFolders.values()],
+    items,
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: 'application/json',
+  });
+  const stamp = toLocalIso(new Date());
+  await downloadBlob(blob, `privacynotes-vault-${stamp}.json`);
+}
+
+/**
+ * The reader's nested numbers (#689) for the export stylesheet: on
+ * 'outline', 1.1 and 1.1.1, as in the editor. markdownRender writes a
+ * Persian list's numerals as an inline list-style-type, which the marker
+ * content would hide, so that list counts in Persian here too.
+ * Spec: index.css (Nested numbers)
+ */
+function nestedNumbersCss(): string {
+  if (readNestedNumbers() !== 'outline') return '';
+  return `  .content ol:not(ul ol) > li::marker { content: counters(list-item, '.') '. '; }
+  .content ol[style*="persian"]:not(ul ol) > li::marker { content: counters(list-item, '.', persian) '. '; }
+  .content ol ol:not(ul ol) { margin-inline-start: 2.5em; }
+`;
+}

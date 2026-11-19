@@ -1,0 +1,338 @@
+{
+  "actions": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "delete": "Supprimer",
+    "done": "Terminé",
+    "edit": "Modifier",
+    "confirm": "Confirmer",
+    "back": "Retour",
+    "next": "Suivant",
+    "remove": "Retirer",
+    "deleteConfirm": "Supprimer ?",
+    "removeConfirm": "Retirer ?",
+    "copy": "Copier",
+    "rename": "Renommer",
+    "create": "Créer",
+    "search": "Rechercher",
+    "add": "Ajouter",
+    "clearSearch": "Effacer la recherche"
+  },
+  "state": {
+    "loading": "Chargement…",
+    "saving": "Enregistrement…",
+    "untitled": "Sans titre",
+    "noResults": "Aucun résultat"
+  },
+  "deleteNote": {
+    "confirm": "Supprimer définitivement",
+    "body": "Supprimer définitivement <highlight>« {{title}} »</highlight> ? Cette action est irréversible."
+  },
+  "emptyTrash": {
+    "title": "Vider la corbeille",
+    "body_one": "Supprimer définitivement <highlight>{{count}} note</highlight> ? Cette action est irréversible.",
+    "body_other": "Supprimer définitivement <highlight>{{count}} notes</highlight> ? Cette action est irréversible."
+  },
+  "storageBar": {
+    "usage": "{{percent}} % utilisé ({{used}} / {{max}})",
+    "refresh": "Actualiser le stockage",
+    "cleanupInfo": "Les éléments supprimés ne sont plus comptés immédiatement. Les fichiers chiffrés eux-mêmes quittent le serveur en quelques jours.",
+    "open": "Ouvrir les paramètres de stockage"
+  },
+  "updateToast": {
+    "available": "Mise à jour disponible",
+    "required": "Mise à jour requise",
+    "changelog": "Changelog",
+    "refresh": "Actualiser",
+    "restart": "Redémarrer",
+    "dismiss": "Ignorer",
+    "download": "Télécharger",
+    "update": "Mettre à jour",
+    "copyCommand": "Copier la commande"
+  },
+  "hotkeys": {
+    "heading": "Aide sur les raccourcis",
+    "typingNote": "La plupart des raccourcis sont ignorés pendant que tu tapes dans un champ de texte, donc des touches comme J et K écrivent toujours J et K.",
+    "cheatSheet": "Aide-mémoire à imprimer"
+  },
+  "palette": {
+    "label": "Commandes",
+    "empty": "Aucune commande correspondante",
+    "groups": {
+      "features": "Fonctionnalités",
+      "commands": "Commandes",
+      "new": "Nouveau",
+      "goTo": "Aller à",
+      "themes": "Thèmes"
+    },
+    "commands": {
+      "quickSwitcher": "Ouvrir Ninja : trouver un élément, ajouter n'importe quoi, lancer une commande",
+      "historyBack": "Reculer",
+      "historyForward": "Avancer",
+      "toggleSidebar": "Afficher/masquer la barre latérale",
+      "toggleTheme": "Basculer entre les modes clair et sombre",
+      "openSettings": "Ouvrir les paramètres",
+      "zen": "Mode Zen",
+      "markdownView": "Activer / désactiver la vue Markdown",
+      "invisibles": "Afficher / masquer les caractères invisibles",
+      "find": "Rechercher dans la note",
+      "findReplace": "Rechercher et remplacer",
+      "outline": "Afficher/masquer le plan",
+      "insertDate": "Insérer la date",
+      "insertDateTime": "Insérer la date et l'heure",
+      "clearFilters": "Effacer les filtres",
+      "moveToTrash": "Supprimer la note",
+      "closeTab": "Fermer l'onglet ou la note",
+      "nextTab": "Onglet suivant",
+      "previousTab": "Onglet précédent",
+      "zoomIn": "Agrandir l'app",
+      "zoomOut": "Réduire l'app",
+      "zoomReset": "Revenir à la taille normale",
+      "help": "Raccourcis clavier"
+    }
+  },
+  "quickNote": {
+    "bodyPlaceholder": "Écris la suite ici",
+    "hint": "Tape / pour un dossier, # pour une étiquette",
+    "locked": "PrivacyNotes est verrouillé. Ta note est scellée et s'ouvre quand tu déverrouilles.",
+    "queued": "Enregistrée. Elle s'ouvre quand tu déverrouilles.",
+    "tooLong": "Cette note est trop longue. Divise-la en deux notes.",
+    "full": "Trop de notes sont en attente. Déverrouille pour les ajouter.",
+    "empty": "Écris d'abord quelque chose.",
+    "failed": "Impossible d'enregistrer la note. Ouvre PrivacyNotes et réessaie.",
+    "added_one": "{{count}} note rapide ajoutée",
+    "added_many": "{{count}} notes rapides ajoutées",
+    "added_other": "{{count}} notes rapides ajoutées"
+  },
+  "quickSwitcher": {
+    "label": "Ninja : trouve un élément ou un paramètre, ajoute n'importe quoi, lance une commande",
+    "jumpTo": "Ninja",
+    "placeholder": "Ninja à ton service : un titre, + pour ajouter, > pour les commandes",
+    "recent": "Récents",
+    "empty": "Aucun élément ni paramètre avec ce nom",
+    "searchAll": "Tout rechercher : « {{query}} »",
+    "searchIn": "Rechercher dans {{section}} : « {{query}} »",
+    "searchList": "Rechercher dans la liste : « {{query}} »",
+    "searchDetail": "Trouve des mots dans le texte",
+    "move": "déplacer",
+    "open": "ouvrir",
+    "openInTab": "ouvrir dans un onglet",
+    "edit": "modifier",
+    "close": "fermer",
+    "folders": "Dossiers",
+    "tagItems_one": "{{count}} élément",
+    "tagItems_other": "{{count}} éléments",
+    "emptyTags": "Aucune étiquette avec ce nom",
+    "emptyFolders": "Aucun dossier avec ce nom",
+    "emptyVault": "Rien ici pour l'instant. Tape + pour ajouter ton premier élément.",
+    "onlyTags": "étiquettes",
+    "onlyFolders": "dossiers",
+    "showOnlyTags": "Étiquettes uniquement",
+    "showOnlyFolders": "Dossiers uniquement",
+    "showOnlyCommands": "Commandes uniquement",
+    "goToTag": "Aller à une étiquette",
+    "goToFolder": "Aller à un dossier",
+    "createTag": "Créer l'étiquette #{{name}}",
+    "createFolder": "Créer le dossier « {{name}} »",
+    "newTag": "Nouvelle étiquette",
+    "newFolder": "Nouveau dossier",
+    "goToDay": "Aller au jour",
+    "inText": "Dans le texte",
+    "actions": "actions",
+    "back": "retour",
+    "actionsPlaceholder": "Filtrer les actions",
+    "onlyCreate": "ajouter",
+    "ninjaLockedTitle": "PrivacyNotes est verrouillé",
+    "ninjaLockedBody": "Ouvre PrivacyNotes et déverrouille-le. Ninja trouvera alors tes notes depuis n'importe quelle app."
+  },
+  "cardForm": {
+    "cardholderName": "Nom du titulaire",
+    "cardholderPlaceholder": "Jean Dupont",
+    "cardNumber": "Numéro de carte",
+    "cardNumberPlaceholder": "4242 4242 4242 4242",
+    "showNumber": "Afficher le numéro",
+    "hideNumber": "Masquer le numéro",
+    "copyCardNumber": "Copier le numéro de carte",
+    "unknownNetwork": "Réseau inconnu",
+    "network": "Réseau",
+    "numberTooShort_one": "Numéro de carte trop court ({{count}} chiffre, {{expected}} attendus)",
+    "numberTooShort_other": "Numéro de carte trop court ({{count}} chiffres, {{expected}} attendus)",
+    "expiry": "Expiration",
+    "monthPlaceholder": "MM",
+    "yearPlaceholder": "AA",
+    "cvv": "CVV",
+    "cvvPlaceholder": "123",
+    "showCvv": "Afficher le CVV",
+    "hideCvv": "Masquer le CVV",
+    "expiredHint": "Cette carte semble expirée.",
+    "billingZip": "Code postal de facturation",
+    "billingZipPlaceholder": "75001",
+    "notes": "Notes",
+    "notesPlaceholder": "Notes supplémentaires (facultatif)",
+    "requirePin": "Exiger le PIN pour afficher",
+    "whatDoesThisDo": "À quoi ça sert ?",
+    "setUpPinFirst": "Configure d'abord un PIN dans les paramètres de sécurité."
+  },
+  "sshKeyForm": {
+    "label": "Libellé",
+    "labelPlaceholder": "p. ex. clé de déploiement GitHub",
+    "publicKey": "Public Key",
+    "copyPublicKey": "Copier la clé publique",
+    "privateKey": "Private Key",
+    "copyPrivateKey": "Copier la clé privée",
+    "downloadPublicKey": "Télécharger la clé publique",
+    "downloadPrivateKey": "Télécharger la clé privée",
+    "downloadHint": "Déplace la clé téléchargée dans ~/.ssh et lance chmod 600 dessus, sinon ssh la refuse.",
+    "downloadHintDesktop": "PrivacyNotes n'enregistre pas dans ~/.ssh, pour protéger les clés qui s'y trouvent. Enregistre la clé ailleurs, déplace-la dans ~/.ssh et lance chmod 600 dessus, sinon ssh la refuse.",
+    "downloadHintWindows": "PrivacyNotes n'enregistre pas dans ton dossier .ssh, pour protéger les clés qui s'y trouvent. Enregistre la clé ailleurs et déplace-la dans %USERPROFILE%\\.ssh. Windows n'a pas besoin de chmod.",
+    "downloadFailed": "Le fichier de clé n'a pas pu être enregistré. Vérifie le fichier et réessaie.",
+    "passphrase": "Phrase secrète",
+    "passphrasePlaceholder": "Phrase secrète de la clé (le cas échéant)",
+    "show": "Afficher",
+    "hide": "Masquer",
+    "copyPassphrase": "Copier la phrase secrète"
+  },
+  "tagInput": {
+    "placeholder": "Ajoute des étiquettes… séparées par une virgule, # ou Entrée",
+    "create": "Créer « #{{tag}} »",
+    "removeTag": "Retirer {{tag}}"
+  },
+  "loading": {
+    "pause": "Mettre les phrases en pause",
+    "play": "Relancer les phrases",
+    "lines": [
+      "le secret bancaire suisse, version notes",
+      "on protège tes idées sous la douche",
+      "tes notes sont chiffrées sur ton appareil",
+      "stockage à froid pour pensées chaudes",
+      "encore une belle journée pour chiffrer",
+      "on garde les secrets ennuyeux depuis le lancement",
+      "la confidentialité sans la conférence TED",
+      "on garde le cloud bien perplexe",
+      "le serveur stocke du chiffré. il trouve ça ennuyeux",
+      "moins de surveillance. plus de notes",
+      "du charabia chiffré, comme prévu",
+      "pistage désactivé, émotionnellement et techniquement",
+      "c'est ton appareil qui a tous les potins",
+      "tes pensées privées passent en mode privé",
+      "encore une note cachée du capitalisme",
+      "ici la confidentialité n'est pas une option payante",
+      "la sécurité par la vraie sécurité",
+      "on résiste discrètement aux courtiers de données",
+      "aucun matériel d'entraînement pour l'IA détecté",
+      "chiffré plus fort que nécessaire",
+      "que du signal. zéro surveillance",
+      "on transforme la méfiance en logiciel",
+      "tes pensées restent hors marché",
+      "les fouilleurs de données n'ont trouvé que de la tristesse",
+      "ton coffre reste chiffré avec acharnement",
+      "la neutralité suisse, version notes",
+      "pas de pubs. pas de traceurs. pas de rebondissement",
+      "open source, pour que tu puisses vérifier les maths",
+      "le chiffré, c'est notre langage de l'amour",
+      "on rend tes notes ennuyeuses pour les inconnus",
+      "ton journal intime a appelé. il veut de l'intimité",
+      "ton suivi d'humeur s'ennuyait de toi",
+      "tes idées, sans le public",
+      "ton journal a gardé tes secrets toute la nuit",
+      "un seul endroit privé pour tout ce que tu ne publierais jamais",
+      "ici, aucun algorithme ne décide de ce que tu vois",
+      "tes idées en vrac sont saines et sauves",
+      "écrire, c'est penser. penser, c'est privé",
+      "aucun influenceur n'a été consulté",
+      "on charge les secrets de manière responsable.",
+      "que du signal. aucune surveillance.",
+      "encore un chef-d'œuvre chiffré qui arrive.",
+      "on convertit la méfiance en logiciel.",
+      "tes pensées restent hors marché.",
+      "cette synchro ne contient aucun potin pour nous.",
+      "parce que « fais-nous confiance » c'est nul.",
+      "penser en privé, à grande échelle.",
+      "tes notes restent légalement mystérieuses.",
+      "on remet de l'ordre dans le chaos chiffré.",
+      "les data miners n'ont trouvé que de la tristesse.",
+      "déchiffrement local de pensées existentielles…",
+      "ton coffre reste obstinément illisible.",
+      "neutralité suisse, mais pour les notes."
+    ],
+    "loadingOnly": [
+      "chargement de tes ruminations chiffrées",
+      "un instant, on déçoit les annonceurs",
+      "tes secrets ont survécu à un redémarrage de plus",
+      "on ouvre le coffre en silence",
+      "déchiffré localement. ignoré mondialement",
+      "on déchiffre comme si de rien n'était",
+      "on transforme tes idées en soupe illisible",
+      "encore un chef-d'œuvre chiffré en approche",
+      "on remet de l'ordre dans le chaos chiffré",
+      "on déchiffre localement tes pensées existentielles",
+      "on fait chauffer les clés",
+      "on retrouve le fil de tes pensées",
+      "on compte tes tâches non cochées. sans jugement",
+      "aucune pub n'a été affichée pendant ce chargement",
+      "on remet tes notes là où tu les as laissées",
+      "on démêle les pensées d'hier",
+      "on range les bits dans un bel ordre",
+      "on se souvient de ce que tu as oublié de retenir"
+    ]
+  },
+  "neverBackedUp": {
+    "one": "Jamais sauvegardée. C'est la seule copie.",
+    "some_one": "{{count}} de ces notes n'a jamais été sauvegardée. C'est sa seule copie.",
+    "some_other": "{{count}} de ces notes n'ont jamais été sauvegardées. Ce sont les seules copies.",
+    "changesOne": "Ses dernières modifications ne sont pas sauvegardées et seraient perdues.",
+    "changesSome_one": "{{count}} de ces notes a des modifications non sauvegardées qui seraient perdues.",
+    "changesSome_other": "{{count}} de ces notes ont des modifications non sauvegardées qui seraient perdues."
+  },
+  "ninja": {
+    "topHit": "Meilleur résultat",
+    "trashEmpty": "La corbeille est vide",
+    "allThemes": "Tous les thèmes",
+    "features": {
+      "stats": {
+        "detail": "Ton écriture, tes séries et tes suivis dans le temps"
+      },
+      "trackers": {
+        "detail": "Humeur, habitudes, facteurs et médication"
+      },
+      "medication": {
+        "label": "Médication",
+        "detail": "Doses, horaires et rappels"
+      },
+      "yearInPixels": {
+        "label": "Année en pixels",
+        "detail": "Chaque jour de l'année en un carré de couleur"
+      },
+      "importExport": {
+        "detail": "Fais entrer tes notes, ou sors-les"
+      },
+      "backup": {
+        "detail": "Sauvegarder maintenant, sauvegardes automatiques et restauration"
+      },
+      "generator": {
+        "label": "Générateur de mots de passe",
+        "detail": "Un mot de passe ou une phrase de passe robuste, prêt à copier"
+      },
+      "themes": {
+        "detail": "Thèmes de couleur pour le mode clair et le mode sombre"
+      }
+    },
+    "new": {
+      "medication": "Nouveau médicament",
+      "customTracker": "Nouveau suivi personnalisé"
+    },
+    "commands": {
+      "syncResume": "Reprendre la synchro",
+      "lockProtected": "Verrouiller cette note",
+      "changelog": "Nouveautés",
+      "themesPage": "Thèmes de la communauté",
+      "website": "Site web de PrivacyNotes"
+    },
+    "themes": {
+      "word": "Thème",
+      "light": "Thème clair",
+      "dark": "Thème sombre"
+    }
+  }
+}

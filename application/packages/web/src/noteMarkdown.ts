@@ -1,0 +1,215 @@
+import type { LocalNote } from './db';
+import { oneLineTitle } from './oneLineTitle';
+import { FRONT_MATTER_LOCATION, FRONT_MATTER_LOCATION_NAME, LOCATION_KEY, readLocation } from './noteLocation';
+
+/**
+ * A front-matter value a reader would not hand back as the text it is: one
+ * that looks quoted, a list, an object, a boolean or a number. Front-matter
+ * readers type an unquoted value, so a folder path like that is written
+ * quoted, and a root folder named 2024 stays a name.
+ */
+const READS_AS_DATA = /^(?:["'[{]|(?:true|false|-?\d+(?:\.\d+)?)$)/;
+
+/**
+ * Serialize a note as markdown with YAML front-matter.
+ *
+ * Lives in its own module rather than inside export.ts for one reason: it is
+ * the WRITE half of a round trip whose READ half is already tested. Every
+ * markdown file the app emits is parsed back by `import/markdown.ts` (single
+ * files and plain zips) or `import/privacynotes.ts` (the full backup zip), so
+ * the front-matter grammar below is a contract between four files. Keeping it
+ * here lets `tests/exportRoundTrip.test.ts` drive it directly - export.ts's
+ * own entry points end in a browser download, and knip's project glob stops a
+ * test from reaching an export that only a test consumes.
+ *
+ * The grammar, since three parsers depend on it:
+ *   - `title` is always quoted and on one line (`oneLineTitle`), the way
+ *     `quoteTitle` says: double quotes with each inner `"` backslash-escaped
+ *     (`unescapeQuotes` is the readers' inverse), or single quotes with each
+ *     `'` doubled when the title holds a backslash (`unescapeSingleQuotes`).
+ *   - `created` / `updated` are ISO strings.
+ *   - `tags` is `[a, b]`, comma-joined and UNQUOTED. Safe because
+ *     `normalizeTag` strips commas, so no tag can contain the separator.
+ *   - `folder` is the name path joined with `/`, a slash or a backslash
+ *     inside a name escaped with a backslash. It is quoted, inner `"`
+ *     escaped, when it would read as anything but text (`READS_AS_DATA`).
+ *     `parseFolderPath` in `import/folderImport.ts` is the exact inverse.
+ *   - `location` is `lat,lng` (the Obsidian Map View form) and `location_name`
+ *     is quoted like the title, in every mode. The place is taken out of the
+ *     `trackers` line, so it is written once; `parseFrontMatterLocation` in
+ *     `noteLocation.ts` reads it back for all three importers.
+ *   - The fullMeta block is emitted only for the full backup zip, and only
+ *     `import/privacynotes.ts` reads it. `folderId` and `trackers` are
+ *     omitted entirely when absent rather than written empty.
+ *
+ * When `fullMeta` is true (used by the full backup zip), the front-matter is
+ * lossless so the backup restores every flag. When false (single-note
+ * exports), only the basics.
+ */
+export function noteToMarkdown(
+  note: LocalNote,
+  fullMeta = false,
+  folderPath: string[] = [],
+): string {
+  const place = readLocation(note.trackers);
+  const { [LOCATION_KEY]: _place, ...trackersLine } = note.trackers ?? {};
+  const fm: string[] = ['---'];
+  fm.push(`title: ${quoteTitle(oneLineTitle(note.title))}`);
+  fm.push(`created: ${note.createdAt}`);
+  // The last edit, the date other apps read as "modified" (editedAtOf). A
+  // restore compares it with the local sync stamp, so it overwrites less,
+  // never more.
+  fm.push(`updated: ${note.editedAt ?? note.updatedAt}`);
+  if (note.tags.length) fm.push(`tags: [${note.tags.join(', ')}]`);
+  // The PORTABLE folder membership: names, not the UUID. `folderId` below is
+  // the right key for restoring into the same account and a meaningless
+  // string anywhere else, so both are written when both are known. The path
+  // itself is slash-separated, so a slash or a backslash inside a name gets
+  // a backslash before it.
+  if (folderPath.length > 0) {
+    const path = folderPath.map((n) => n.replace(/[\\/]/g, '\\$&')).join('/');
+    fm.push(`folder: ${READS_AS_DATA.test(path) ? `"${path.replace(/"/g, '\\"')}"` : path}`);
+  }
+  if (fullMeta) {
+    // The note's own id, backup flavour only. A restore matches on it and
+    // keeps the newer of the two copies, so restoring repairs a vault rather
+    // than filling it with a second version of every note. The portable
+    // export leaves it out: an id from this app means nothing in another one.
+    fm.push(`id: ${note.id}`);
+    fm.push(`type: ${note.type || 'note'}`);
+    fm.push(`starred: ${note.starred === 1}`);
+    // A full backup carries the trash: without this line every trashed
+    // note restored as a LIVE note, which resurrects what the user
+    // threw away. apply.ts re-stamps updatedAt so the retention purge
+    // does not eat imported trash on the next mount.
+    fm.push(`trashed: ${note.trashed === 1}`);
+    fm.push(`locked: ${note.locked === 1}`);
+    fm.push(`pinProtected: ${note.pinProtected === 1}`);
+    if (note.archived === 1) fm.push('archived: true');
+    if (note.folderId) fm.push(`folderId: ${note.folderId}`);
+  } else if (note.type === 'journal' || note.type === 'task' || note.type === 'event') {
+    // The types whose body is their real markdown, so a single .md restores
+    // them losslessly - and trackers with no type read back as a journal
+    // entry, which never repeats. Vault types stay unwritten here on purpose:
+    // a login exports as the READABLE `vaultToMarkdown` text, so declaring the
+    // type would restore that prose as a login and hide every field. See
+    // exportSingleMarkdown.
+    fm.push(`type: ${note.type}`);
+  } else if ((note.type ?? 'note') === 'note') {
+    // A note is the default, so it names itself only when it carries trackers.
+    if (Object.keys(trackersLine).length > 0) fm.push('type: note');
+  }
+  // The place goes on its own line, in the form Obsidian Map View reads, and
+  // never inside the trackers line, so it is written once.
+  // Spec: docs/internal/plans/note-location.md (section 6)
+  if (place) {
+    fm.push(`${FRONT_MATTER_LOCATION}: ${place.lat},${place.lng}`);
+    if (place.label) fm.push(`${FRONT_MATTER_LOCATION_NAME}: ${quoteTitle(oneLineTitle(place.label))}`);
+  }
+  // Written for every export, not only the full backup: trackers are the one
+  // field a single exported journal entry would otherwise lose silently - the
+  // body and tags round-trip intact, so nothing flags the missing mood, sleep
+  // and step counts. A login's are the exception: the readable export already
+  // prints its custom fields, and the raw map would print them a second time.
+  if (Object.keys(trackersLine).length > 0 && (fullMeta || note.type !== 'login')) {
+    fm.push(`trackers: ${JSON.stringify(trackersLine)}`);
+  }
+  fm.push('---');
+  return `${fm.join('\n')}\n\n${note.body}\n`;
+}
+
+/**
+ * A one-line title as a YAML string that every reader takes back as typed.
+ * Double quotes with each `"` escaped, unless the title holds a backslash:
+ * inside double quotes YAML reads a backslash as the start of an escape, so
+ * another app read `C:\notes` with a line feed in it, and `Drafts\` never
+ * closed its string. That title goes in single quotes, where a backslash is
+ * itself and only a `'` is doubled. Older exports hold double quotes only, so
+ * they read as before.
+ */
+function quoteTitle(title: string): string {
+  return title.includes('\\') ? `'${title.replace(/'/g, "''")}'` : `"${title.replace(/[\\"]/g, '\\$&')}"`;
+}
+
+/**
+ * The inside of a double-quoted front-matter value with the writer's escape
+ * taken off: each `\"` reads as `"`, and nothing else changes. That is the
+ * exact inverse of `quoteTitle`'s double quotes. Older exports also put a
+ * title with a backslash there, escaping a quote and never a backslash, so a
+ * backslash the title holds for itself comes back as itself. Not
+ * `JSON.parse`, which would read the `\n` of an older `C:\notes` as a line
+ * feed.
+ */
+export function unescapeQuotes(inner: string): string {
+  return inner.replace(/\\"/g, '"');
+}
+
+/** The inside of a single-quoted front-matter value as YAML reads it: each
+ *  `''` is one `'`, and a backslash is itself. The inverse of `quoteTitle`'s
+ *  single quotes. */
+export function unescapeSingleQuotes(inner: string): string {
+  return inner.replace(/''/g, "'");
+}
+
+/**
+ * Remove the padding `noteToMarkdown` adds around a body, on the way back in.
+ *
+ * The exact inverse of the `\n\n` separator and the trailing `\n` above, and
+ * it lives here so the two halves of that contract cannot drift apart. Every
+ * reader of this format needs it: `import/privacynotes.ts` kept the padding
+ * and `import/markdown.ts` over-removed it, which were the two halves of
+ * backlog #148.
+ *
+ * NEWLINES ONLY - never `.trim()`. Four leading spaces are an indented code
+ * block, and trimming them demotes it to a paragraph: a silent change to what
+ * the note renders as, which is worse than the blank line being fixed. Same
+ * for trailing spaces, which are markdown's hard line break.
+ *
+ * Why the padding survived a read at all: the front-matter regexes end in
+ * `\r?\n?`, which consumes at most ONE newline after the closing fence, so
+ * the blank separator line stays attached to the body. Left there it
+ * compounds, because the padded body is what the next export serializes.
+ */
+export function stripFrontMatterPadding(body: string): string {
+  // Walked rather than matched. The two anchored patterns this replaces
+  // backtrack: a long run of newlines that does not reach the end of the
+  // string made the trailing one try and fail at every position, which is
+  // quadratic, and every imported file passes through here on the main
+  // thread before anybody has agreed to the import. The unit is an optional
+  // carriage return followed by a line feed, exactly as before, so a lone
+  // carriage return is not padding and survives.
+  let start = 0;
+  const len = body.length;
+  while (start < len) {
+    if (body[start] === '\n') start += 1;
+    else if (body[start] === '\r' && body[start + 1] === '\n') start += 2;
+    else break;
+  }
+  let end = len;
+  while (end > start) {
+    if (body[end - 1] !== '\n') break;
+    end -= body[end - 2] === '\r' ? 2 : 1;
+  }
+  return start === 0 && end === len ? body : body.slice(start, end);
+}
+
+/**
+ * Read the `trackers: {...}` front-matter line back into an object.
+ *
+ * Written by `noteToMarkdown` as a single line of `JSON.stringify` output,
+ * which is why a nested object or an array survives a line-oriented reader:
+ * the escaping puts no raw newline in the value. Anything unparsable is
+ * dropped rather than guessed at - a half-read tracker set would show wrong
+ * numbers, which is worse than showing none.
+ */
+export function parseTrackers(raw: string | undefined): Record<string, unknown> | undefined {
+  if (!raw || !raw.trim().startsWith('{')) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(raw.trim());
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+    const obj = parsed as Record<string, unknown>;
+    return Object.keys(obj).length > 0 ? obj : undefined;
+  } catch {
+    return undefined;
+  }
+}

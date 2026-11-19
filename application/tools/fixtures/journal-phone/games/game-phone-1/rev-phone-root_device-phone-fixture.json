@@ -1,0 +1,11 @@
+{
+  "id": "game-phone-1",
+  "revision_id": "rev-phone-root",
+  "parent_revision_id": null,
+  "device_id": "device-phone-fixture",
+  "title": "Phone Fixture",
+  "executables": [],
+  "cover_path": null,
+  "come_back_on": "2026-12-01",
+  "steam_app_id": null
+}

@@ -1,0 +1,337 @@
+{
+  "actions": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "close": "Schließen",
+    "delete": "Löschen",
+    "done": "Fertig",
+    "edit": "Bearbeiten",
+    "confirm": "Bestätigen",
+    "back": "Zurück",
+    "next": "Weiter",
+    "remove": "Entfernen",
+    "deleteConfirm": "Löschen?",
+    "removeConfirm": "Entfernen?",
+    "copy": "Kopieren",
+    "rename": "Umbenennen",
+    "create": "Erstellen",
+    "search": "Suchen",
+    "add": "Hinzufügen",
+    "clearSearch": "Suche zurücksetzen"
+  },
+  "state": {
+    "loading": "Wird geladen…",
+    "saving": "Wird gespeichert…",
+    "untitled": "Ohne Titel",
+    "noResults": "Keine Ergebnisse"
+  },
+  "deleteNote": {
+    "confirm": "Endgültig löschen",
+    "body": "<highlight>„{{title}}“</highlight> endgültig löschen? Das kann nicht rückgängig gemacht werden."
+  },
+  "emptyTrash": {
+    "title": "Papierkorb leeren",
+    "body_one": "<highlight>{{count}} Notiz</highlight> endgültig löschen? Das kann nicht rückgängig gemacht werden.",
+    "body_other": "<highlight>{{count}} Notizen</highlight> endgültig löschen? Das kann nicht rückgängig gemacht werden."
+  },
+  "storageBar": {
+    "usage": "{{percent}} % belegt ({{used}} / {{max}})",
+    "refresh": "Speicher aktualisieren",
+    "cleanupInfo": "Gelöschte Elemente zählen sofort nicht mehr mit. Die verschlüsselten Dateien selbst verschwinden innerhalb weniger Tage vom Server.",
+    "open": "Speichereinstellungen öffnen"
+  },
+  "updateToast": {
+    "available": "Update verfügbar",
+    "required": "Update erforderlich",
+    "changelog": "Changelog",
+    "refresh": "Neu laden",
+    "restart": "Neu starten",
+    "dismiss": "Schließen",
+    "download": "Herunterladen",
+    "update": "Aktualisieren",
+    "copyCommand": "Befehl kopieren"
+  },
+  "hotkeys": {
+    "heading": "Tastenkürzel-Hilfe",
+    "typingNote": "Die meisten Tastenkürzel werden ignoriert, während du in ein Textfeld tippst, sodass normale Tasten wie J und K weiterhin J und K schreiben.",
+    "cheatSheet": "Kurzübersicht zum Ausdrucken"
+  },
+  "palette": {
+    "label": "Befehle",
+    "empty": "Kein passender Befehl",
+    "groups": {
+      "features": "Funktionen",
+      "commands": "Befehle",
+      "new": "Neu",
+      "goTo": "Gehe zu",
+      "themes": "Designs"
+    },
+    "commands": {
+      "quickSwitcher": "Ninja öffnen: Eintrag finden, alles hinzufügen, Befehl ausführen",
+      "historyBack": "Zurück",
+      "historyForward": "Vorwärts",
+      "toggleSidebar": "Seitenleiste ein-/ausblenden",
+      "toggleTheme": "Hell / Dunkel umschalten",
+      "openSettings": "Einstellungen öffnen",
+      "zen": "Zen-Modus",
+      "markdownView": "Markdown-Ansicht ein / aus",
+      "invisibles": "Unsichtbare Zeichen ein / aus",
+      "find": "In Notiz suchen",
+      "findReplace": "Suchen und ersetzen",
+      "outline": "Gliederung ein-/ausblenden",
+      "insertDate": "Datum einfügen",
+      "insertDateTime": "Datum und Uhrzeit einfügen",
+      "clearFilters": "Filter aufheben",
+      "moveToTrash": "Notiz löschen",
+      "closeTab": "Tab oder Notiz schließen",
+      "nextTab": "Nächster Tab",
+      "previousTab": "Vorheriger Tab",
+      "zoomIn": "App vergrößern",
+      "zoomOut": "App verkleinern",
+      "zoomReset": "App zurück auf Normalgröße",
+      "help": "Tastenkürzel"
+    }
+  },
+  "quickNote": {
+    "bodyPlaceholder": "Schreib hier mehr",
+    "hint": "Tippe / für einen Ordner, # für ein Tag",
+    "locked": "PrivacyNotes ist gesperrt. Deine Notiz ist versiegelt und öffnet sich, wenn du entsperrst.",
+    "queued": "Gespeichert. Sie öffnet sich, wenn du entsperrst.",
+    "tooLong": "Diese Notiz ist zu lang. Teile sie auf zwei Notizen auf.",
+    "full": "Zu viele Notizen warten. Entsperre, um sie hinzuzufügen.",
+    "empty": "Schreib zuerst etwas.",
+    "failed": "Die Notiz konnte nicht gespeichert werden. Öffne PrivacyNotes und versuch es noch einmal.",
+    "added_other": "{{count}} Schnellnotizen hinzugefügt",
+    "added_one": "{{count}} Schnellnotiz hinzugefügt"
+  },
+  "quickSwitcher": {
+    "label": "Ninja: Eintrag oder Einstellung finden, alles hinzufügen, Befehl ausführen",
+    "jumpTo": "Ninja",
+    "placeholder": "Ninja zu Diensten: ein Titel, + zum Hinzufügen, > für Befehle",
+    "recent": "Zuletzt",
+    "empty": "Kein Eintrag und keine Einstellung mit diesem Namen",
+    "searchAll": "Alles durchsuchen: „{{query}}“",
+    "searchIn": "In {{section}} suchen: „{{query}}“",
+    "searchList": "Die Liste durchsuchen: „{{query}}“",
+    "searchDetail": "Findet Wörter im Text",
+    "move": "bewegen",
+    "open": "öffnen",
+    "openInTab": "im Tab öffnen",
+    "edit": "bearbeiten",
+    "close": "schließen",
+    "folders": "Ordner",
+    "tagItems_one": "{{count}} Eintrag",
+    "tagItems_other": "{{count}} Einträge",
+    "emptyTags": "Kein Tag mit diesem Namen",
+    "emptyFolders": "Kein Ordner mit diesem Namen",
+    "emptyVault": "Noch nichts hier. Tippe +, um deinen ersten Eintrag hinzuzufügen.",
+    "onlyTags": "Tags",
+    "onlyFolders": "Ordner",
+    "showOnlyTags": "Nur Tags",
+    "showOnlyFolders": "Nur Ordner",
+    "showOnlyCommands": "Nur Befehle",
+    "goToTag": "Zu einem Tag springen",
+    "goToFolder": "Zu einem Ordner springen",
+    "createTag": "Tag #{{name}} erstellen",
+    "createFolder": "Ordner „{{name}}“ erstellen",
+    "newTag": "Neues Tag",
+    "newFolder": "Neuer Ordner",
+    "goToDay": "Zum Tag springen",
+    "inText": "Im Text",
+    "actions": "Aktionen",
+    "back": "zurück",
+    "actionsPlaceholder": "Aktionen filtern",
+    "onlyCreate": "hinzufügen",
+    "ninjaLockedTitle": "PrivacyNotes ist gesperrt",
+    "ninjaLockedBody": "Öffne PrivacyNotes und entsperre es. Dann findet Ninja deine Notizen aus jeder App."
+  },
+  "cardForm": {
+    "cardholderName": "Karteninhaber",
+    "cardholderPlaceholder": "Max Mustermann",
+    "cardNumber": "Kartennummer",
+    "cardNumberPlaceholder": "4242 4242 4242 4242",
+    "showNumber": "Nummer anzeigen",
+    "hideNumber": "Nummer verbergen",
+    "copyCardNumber": "Kartennummer kopieren",
+    "unknownNetwork": "Unbekanntes Netzwerk",
+    "network": "Netzwerk",
+    "numberTooShort_one": "Kartennummer zu kurz ({{count}} Ziffer, erwartet {{expected}})",
+    "numberTooShort_other": "Kartennummer zu kurz ({{count}} Ziffern, erwartet {{expected}})",
+    "expiry": "Ablauf",
+    "monthPlaceholder": "MM",
+    "yearPlaceholder": "JJ",
+    "cvv": "CVV",
+    "cvvPlaceholder": "123",
+    "showCvv": "CVV anzeigen",
+    "hideCvv": "CVV verbergen",
+    "expiredHint": "Diese Karte scheint abgelaufen zu sein.",
+    "billingZip": "Postleitzahl (Rechnung)",
+    "billingZipPlaceholder": "10001",
+    "notes": "Notizen",
+    "notesPlaceholder": "Weitere Notizen (optional)",
+    "requirePin": "PIN zum Anzeigen verlangen",
+    "whatDoesThisDo": "Was bewirkt das?",
+    "setUpPinFirst": "Richte zuerst eine PIN in den Sicherheitseinstellungen ein."
+  },
+  "sshKeyForm": {
+    "label": "Bezeichnung",
+    "labelPlaceholder": "z. B. GitHub-Deploy-Key",
+    "publicKey": "Public Key",
+    "copyPublicKey": "Öffentlichen Schlüssel kopieren",
+    "privateKey": "Private Key",
+    "copyPrivateKey": "Privaten Schlüssel kopieren",
+    "downloadPublicKey": "Öffentlichen Schlüssel herunterladen",
+    "downloadPrivateKey": "Privaten Schlüssel herunterladen",
+    "downloadHint": "Verschiebe den heruntergeladenen Schlüssel nach ~/.ssh und führe chmod 600 darauf aus, sonst lehnt ssh ihn ab.",
+    "downloadHintDesktop": "PrivacyNotes speichert nicht in ~/.ssh, damit die Schlüssel dort sicher bleiben. Speichere den Schlüssel woanders, verschiebe ihn nach ~/.ssh und führe chmod 600 darauf aus, sonst lehnt ssh ihn ab.",
+    "downloadHintWindows": "PrivacyNotes speichert nicht in deinen .ssh-Ordner, damit die Schlüssel dort sicher bleiben. Speichere den Schlüssel woanders und verschiebe ihn nach %USERPROFILE%\\.ssh. Unter Windows ist kein chmod nötig.",
+    "downloadFailed": "Die Schlüsseldatei konnte nicht gespeichert werden. Prüfe die Datei und versuch es noch einmal.",
+    "passphrase": "Passphrase",
+    "passphrasePlaceholder": "Passphrase des Schlüssels (falls vorhanden)",
+    "show": "Anzeigen",
+    "hide": "Verbergen",
+    "copyPassphrase": "Passphrase kopieren"
+  },
+  "tagInput": {
+    "placeholder": "Tags hinzufügen… mit Komma, # oder Enter trennen",
+    "create": "„#{{tag}}“ erstellen",
+    "removeTag": "{{tag}} entfernen"
+  },
+  "loading": {
+    "pause": "Sprüche anhalten",
+    "play": "Sprüche abspielen",
+    "lines": [
+      "schweizer banktresor-energie fürs notizenmachen",
+      "wir beschützen deine dusch-gedanken",
+      "deine notizen sind auf deinem gerät verschlüsselt",
+      "kühllager für warme gedanken",
+      "wieder ein schöner tag zum verschlüsseln",
+      "geheimnisse langweilig halten seit tag eins",
+      "privatsphäre ohne den ted talk",
+      "wir halten die cloud verwirrt",
+      "der server speichert geheimtext. er findet ihn öde",
+      "weniger überwachung. mehr notizen",
+      "verschlüsselter unsinn, wie erwartet",
+      "tracking deaktiviert, emotional und technisch",
+      "dein gerät hütet den klatsch",
+      "private gedanken im privaten modus",
+      "wieder eine notiz vorm kapitalismus versteckt",
+      "privatsphäre ist hier kein aufpreis",
+      "sicherheit durch echte sicherheit",
+      "leiser widerstand gegen datenhändler",
+      "kein ki-trainingsmaterial entdeckt",
+      "stärker verschlüsselt als nötig",
+      "nur signal. keine überwachung",
+      "vertrauensprobleme, zu software verarbeitet",
+      "deine gedanken bleiben unverkäuflich",
+      "datensammler fanden nichts als traurigkeit",
+      "dein tresor bleibt aggressiv verschlüsselt",
+      "schweizer neutralität, nur für notizen",
+      "keine werbung. keine tracker. kein plot-twist",
+      "open source, damit du die mathe selbst prüfen kannst",
+      "geheimtext ist unsere liebessprache",
+      "wir machen deine notizen langweilig für fremde",
+      "dein tagebuch hat angerufen. es will privatsphäre",
+      "dein stimmungs-tracker hat dich vermisst",
+      "deine ideen, ohne publikum",
+      "dein tagebuch hat über nacht dichtgehalten",
+      "ein privater ort für alles, was du nie posten würdest",
+      "hier entscheidet kein algorithmus, was du siehst",
+      "dein gedankenchaos ist sicher verstaut",
+      "schreiben ist denken. denken ist privat",
+      "es wurden keine influencer befragt",
+      "lade geheimnisse verantwortungsvoll.",
+      "nur signal. keine überwachung.",
+      "wieder ein verschlüsseltes meisterwerk im anflug.",
+      "verwandle vertrauensprobleme in software.",
+      "deine gedanken bleiben vom markt fern.",
+      "dieser sync enthält null klatsch für uns.",
+      "weil „vertrau uns einfach“ blöd ist.",
+      "privat denken, in großem stil.",
+      "deine notizen bleiben rechtlich mysteriös.",
+      "stelle ordnung aus verschlüsseltem chaos her.",
+      "data miner fanden nur traurigkeit.",
+      "entschlüssle lokal existenzielle gedanken…",
+      "dein tresor bleibt aggressiv unlesbar.",
+      "schweizer neutralität, aber für notizen."
+    ],
+    "loadingOnly": [
+      "lade dein verschlüsseltes grübeln",
+      "moment, wir enttäuschen gerade werbetreibende",
+      "deine geheimnisse haben den nächsten neustart überlebt",
+      "öffne leise den tresor",
+      "lokal entschlüsselt. global ignoriert",
+      "entschlüsseln, geht keinen was an",
+      "verwandle gedanken in unlesbaren brei",
+      "das nächste verschlüsselte meisterwerk kommt",
+      "schaffe ordnung im verschlüsselten chaos",
+      "entschlüssle lokal existenzielle gedanken",
+      "wärme die schlüssel auf",
+      "suche deinen roten faden",
+      "zähle deine offenen aufgaben. ganz ohne urteil",
+      "während dieses ladens lief keine werbung",
+      "lege deine notizen dorthin zurück, wo du sie gelassen hast",
+      "entwirre die gedanken von gestern",
+      "sortiere bits in eine schöne reihenfolge",
+      "erinnere mich an das, was du dir merken wolltest"
+    ]
+  },
+  "neverBackedUp": {
+    "one": "Nie gesichert. Dies ist die einzige Kopie.",
+    "some_one": "{{count}} dieser Notizen wurde nie gesichert. Dies ist ihre einzige Kopie.",
+    "some_other": "{{count}} dieser Notizen wurden nie gesichert. Dies sind die einzigen Kopien.",
+    "changesOne": "Die letzten Änderungen sind nicht gesichert und würden verloren gehen.",
+    "changesSome_one": "{{count}} dieser Notizen hat Änderungen, die nicht gesichert sind und verloren gehen würden.",
+    "changesSome_other": "{{count}} dieser Notizen haben Änderungen, die nicht gesichert sind und verloren gehen würden."
+  },
+  "ninja": {
+    "topHit": "Bester Treffer",
+    "trashEmpty": "Der Papierkorb ist leer",
+    "allThemes": "Alle Designs",
+    "features": {
+      "stats": {
+        "detail": "Dein Schreiben, deine Serien und Tracker im Zeitverlauf"
+      },
+      "trackers": {
+        "detail": "Stimmung, Gewohnheiten, Faktoren und Medikamente"
+      },
+      "medication": {
+        "label": "Medikamente",
+        "detail": "Dosen, Uhrzeiten und Erinnerungen"
+      },
+      "yearInPixels": {
+        "label": "Jahr in Pixeln",
+        "detail": "Jeder Tag des Jahres als ein farbiges Quadrat"
+      },
+      "importExport": {
+        "detail": "Notizen hereinholen oder mitnehmen"
+      },
+      "backup": {
+        "detail": "Jetzt sichern, automatische Backups und Wiederherstellung"
+      },
+      "generator": {
+        "label": "Passwortgenerator",
+        "detail": "Ein starkes Passwort oder eine Passphrase, bereit zum Kopieren"
+      },
+      "themes": {
+        "detail": "Farbdesigns für hell und dunkel"
+      }
+    },
+    "new": {
+      "medication": "Neues Medikament",
+      "customTracker": "Neuer benutzerdefinierter Tracker"
+    },
+    "commands": {
+      "syncResume": "Synchronisierung fortsetzen",
+      "lockProtected": "Diese Notiz sperren",
+      "changelog": "Was ist neu",
+      "themesPage": "Community-Designs",
+      "website": "PrivacyNotes-Website"
+    },
+    "themes": {
+      "word": "Design",
+      "light": "Helles Design",
+      "dark": "Dunkles Design"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "mid-session",
+  "description": "Mid-session one-line note hotkey window (?mid-session=1).",
+  "platforms": ["macOS", "windows", "linux"],
+  "windows": ["mid-session"],
+  "permissions": [
+    "core:default",
+    "core:event:default",
+    "core:window:allow-hide",
+    "core:window:allow-show",
+    "core:window:allow-set-focus",
+    "core:window:allow-close"
+  ]
+}

@@ -1,0 +1,331 @@
+{
+  "actions": {
+    "save": "儲存",
+    "cancel": "取消",
+    "close": "關閉",
+    "delete": "刪除",
+    "done": "完成",
+    "edit": "編輯",
+    "confirm": "確認",
+    "back": "返回",
+    "next": "下一步",
+    "remove": "移除",
+    "deleteConfirm": "刪除？",
+    "removeConfirm": "移除？",
+    "copy": "複製",
+    "rename": "重新命名",
+    "create": "建立",
+    "search": "搜尋",
+    "add": "新增",
+    "clearSearch": "清除搜尋"
+  },
+  "state": {
+    "loading": "載入中…",
+    "saving": "儲存中…",
+    "untitled": "未命名",
+    "noResults": "沒有結果"
+  },
+  "deleteNote": {
+    "confirm": "永久刪除",
+    "body": "要永久刪除 <highlight>「{{title}}」</highlight>嗎？此動作無法復原。"
+  },
+  "emptyTrash": {
+    "title": "清空垃圾桶",
+    "body_other": "要永久刪除 <highlight>{{count}} 篇筆記</highlight>嗎？此動作無法復原。"
+  },
+  "storageBar": {
+    "usage": "已使用 {{percent}}%（{{used}} / {{max}}）",
+    "refresh": "重新整理儲存空間",
+    "cleanupInfo": "已刪除的項目會立即不再計入。加密檔案本身會在幾天內從伺服器移除。",
+    "open": "開啟儲存空間設定"
+  },
+  "updateToast": {
+    "available": "有可用更新",
+    "required": "需要更新",
+    "changelog": "Changelog",
+    "refresh": "重新整理",
+    "restart": "重新啟動",
+    "dismiss": "忽略",
+    "download": "下載",
+    "update": "更新",
+    "copyCommand": "複製指令"
+  },
+  "hotkeys": {
+    "heading": "快速鍵說明",
+    "typingNote": "在文字欄位輸入時多數快速鍵會被忽略，因此 J、K 等一般按鍵仍會照常輸入。",
+    "cheatSheet": "可列印的快速鍵速查表"
+  },
+  "palette": {
+    "label": "指令",
+    "empty": "沒有符合的指令",
+    "groups": {
+      "features": "功能",
+      "commands": "指令",
+      "new": "新增",
+      "goTo": "前往",
+      "themes": "佈景主題"
+    },
+    "commands": {
+      "quickSwitcher": "開啟 Ninja：尋找項目、新增任何內容、執行指令",
+      "historyBack": "返回",
+      "historyForward": "前進",
+      "toggleSidebar": "顯示或隱藏側邊欄",
+      "toggleTheme": "切換淺色與深色",
+      "openSettings": "開啟設定",
+      "zen": "Zen 模式",
+      "markdownView": "開啟或關閉 Markdown 檢視",
+      "invisibles": "開啟或關閉編輯標記",
+      "find": "在筆記中尋找",
+      "findReplace": "尋找與取代",
+      "outline": "顯示或隱藏大綱",
+      "insertDate": "插入日期",
+      "insertDateTime": "插入日期與時間",
+      "clearFilters": "清除篩選",
+      "moveToTrash": "刪除筆記",
+      "closeTab": "關閉分頁或筆記",
+      "nextTab": "下一個分頁",
+      "previousTab": "上一個分頁",
+      "zoomIn": "放大應用程式",
+      "zoomOut": "縮小應用程式",
+      "zoomReset": "應用程式恢復原本大小",
+      "help": "鍵盤快速鍵"
+    }
+  },
+  "quickNote": {
+    "bodyPlaceholder": "在這裡多寫一些",
+    "hint": "輸入 / 選擇資料夾，輸入 # 加上標籤",
+    "locked": "PrivacyNotes 已鎖定。你的筆記已加密封存，解鎖後就會開啟。",
+    "queued": "已儲存。解鎖後就會開啟。",
+    "tooLong": "這則筆記太長了。請把它拆成兩則筆記。",
+    "full": "等待中的筆記太多了。請解鎖以加入它們。",
+    "empty": "請先寫點東西。",
+    "failed": "無法儲存筆記。請開啟 PrivacyNotes 再試一次。",
+    "added_other": "已新增 {{count}} 則快速筆記"
+  },
+  "quickSwitcher": {
+    "label": "Ninja：尋找項目或設定、新增任何內容、執行指令",
+    "jumpTo": "Ninja",
+    "placeholder": "Ninja 聽候差遣：輸入標題，+ 新增，> 使用指令",
+    "recent": "最近",
+    "empty": "沒有符合此名稱的項目或設定",
+    "searchAll": "在全部項目中搜尋「{{query}}」",
+    "searchIn": "在{{section}}中搜尋「{{query}}」",
+    "searchList": "在清單中搜尋「{{query}}」",
+    "searchDetail": "尋找內文中的字詞",
+    "move": "移動",
+    "open": "開啟",
+    "openInTab": "在分頁中開啟",
+    "edit": "編輯",
+    "close": "關閉",
+    "folders": "資料夾",
+    "tagItems_other": "{{count}} 個項目",
+    "emptyTags": "沒有符合此名稱的標籤",
+    "emptyFolders": "沒有符合此名稱的資料夾",
+    "emptyVault": "這裡還沒有任何內容。輸入 + 來新增你的第一個項目。",
+    "onlyTags": "標籤",
+    "onlyFolders": "資料夾",
+    "showOnlyTags": "只顯示標籤",
+    "showOnlyFolders": "只顯示資料夾",
+    "showOnlyCommands": "只顯示指令",
+    "goToTag": "前往標籤",
+    "goToFolder": "前往資料夾",
+    "createTag": "建立標籤 #{{name}}",
+    "createFolder": "建立資料夾「{{name}}」",
+    "newTag": "新增標籤",
+    "newFolder": "新增資料夾",
+    "goToDay": "前往日期",
+    "inText": "在內文中",
+    "actions": "動作",
+    "back": "返回",
+    "actionsPlaceholder": "篩選動作",
+    "onlyCreate": "新增",
+    "ninjaLockedTitle": "PrivacyNotes 已鎖定",
+    "ninjaLockedBody": "請開啟 PrivacyNotes 並解鎖。之後 Ninja 就能在任何應用程式中找到你的筆記。"
+  },
+  "cardForm": {
+    "cardholderName": "持卡人姓名",
+    "cardholderPlaceholder": "王小明",
+    "cardNumber": "卡號",
+    "cardNumberPlaceholder": "4242 4242 4242 4242",
+    "showNumber": "顯示卡號",
+    "hideNumber": "隱藏卡號",
+    "copyCardNumber": "複製卡號",
+    "unknownNetwork": "未知卡別",
+    "network": "卡別",
+    "numberTooShort_other": "卡號太短（{{count}} 位數，應為 {{expected}} 位）",
+    "expiry": "有效期限",
+    "monthPlaceholder": "MM",
+    "yearPlaceholder": "YY",
+    "cvv": "CVV",
+    "cvvPlaceholder": "123",
+    "showCvv": "顯示 CVV",
+    "hideCvv": "隱藏 CVV",
+    "expiredHint": "這張卡似乎已過期。",
+    "billingZip": "帳單郵遞區號",
+    "billingZipPlaceholder": "10001",
+    "notes": "備註",
+    "notesPlaceholder": "其他備註（選填）",
+    "requirePin": "檢視時需要 PIN 碼",
+    "whatDoesThisDo": "這是做什麼的？",
+    "setUpPinFirst": "請先到安全性設定裡設定 PIN 碼。"
+  },
+  "sshKeyForm": {
+    "label": "名稱",
+    "labelPlaceholder": "例如 GitHub 部署金鑰",
+    "publicKey": "Public Key",
+    "copyPublicKey": "複製公鑰",
+    "privateKey": "Private Key",
+    "copyPrivateKey": "複製私鑰",
+    "downloadPublicKey": "下載公鑰",
+    "downloadPrivateKey": "下載私鑰",
+    "downloadHint": "請將下載的金鑰移到 ~/.ssh 並對它執行 chmod 600，否則 ssh 會拒絕使用。",
+    "downloadHintDesktop": "為了保護 ~/.ssh 裡的金鑰，PrivacyNotes 不會直接存進那裡。請把金鑰存到別的地方，再移到 ~/.ssh 並對它執行 chmod 600，否則 ssh 會拒絕使用。",
+    "downloadHintWindows": "為了保護 .ssh 資料夾裡的金鑰，PrivacyNotes 不會直接存進那裡。請把金鑰存到別的地方，再移到 %USERPROFILE%\\.ssh。Windows 不需要 chmod。",
+    "downloadFailed": "無法儲存金鑰檔案。請檢查檔案後再試一次。",
+    "passphrase": "密碼短語",
+    "passphrasePlaceholder": "金鑰密碼短語（如有）",
+    "show": "顯示",
+    "hide": "隱藏",
+    "copyPassphrase": "複製密碼短語"
+  },
+  "tagInput": {
+    "placeholder": "新增標籤…可用逗號、# 或 Enter 分隔",
+    "create": "建立「#{{tag}}」",
+    "removeTag": "移除 {{tag}}"
+  },
+  "loading": {
+    "pause": "暫停這些句子",
+    "play": "播放這些句子",
+    "lines": [
+      "把瑞士銀行的氣場帶進筆記",
+      "守護你洗澡時的靈感",
+      "你的筆記在你的裝置上加密",
+      "溫熱的想法，冷儲存伺候",
+      "又是適合加密的美好一天",
+      "自上線以來，持續讓祕密無聊到家",
+      "隱私，不用聽 TED 演講",
+      "讓雲端持續一頭霧水",
+      "伺服器只存密文。它覺得很無聊",
+      "少一點監控，多一點筆記",
+      "一如預期的加密亂碼",
+      "追蹤已停用：情感上與技術上都是",
+      "八卦全留在你的裝置裡",
+      "私密想法正進入私密模式",
+      "又一篇筆記躲過了資本主義",
+      "在這裡，隱私不是付費功能",
+      "用真正的安全來實現安全",
+      "默默抵抗資料掮客",
+      "未偵測到 AI 訓練素材",
+      "加密得比必要更用力",
+      "全是訊號。沒有監控",
+      "把信任問題寫成軟體",
+      "你的想法不對外出售",
+      "資料探勘者只挖到一場空",
+      "你的保險庫堅決保持加密",
+      "筆記界的瑞士中立",
+      "沒有廣告。沒有追蹤器。沒有劇情反轉",
+      "開放原始碼，數學你可以自己驗算",
+      "密文是我們的愛之語",
+      "讓陌生人覺得你的筆記很無聊",
+      "你的日誌打電話來了。它想要隱私",
+      "你的心情追蹤項目想你了",
+      "你的點子，少了觀眾",
+      "你的日誌替你守了一整夜的祕密",
+      "一個私密的地方，放所有你絕不會貼出去的東西",
+      "這裡沒有演算法決定你看到什麼",
+      "你倒出來的滿腦子雜念安然無恙",
+      "寫作就是思考。思考是私密的",
+      "本產品未諮詢任何網紅",
+      "負責任地載入祕密。",
+      "全是訊號，沒有監控。",
+      "又一件加密傑作即將登場。",
+      "把信任危機做成軟體。",
+      "你的想法不上市。",
+      "這次同步沒有半點我們看得到的八卦。",
+      "因為「相信我們就對了」很蠢。",
+      "大規模地私下思考。",
+      "你的筆記在法律上依然成謎。",
+      "從加密的混沌中恢復秩序。",
+      "資料探勘者一無所獲，只挖到悲傷。",
+      "正在本機解密存在主義式的念頭…",
+      "你的保險庫依然頑固地不可讀。",
+      "瑞士式中立，但用在筆記上。"
+    ],
+    "loadingOnly": [
+      "正在載入你加密過的胡思亂想",
+      "稍等一下，我們正在讓廣告商失望",
+      "你的祕密又撐過了一次重開機",
+      "悄悄打開保險庫",
+      "本機解密，全球沒人理",
+      "解密中，真的不關別人的事",
+      "正在把想法煮成沒人看得懂的濃湯",
+      "又一部加密傑作即將登場",
+      "從加密的混沌中找回秩序",
+      "正在本機解密你的存在主義思考",
+      "金鑰暖身中",
+      "正在找回你的思緒",
+      "正在清點你還沒勾選的任務。不批判",
+      "本次載入期間未顯示任何廣告",
+      "把你的筆記放回你離開時的位置",
+      "正在理清昨天的思緒",
+      "把位元排得整整齊齊",
+      "正在記起你忘了記住的事"
+    ]
+  },
+  "neverBackedUp": {
+    "one": "從未備份。這是唯一的副本。",
+    "some_other": "其中 {{count}} 則從未備份。這些是唯一的副本。",
+    "changesOne": "最新的變更尚未備份，將會遺失。",
+    "changesSome_other": "其中 {{count}} 則有尚未備份的變更，將會遺失。"
+  },
+  "ninja": {
+    "topHit": "最佳符合",
+    "trashEmpty": "垃圾桶是空的",
+    "allThemes": "所有佈景主題",
+    "features": {
+      "stats": {
+        "detail": "你的寫作、連續紀錄和追蹤項目的長期變化"
+      },
+      "trackers": {
+        "detail": "心情、習慣、因素和用藥"
+      },
+      "medication": {
+        "label": "用藥",
+        "detail": "劑量、時間和提醒"
+      },
+      "yearInPixels": {
+        "label": "年度像素圖",
+        "detail": "一年中的每一天各是一個彩色方格"
+      },
+      "importExport": {
+        "detail": "把筆記帶進來，或帶出去"
+      },
+      "backup": {
+        "detail": "立即備份、自動備份與還原"
+      },
+      "generator": {
+        "label": "密碼產生器",
+        "detail": "強度高的密碼或密碼短語，隨時可以複製"
+      },
+      "themes": {
+        "detail": "淺色與深色的配色佈景主題"
+      }
+    },
+    "new": {
+      "medication": "新增藥物",
+      "customTracker": "新增自訂追蹤項目"
+    },
+    "commands": {
+      "syncResume": "恢復同步",
+      "lockProtected": "鎖定這篇筆記",
+      "changelog": "新功能",
+      "themesPage": "社群佈景主題",
+      "website": "PrivacyNotes 網站"
+    },
+    "themes": {
+      "word": "佈景主題",
+      "light": "淺色佈景主題",
+      "dark": "深色佈景主題"
+    }
+  }
+}

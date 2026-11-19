@@ -1,0 +1,163 @@
+/**
+ * Host detection for the marketing/app domain split.
+ *
+ * The app lives on use.privacynotes.app. The apex is the marketing
+ * site, and it sends a signed-in visitor on to the app host, where they
+ * sign in. One bundle, one deploy - behavior switches on the runtime
+ * hostname, exactly like demo.ts does for try.privacynotes.app.
+ *
+ * This module intentionally imports NO app modules so early boot code
+ * (main.tsx) can read it without dragging anything else in.
+ *
+ * worker.ts mirrors these hostnames by hand (separate bundle, cannot
+ * import app code) - keep them in sync.
+ *
+ * Spec: docs/internal/domain-split.md (retirement phase, apex sunset model)
+ */
+
+/** The dedicated app host. */
+const APP_HOSTNAME = 'use.privacynotes.app';
+export const APP_ORIGIN = 'https://use.privacynotes.app';
+
+/**
+ * The marketing origin, canonical form (no www). Compare a www-stripped
+ * `location.origin` against this to catch the apex AND www in one test,
+ * which `isApexHost()` cannot do (it reads the raw hostname).
+ */
+export const APEX_ORIGIN = 'https://privacynotes.app';
+
+/** The release files: update manifests and floors for every platform. */
+export const RELEASES_ORIGIN = 'https://releases.privacynotes.app';
+
+/** The world map and the town lists for a note's place: the privacynotes-maps R2 bucket.
+ *  Read only after that click. Spec: docs/internal/plans/note-location.md (section 5) */
+export const MAP_ORIGIN = 'https://maps.privacynotes.app';
+
+/**
+ * The sync host of the official builds. The CSP of every official build
+ * (worker.ts, tauri.conf.json) allows only this sync host, so a build whose
+ * VITE_SUPABASE_URL names another host was built by somebody else, for
+ * another server.
+ */
+const OFFICIAL_SYNC_HOSTNAME = 'sync.privacynotes.app';
+
+/**
+ * True when this build syncs with the official server. A build that syncs
+ * elsewhere must not call our other hosts on its own (the icon proxy, the
+ * update checks): the person running it chose not to send us anything.
+ */
+export function usesOfficialServer(): boolean {
+  return isOfficialSyncUrl(import.meta.env.VITE_SUPABASE_URL);
+}
+
+/** True when this address is on the official sync host. The extension asks
+ *  it of its own server address (WXT_FUNCTIONS_URL), which is not
+ *  VITE_SUPABASE_URL. */
+export function isOfficialSyncUrl(url: string | undefined): boolean {
+  try {
+    return new URL(url ?? '').hostname === OFFICIAL_SYNC_HOSTNAME;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The App Store listing of the iPhone and iPad app, in the country-less form
+ * Apple forwards to the reader's own storefront. The landing page's download
+ * tile and the store build's update toast link it from here. worker.ts keeps
+ * a copy for /dl/appstore, because this module reads `window` and the Worker
+ * is type-checked without it; tests/appStoreId.test.ts holds the two equal.
+ * Spec: docs/internal/mobile-release-status.md (app records)
+ */
+export const APP_STORE_ID = '6785958812';
+export const APP_STORE_URL = `https://apps.apple.com/app/id${APP_STORE_ID}`;
+
+/**
+ * The Google Play listing of the Android app. Same two readers as
+ * APP_STORE_URL, and worker.ts keeps the same copy for /dl/play.
+ * Spec: docs/internal/mobile-release-status.md (app records)
+ */
+export const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=app.privacynotes';
+
+let cachedApp: boolean | null = null;
+let cachedApex: boolean | null = null;
+let cachedBeta: boolean | null = null;
+
+/** The beta site's changelog: the commit list of the beta repo, where every
+ *  sync lands as one `Sync vX.Y.Z` commit. The BETA stamp links it. */
+export const BETA_COMMITS_URL = 'https://github.com/LifetimeLabsHQ/beta.privacynotes.app/commits/main/';
+
+/**
+ * True on the contributor beta site (beta.privacynotes.app, or its Pages
+ * address privacynotes-beta.pages.dev and the per-deploy previews under it).
+ * Swaps the header version stamp for the BETA stamp, so nobody mistakes the
+ * beta site for the app; the stamp shows the version on hover and links
+ * BETA_COMMITS_URL. `?betahost=1` forces it on localhost only, like
+ * `?apphost=1` above.
+ * Spec: docs/internal/plans/repo-split-contributors.md (Decision 2026-11-01)
+ */
+export function isBetaHost(): boolean {
+  if (cachedBeta !== null) return cachedBeta;
+  try {
+    const host = typeof window !== 'undefined' ? window.location.hostname : '';
+    cachedBeta =
+      host === 'beta.privacynotes.app' ||
+      host === 'privacynotes-beta.pages.dev' ||
+      host.endsWith('.privacynotes-beta.pages.dev') ||
+      (host === 'localhost' && new URLSearchParams(window.location.search).get('betahost') === '1');
+  } catch {
+    cachedBeta = false;
+  }
+  return cachedBeta;
+}
+
+/**
+ * True when running on the dedicated app host (use.privacynotes.app).
+ *
+ * `?apphost=1` forces it on localhost only, mirroring demo.ts's `?demo=1`,
+ * because the branches this gates (the auth card as the entry point, absolute
+ * marketing links, the noindex meta) are otherwise unreachable in dev. The
+ * localhost guard is the difference from demo: this flag decides where links
+ * point, so it must not be flippable by a query string in production.
+ */
+export function isAppHost(): boolean {
+  if (cachedApp !== null) return cachedApp;
+  try {
+    cachedApp =
+      typeof window !== 'undefined' &&
+      (window.location.hostname === APP_HOSTNAME ||
+        (window.location.hostname === 'localhost' &&
+          new URLSearchParams(window.location.search).get('apphost') === '1'));
+  } catch {
+    cachedApp = false;
+  }
+  return cachedApp;
+}
+
+/**
+ * True on the apex itself, the marketing host, which sends a signed-in
+ * visitor to the app host rather than booting the notes app. Gates the
+ * retirement routing in App.tsx (the MoveScreen), the landing CTA
+ * redirect, the OAuth redirect pin and the phrase-fragment drop in
+ * qrSignIn.ts.
+ *
+ * `?apexhost=1` forces it on localhost only, mirroring `?apphost=1`
+ * above and for the same reason: those branches are otherwise
+ * unreachable in dev. Same production guard - a query string must not
+ * flip host identity outside localhost. Each of them sends the visitor
+ * to the real APP_ORIGIN, so from dev they land on production
+ * use.privacynotes.app.
+ */
+export function isApexHost(): boolean {
+  if (cachedApex !== null) return cachedApex;
+  try {
+    cachedApex =
+      typeof window !== 'undefined' &&
+      (window.location.hostname === 'privacynotes.app' ||
+        (window.location.hostname === 'localhost' &&
+          new URLSearchParams(window.location.search).get('apexhost') === '1'));
+  } catch {
+    cachedApex = false;
+  }
+  return cachedApex;
+}

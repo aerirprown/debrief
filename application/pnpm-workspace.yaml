@@ -1,0 +1,23 @@
+packages:
+  - 'packages/*'
+allowBuilds:
+  esbuild: true
+# Supply-chain gate (pnpm 10.16+/11 feature): refuse to install packages published
+# less than 24h ago. Written out explicitly so the policy is versioned rather than
+# an invisible pnpm default; CI's pnpm 9 ignores these keys. A version the gate
+# refuses can be unblocked with a per-version `minimumReleaseAgeExclude` entry;
+# each entry pins one exact version and is deleted once that version leaves the
+# lockfile, so the list is empty in steady state.
+# Spec: docs/internal/dependency-migration.md (pnpm supply-chain gate)
+minimumReleaseAge: 1440
+# Security floors for transitive copies a parent pins below the advisory fix
+# (Dependabot alerts 18, 35-44, 46). Each entry is deleted once every parent
+# accepts the fixed version on its own. CI's pnpm 9 reads only the copy in the
+# root package.json and local pnpm reads only this one, so keep the two equal:
+# a difference fails CI's frozen install.
+# Spec: docs/internal/dependency-migration.md (security overrides)
+overrides:
+  'nanoid@<3.3.18': ^3.3.18
+  'nanoid@>=4.0.0 <5.1.16': ^5.1.16
+  'lodash-es@<4.18.0': ^4.18.1
+  'postcss-selector-parser@<6.1.5': ^6.1.5

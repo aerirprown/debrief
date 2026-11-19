@@ -1,0 +1,116 @@
+import { useEffect, useRef, type RefObject } from 'react';
+import { usePopoverPosition } from './usePopoverPosition';
+import { useEscapeToClose } from './useEscapeToClose';
+import { Check, type Icon } from './icons';
+import type { View } from './views';
+
+export interface SidebarOption {
+  /** The view this row switches. Also the React key. */
+  key: View;
+  label: string;
+  icon: Icon;
+  checked: boolean;
+}
+
+/**
+ * The checkbox menu behind both sidebar option icons: the gear beside the
+ * Views caption (which rows the rail draws) and the funnel in the All row
+ * (which item types the All list holds). One component, two configurations -
+ * they differ only in title and rows.
+ *
+ * Checkboxes rather than the ToggleRow switch the list popovers use: eight
+ * switches in a 224px menu is a wall of accent colour, and this menu answers
+ * "which of these do I want" rather than "is this feature on".
+ *
+ * Position is `fixed`, from usePopoverPosition, and that is load-bearing.
+ * The Views block is `overflow-y-auto`, and CSS forces overflow-x to `auto`
+ * alongside it, so the block clips on BOTH axes - an absolutely positioned
+ * menu inside it is cut off at the rail's edge. The hook also re-measures
+ * when the popover's own height changes, which happens here on every tick:
+ * the rail behind it shortens as rows switch off.
+ *
+ * Spec: docs/internal/specs/sidebar-views.md
+ */
+export function SidebarOptionsPopover({
+  title,
+  options,
+  anchorRef,
+  onToggle,
+  onClose,
+}: {
+  title: string;
+  options: SidebarOption[];
+  /** The icon button this menu hangs from; also excluded from outside-click. */
+  anchorRef: RefObject<HTMLElement | null>;
+  onToggle: (key: View) => void;
+  onClose: () => void;
+}) {
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const pos = usePopoverPosition(true, anchorRef, popoverRef, { align: 'start', gap: 6 });
+
+  useEscapeToClose(onClose, true);
+
+  useEffect(() => {
+    function handler(e: PointerEvent) {
+      const target = e.target as Node | null;
+      if (!target) return;
+      if (popoverRef.current?.contains(target)) return;
+      // The trigger toggles the menu itself; closing here too would reopen it.
+      if (anchorRef.current?.contains(target)) return;
+      onClose();
+    }
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
+  }, [anchorRef, onClose]);
+
+  return (
+    <div
+      ref={popoverRef}
+      role="dialog"
+      aria-label={title}
+      className="fixed z-[9999] w-56 rounded-lg border border-divider bg-surface-2 shadow-lg py-2"
+      style={{
+        top: pos?.top ?? 0,
+        left: pos?.left ?? 0,
+        visibility: pos ? 'visible' : 'hidden',
+      }}
+    >
+      <div className="px-3 pb-1.5 text-meta font-semibold tracking-wider uppercase text-pn-muted">
+        {title}
+      </div>
+      {options.map((o) => (
+        <button
+          key={o.key}
+          type="button"
+          role="checkbox"
+          aria-checked={o.checked}
+          onClick={() => onToggle(o.key)}
+          className="w-full flex items-center gap-2.5 px-3 py-1.5 text-body text-pn hover:bg-pn/5 transition"
+        >
+          <o.icon size={16} className="shrink-0 text-accent" aria-hidden="true" />
+          <span className="flex-1 min-w-0 text-start truncate">{o.label}</span>
+          <ViewCheckBox checked={o.checked} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The 16px tick box, shared by the menus and the Appearance table so the two
+ * cannot drift. Presentational only: the caller owns the button and the
+ * `role="checkbox"` state, because the menu's whole row is the control while
+ * the table's cell is only the box.
+ */
+export function ViewCheckBox({ checked }: { checked: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`shrink-0 w-4 h-4 rounded border inline-flex items-center justify-center transition ${
+        checked ? 'bg-accent-fill border-accent-fill text-white' : 'border-pn-muted/50'
+      }`}
+    >
+      {checked && <Check size={11} weight="bold" />}
+    </span>
+  );
+}

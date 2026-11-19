@@ -1,0 +1,339 @@
+{
+  "actions": {
+    "save": "Desa",
+    "cancel": "Cancel·la",
+    "close": "Tanca",
+    "delete": "Suprimeix",
+    "done": "Fet",
+    "edit": "Edita",
+    "confirm": "Confirma",
+    "back": "Enrere",
+    "next": "Següent",
+    "remove": "Elimina",
+    "deleteConfirm": "Suprimir?",
+    "removeConfirm": "Treure?",
+    "copy": "Copia",
+    "rename": "Canvia el nom",
+    "create": "Crea",
+    "search": "Cerca",
+    "add": "Afegeix",
+    "clearSearch": "Esborra la cerca"
+  },
+  "state": {
+    "loading": "S'està carregant...",
+    "saving": "S'està desant...",
+    "untitled": "Sense títol",
+    "noResults": "Cap resultat"
+  },
+  "deleteNote": {
+    "confirm": "Suprimeix per sempre",
+    "body": "Vols suprimir permanentment <highlight>“{{title}}”</highlight>? Aquesta acció no es pot desfer."
+  },
+  "emptyTrash": {
+    "title": "Buida la paperera",
+    "body_one": "Vols suprimir permanentment <highlight>{{count}} nota</highlight>? Aquesta acció no es pot desfer.",
+    "body_many": "Vols suprimir permanentment <highlight>{{count}} notes</highlight>? Aquesta acció no es pot desfer.",
+    "body_other": "Vols suprimir permanentment <highlight>{{count}} notes</highlight>? Aquesta acció no es pot desfer."
+  },
+  "storageBar": {
+    "usage": "{{percent}} % usat ({{used}} / {{max}})",
+    "refresh": "Actualitza l’emmagatzematge",
+    "cleanupInfo": "Els elements suprimits deixen de comptar a l'instant. Els fitxers xifrats mateixos surten del servidor en pocs dies.",
+    "open": "Obre la configuració de l'emmagatzematge"
+  },
+  "updateToast": {
+    "available": "Actualització disponible",
+    "required": "Actualització necessària",
+    "changelog": "Changelog",
+    "refresh": "Actualitza",
+    "restart": "Reinicia",
+    "dismiss": "Descarta",
+    "download": "Baixa",
+    "update": "Actualitza",
+    "copyCommand": "Copia l'ordre"
+  },
+  "hotkeys": {
+    "heading": "Ajuda de dreceres",
+    "typingNote": "La majoria de dreceres s'ignoren mentre escrius en un camp de text, de manera que les tecles normals com la J i la K continuen escrivint J i K.",
+    "cheatSheet": "Guia ràpida per imprimir"
+  },
+  "palette": {
+    "label": "Ordres",
+    "empty": "Cap ordre coincident",
+    "groups": {
+      "features": "Funcions",
+      "commands": "Ordres",
+      "new": "Nou",
+      "goTo": "Vés a",
+      "themes": "Temes"
+    },
+    "commands": {
+      "quickSwitcher": "Obre Ninja: troba un element, afegeix qualsevol cosa, executa una ordre",
+      "historyBack": "Vés enrere",
+      "historyForward": "Vés endavant",
+      "toggleSidebar": "Mostra o amaga la barra lateral",
+      "toggleTheme": "Canvia entre mode clar i fosc",
+      "openSettings": "Obre la configuració",
+      "zen": "Mode Zen",
+      "markdownView": "Activa / desactiva la vista Markdown",
+      "invisibles": "Mostra o amaga els caràcters invisibles",
+      "find": "Cerca dins la nota",
+      "findReplace": "Cerca i substitueix",
+      "outline": "Mostra o amaga l'esquema",
+      "insertDate": "Insereix la data",
+      "insertDateTime": "Insereix la data i l'hora",
+      "clearFilters": "Neteja els filtres",
+      "moveToTrash": "Suprimeix la nota",
+      "closeTab": "Tanca la pestanya o la nota",
+      "nextTab": "Pestanya següent",
+      "previousTab": "Pestanya anterior",
+      "zoomIn": "Fes l'app més gran",
+      "zoomOut": "Fes l'app més petita",
+      "zoomReset": "App de nou a la mida normal",
+      "help": "Dreceres de teclat"
+    }
+  },
+  "quickNote": {
+    "bodyPlaceholder": "Escriu-ne més aquí",
+    "hint": "Escriu / per a una carpeta, # per a una etiqueta",
+    "locked": "PrivacyNotes està bloquejat. La teva nota queda segellada i s'obre quan desbloquegis.",
+    "queued": "Desat. S'obre quan desbloquegis.",
+    "tooLong": "Aquesta nota és massa llarga. Divideix-la en dues notes.",
+    "full": "Hi ha massa notes en espera. Desbloqueja per afegir-les.",
+    "empty": "Primer escriu alguna cosa.",
+    "failed": "No s'ha pogut desar la nota. Obre PrivacyNotes i torna-ho a provar.",
+    "added_other": "{{count}} notes ràpides afegides",
+    "added_one": "{{count}} nota ràpida afegida"
+  },
+  "quickSwitcher": {
+    "label": "Ninja: troba un element o un ajust, afegeix qualsevol cosa, executa una ordre",
+    "jumpTo": "Ninja",
+    "placeholder": "Ninja al teu servei: un títol, + per afegir, > per a les ordres",
+    "recent": "Recents",
+    "empty": "Cap element ni ajust amb aquest nom",
+    "searchAll": "Cerca a tot arreu: «{{query}}»",
+    "searchIn": "Cerca a {{section}}: «{{query}}»",
+    "searchList": "Cerca a la llista: «{{query}}»",
+    "searchDetail": "Troba paraules dins del text",
+    "move": "mou",
+    "open": "obre",
+    "openInTab": "obre en una pestanya",
+    "edit": "edita",
+    "close": "tanca",
+    "folders": "Carpetes",
+    "tagItems_one": "{{count}} element",
+    "tagItems_other": "{{count}} elements",
+    "emptyTags": "Cap etiqueta amb aquest nom",
+    "emptyFolders": "Cap carpeta amb aquest nom",
+    "emptyVault": "Encara no hi ha res. Escriu + per afegir el teu primer element.",
+    "onlyTags": "etiquetes",
+    "onlyFolders": "carpetes",
+    "showOnlyTags": "Només etiquetes",
+    "showOnlyFolders": "Només carpetes",
+    "showOnlyCommands": "Només ordres",
+    "goToTag": "Vés a una etiqueta",
+    "goToFolder": "Vés a una carpeta",
+    "createTag": "Crea l'etiqueta #{{name}}",
+    "createFolder": "Crea la carpeta «{{name}}»",
+    "newTag": "Etiqueta nova",
+    "newFolder": "Carpeta nova",
+    "goToDay": "Vés al dia",
+    "inText": "Al text",
+    "actions": "accions",
+    "back": "enrere",
+    "actionsPlaceholder": "Filtra les accions",
+    "onlyCreate": "afegeix",
+    "ninjaLockedTitle": "PrivacyNotes està bloquejat",
+    "ninjaLockedBody": "Obre PrivacyNotes i desbloqueja'l. Després Ninja troba les teves notes des de qualsevol app."
+  },
+  "cardForm": {
+    "cardholderName": "Nom del titular",
+    "cardholderPlaceholder": "John Doe",
+    "cardNumber": "Número de la targeta",
+    "cardNumberPlaceholder": "4242 4242 4242 4242",
+    "showNumber": "Mostra el número",
+    "hideNumber": "Amaga el número",
+    "copyCardNumber": "Copia el número de la targeta",
+    "unknownNetwork": "Xarxa desconeguda",
+    "network": "Xarxa",
+    "numberTooShort_one": "El número de la targeta és massa curt ({{count}} dígit, se n'esperaven {{expected}})",
+    "numberTooShort_many": "El número de la targeta és massa curt ({{count}} dígits, se n'esperaven {{expected}})",
+    "numberTooShort_other": "El número de la targeta és massa curt ({{count}} dígits, se n'esperaven {{expected}})",
+    "expiry": "Caducitat",
+    "monthPlaceholder": "MM",
+    "yearPlaceholder": "AA",
+    "cvv": "CVV",
+    "cvvPlaceholder": "123",
+    "showCvv": "Mostra el CVV",
+    "hideCvv": "Amaga el CVV",
+    "expiredHint": "Sembla que aquesta targeta ha caducat.",
+    "billingZip": "Codi postal de facturació",
+    "billingZipPlaceholder": "10001",
+    "notes": "Notes",
+    "notesPlaceholder": "Notes addicionals (opcional)",
+    "requirePin": "Requereix el PIN per veure-ho",
+    "whatDoesThisDo": "Què fa això?",
+    "setUpPinFirst": "Primer, configura un PIN a la configuració de seguretat."
+  },
+  "sshKeyForm": {
+    "label": "Etiqueta",
+    "labelPlaceholder": "p. ex. clau de desplegament de GitHub",
+    "publicKey": "Public Key",
+    "copyPublicKey": "Copia la clau pública",
+    "privateKey": "Private Key",
+    "copyPrivateKey": "Copia la clau privada",
+    "downloadPublicKey": "Baixa la clau pública",
+    "downloadPrivateKey": "Baixa la clau privada",
+    "downloadHint": "Mou la clau baixada a ~/.ssh i executa-hi chmod 600, o ssh la rebutjarà.",
+    "downloadHintDesktop": "PrivacyNotes no desa res a ~/.ssh, per protegir les claus que hi ha. Desa la clau en un altre lloc, mou-la a ~/.ssh i executa-hi chmod 600, o ssh la rebutjarà.",
+    "downloadHintWindows": "PrivacyNotes no desa res a la teva carpeta .ssh, per protegir les claus que hi ha. Desa la clau en un altre lloc i mou-la a %USERPROFILE%\\.ssh. Windows no necessita chmod.",
+    "downloadFailed": "No s'ha pogut desar el fitxer de la clau. Revisa el fitxer i torna-ho a provar.",
+    "passphrase": "Frase de pas",
+    "passphrasePlaceholder": "Frase de pas de la clau (si en té)",
+    "show": "Mostra",
+    "hide": "Amaga",
+    "copyPassphrase": "Copia la frase de pas"
+  },
+  "tagInput": {
+    "placeholder": "Afegeix etiquetes… separa-les amb comes, # o retorn",
+    "create": "Crea “#{{tag}}”",
+    "removeTag": "Elimina {{tag}}"
+  },
+  "loading": {
+    "pause": "Posa en pausa les frases",
+    "play": "Reprèn les frases",
+    "lines": [
+      "energia de banca suïssa per a les teves notes",
+      "protegint les teves idees de dutxa",
+      "les teves notes estan xifrades al teu dispositiu",
+      "emmagatzematge fred per a pensaments càlids",
+      "un altre dia esplèndid per xifrar",
+      "fent avorrits els secrets des del primer dia",
+      "privadesa sense la xerrada TED",
+      "mantenint el núvol confós",
+      "el servidor guarda text xifrat. li sembla avorrit",
+      "menys vigilància. més notes",
+      "galimaties xifrat, com era d'esperar",
+      "rastreig desactivat, emocionalment i tècnicament",
+      "les xafarderies es queden al teu dispositiu",
+      "pensaments privats entrant en mode privat",
+      "una altra nota amagada del capitalisme",
+      "aquí la privadesa no és de pagament",
+      "seguretat mitjançant seguretat de debò",
+      "resistint en silenci els mercaders de dades",
+      "cap material d'entrenament d'IA detectat",
+      "xifrat més fort del necessari",
+      "tot senyal. gens de vigilància",
+      "convertint la desconfiança en programari",
+      "els teus pensaments no estan en venda",
+      "els miners de dades només hi han trobat tristesa",
+      "la teva caixa forta continua ferotgement xifrada",
+      "neutralitat suïssa, però per a notes",
+      "sense anuncis. sense rastrejadors. sense girs de guió",
+      "codi obert, perquè puguis revisar els càlculs",
+      "el text xifrat és el nostre llenguatge de l'amor",
+      "fent les teves notes avorrides per als desconeguts",
+      "ha trucat el teu diari. vol privadesa",
+      "el teu seguiment de l'ànim t'ha trobat a faltar",
+      "les teves idees, sense públic",
+      "el teu diari ha guardat els teus secrets tota la nit",
+      "un lloc privat per a tot el que mai no publicaries",
+      "aquí cap algoritme no decideix què veus",
+      "el teu buidatge mental està sa i estalvi",
+      "escriure és pensar. pensar és privat",
+      "no s'ha consultat cap influencer",
+      "carregant secrets amb responsabilitat.",
+      "tot senyal. gens de vigilància.",
+      "arriba una altra obra mestra xifrada.",
+      "convertint la desconfiança en programari.",
+      "els teus pensaments continuen fora del mercat.",
+      "aquesta sincronització no ens porta cap xafarderia.",
+      "perquè això de “confia en nosaltres” és absurd.",
+      "pensant en privat a gran escala.",
+      "les teves notes continuen sent legalment un misteri.",
+      "restaurant l'ordre des del caos xifrat.",
+      "els miners de dades només hi han trobat tristesa.",
+      "desxifrant localment pensaments existencials…",
+      "la teva caixa forta continua sent agressivament il·legible.",
+      "neutralitat suïssa, però per a notes."
+    ],
+    "loadingOnly": [
+      "carregant els teus maldecaps xifrats",
+      "un moment mentre decebem els anunciants",
+      "els teus secrets han sobreviscut un altre reinici",
+      "obrint la caixa forta sense fer soroll",
+      "desxifrat localment. ignorat globalment",
+      "desxifrant com si no fos assumpte de ningú",
+      "convertint pensaments en sopa il·legible",
+      "arriba una altra obra mestra xifrada",
+      "posant ordre al caos xifrat",
+      "desxifrant localment pensaments existencials",
+      "escalfant les claus",
+      "retrobant el fil dels teus pensaments",
+      "comptant les tasques que tens pendents. sense jutjar",
+      "durant aquesta càrrega no s'ha mostrat cap anunci",
+      "tornant les teves notes on les havies deixat",
+      "desembolicant els pensaments d'ahir",
+      "posant els bits en un ordre ben bonic",
+      "recordant el que vas oblidar recordar"
+    ]
+  },
+  "neverBackedUp": {
+    "one": "Mai no ha tingut còpia de seguretat. Aquesta és l'única còpia.",
+    "some_one": "{{count}} d'aquestes notes mai no ha tingut còpia de seguretat. Aquesta és la seva única còpia.",
+    "some_other": "{{count}} d'aquestes notes mai no han tingut còpia de seguretat. Aquestes són les úniques còpies.",
+    "changesOne": "Els darrers canvis no tenen còpia de seguretat i es perdrien.",
+    "changesSome_one": "{{count}} d'aquestes notes té canvis sense còpia de seguretat que es perdrien.",
+    "changesSome_other": "{{count}} d'aquestes notes tenen canvis sense còpia de seguretat que es perdrien."
+  },
+  "ninja": {
+    "topHit": "Millor coincidència",
+    "trashEmpty": "La paperera és buida",
+    "allThemes": "Tots els temes",
+    "features": {
+      "stats": {
+        "detail": "La teva escriptura, les ratxes i els seguiments al llarg del temps"
+      },
+      "trackers": {
+        "detail": "Estat d'ànim, hàbits, factors i medicació"
+      },
+      "medication": {
+        "label": "Medicació",
+        "detail": "Dosis, hores i recordatoris"
+      },
+      "yearInPixels": {
+        "label": "Any en píxels",
+        "detail": "Cada dia de l'any com un quadrat de color"
+      },
+      "importExport": {
+        "detail": "Porta-hi notes o treu-les"
+      },
+      "backup": {
+        "detail": "Fes una còpia ara, còpies de seguretat automàtiques i restauració"
+      },
+      "generator": {
+        "label": "Generador de contrasenyes",
+        "detail": "Una contrasenya o frase de pas forta, a punt per copiar"
+      },
+      "themes": {
+        "detail": "Temes de color per a clar i fosc"
+      }
+    },
+    "new": {
+      "medication": "Medicament nou",
+      "customTracker": "Seguiment personalitzat nou"
+    },
+    "commands": {
+      "syncResume": "Reprèn la sincronització",
+      "lockProtected": "Bloqueja aquesta nota",
+      "changelog": "Novetats",
+      "themesPage": "Temes de la comunitat",
+      "website": "Lloc web de PrivacyNotes"
+    },
+    "themes": {
+      "word": "Tema",
+      "light": "Tema clar",
+      "dark": "Tema fosc"
+    }
+  }
+}

@@ -1,0 +1,405 @@
+{
+  "noteRow": {
+    "created": "สร้างเมื่อ",
+    "modified": "แก้ไขเมื่อ",
+    "select": "เลือกโน้ต",
+    "deselect": "ยกเลิกการเลือกโน้ต",
+    "pinProtected": "ป้องกันด้วย PIN",
+    "readOnly": "อ่านอย่างเดียว",
+    "empty": "ว่างเปล่า",
+    "noContent": "ไม่มีเนื้อหา",
+    "notBackedUp": "ยังไม่ได้สำรอง",
+    "archived": "เก็บถาวรแล้ว",
+    "date": "วันที่",
+    "dayOf": "วันที่ {{n}} จาก {{total}}",
+    "reminders_other": "{{count}} การเตือน"
+  },
+  "header": {
+    "new": "สร้าง",
+    "newNote": "โน้ตใหม่",
+    "newEvent": "กิจกรรมใหม่"
+  },
+  "folderChip": {
+    "clear": "ล้างตัวกรองโฟลเดอร์: {{folder}}",
+    "subfolders": "โฟลเดอร์ย่อย",
+    "subfoldersLabel": "รวมโฟลเดอร์ย่อย"
+  },
+  "tagChip": {
+    "clear": "ล้างตัวกรองแท็ก: {{tag}}"
+  },
+  "vaultNew": {
+    "ariaLabel": "รายการใหม่ในตู้นิรภัย",
+    "card": "บัตรเครดิต",
+    "sshKey": "คีย์ SSH",
+    "generator": "รหัสผ่าน"
+  },
+  "newMenu": {
+    "note": "โน้ต",
+    "task": "งาน",
+    "kanban": "คัมบัง",
+    "drawing": "ภาพวาด",
+    "journal": "บันทึกประจำวัน",
+    "login": "ล็อกอิน",
+    "bookmark": "บุ๊กมาร์ก",
+    "clipPage": "ตัดเก็บหน้าเว็บ",
+    "contact": "ผู้ติดต่อ",
+    "event": "กิจกรรม"
+  },
+  "vaultFilter": {
+    "all": "ทั้งหมด",
+    "logins": "ล็อกอิน",
+    "cards": "บัตรเครดิต",
+    "keys": "คีย์"
+  },
+  "journal": {
+    "newEntry": "บันทึกประจำวันใหม่"
+  },
+  "tasks": {
+    "newTitle": "งานสำหรับ {{date}}"
+  },
+  "trash": {
+    "empty": "ล้าง",
+    "emptyHover": "ลบโน้ตทั้งหมดในถังขยะ",
+    "autoDelete": "ลบอัตโนมัติหลัง 30 วัน"
+  },
+  "search": {
+    "sortOptions": "ตัวเลือกการเรียงและมุมมอง",
+    "placeholderVault": "ค้นหาในตู้นิรภัย…",
+    "placeholderNotes": "ค้นหาโน้ต…",
+    "placeholderEvents": "ค้นหากิจกรรม…",
+    "placeholderDrawings": "ค้นหาภาพวาด…"
+  },
+  "selection": {
+    "countOf": "เลือกแล้ว {{selected}} จาก {{total}}",
+    "selectAll": "เลือกทั้งหมด",
+    "deselectAll": "ยกเลิกการเลือกทั้งหมด"
+  },
+  "empty": {
+    "noMatches": "ไม่พบรายการที่ตรงกัน",
+    "vault": "ตู้นิรภัยว่างเปล่า",
+    "notes": "ยังไม่มีโน้ต",
+    "journal": "ยังไม่มีบันทึกประจำวัน",
+    "drawings": "ยังไม่มีภาพวาด",
+    "drawingsLine": "ร่างภาพ วางแผน หรือทำแผนผังไอเดีย ภาพวาดลิงก์ไปยังโน้ตของคุณได้ แต่จะไม่แสดงเนื้อหาในโน้ต",
+    "archive": "ไม่มีรายการที่เก็บถาวร",
+    "trash": "ถังขยะว่างเปล่า",
+    "filtered": "ไม่มีรายการที่ตรงกับตัวกรอง",
+    "filteredAfter": "เพื่อแสดงรายการ",
+    "hiddenInAll_other": "{{count}} รายการถูกซ่อนโดยตัวกรอง “แสดงในทั้งหมด” เปิดตัวกรองข้าง “ทั้งหมด” เพื่อแสดงรายการเหล่านั้น",
+    "inOtherSpace_other": "{{count}} รายการอยู่ในพื้นที่ {{space}} ของคุณ สลับไปที่ {{space}} ในแถบด้านข้างเพื่อดูรายการเหล่านั้น"
+  },
+  "listGroups": {
+    "previous7Days": "7 วันที่ผ่านมา",
+    "previous30Days": "30 วันที่ผ่านมา",
+    "other": "อื่นๆ",
+    "collapseAll": "ยุบทุกกลุ่ม",
+    "expandAll": "ขยายทุกกลุ่ม"
+  },
+  "footerStats": {
+    "journals_other": "บันทึกประจำวัน",
+    "items_other": "รายการ",
+    "trashed_other": "ในถังขยะ",
+    "notes_other": "โน้ต",
+    "bookmarks_other": "บุ๊กมาร์ก",
+    "contacts_other": "ผู้ติดต่อ",
+    "drawings_other": "ภาพวาด",
+    "files_other": "ไฟล์",
+    "lists_other": "รายการงาน",
+    "tasks_other": "งาน",
+    "today": "วันนี้"
+  },
+  "toast": {
+    "imageUploadFailed": "อัปโหลดรูปภาพไม่สำเร็จ: {{error}}",
+    "imageError": "ข้อผิดพลาดของรูปภาพ: {{error}}",
+    "uploadFailedFor": "อัปโหลด “{{filename}}” ไม่สำเร็จ: {{error}}",
+    "importedSyncing_other": "นำเข้าโน้ต {{count}} รายการแล้ว กำลังซิงค์…",
+    "addedTag_other": "เพิ่ม #{{tag}} ให้ {{count}} รายการแล้ว",
+    "restoreSummary": "กู้คืนแล้ว เพิ่ม {{added}} อัปเดต {{updated}} เป็นปัจจุบันอยู่แล้ว {{unchanged}}"
+  },
+  "burn": {
+    "mediaOnly": "โน้ตนี้มีแต่สื่อ จึงแชร์ผ่านลิงก์เผาไม่ได้",
+    "shareTitle": "โน้ตที่เข้ารหัส"
+  },
+  "loadError": {
+    "message": "โหลดโน้ตไม่สำเร็จ การเชื่อมต่อฐานข้อมูลในเครื่องถูกขัดจังหวะ อาจเกิดขึ้นหลังจากแอปทำงานเบื้องหลังเป็นเวลานาน",
+    "reload": "โหลดใหม่"
+  },
+  "banner": {
+    "proActivationPending": "ได้รับการชำระเงินแล้ว แต่การเปิดใช้งาน Pro ใช้เวลานานกว่าปกติ รีเฟรชในอีกสักครู่ หรือติดต่อฝ่ายสนับสนุนหากยังไม่เปิดใช้งาน",
+    "crypto": {
+      "waiting": "กำลังรอการชำระเงินด้วยคริปโตของคุณ Pro จะเปิดใช้เมื่อได้รับการยืนยัน",
+      "seen": "พบการชำระเงินด้วยคริปโตแล้ว Pro จะเปิดใช้เมื่อเครือข่ายยืนยัน สำหรับ Bitcoin มักภายใน 1 ชั่วโมง",
+      "partial": "ได้รับการชำระเงินด้วยคริปโตบางส่วนแล้ว ส่งส่วนที่เหลือในหน้าชำระเงินก่อนลิงก์หมดอายุ",
+      "ended": "ลิงก์ชำระเงินด้วยคริปโตของคุณหมดอายุก่อนได้รับการชำระเงินเต็มจำนวน",
+      "paid": "ยืนยันการชำระเงินด้วยคริปโตของคุณแล้ว Pro เปิดใช้แล้ว",
+      "openPayment": "หน้าชำระเงิน"
+    },
+    "snapshotPaused": "ประวัติโน้ตหยุดชั่วคราว แพ็กเกจ Pro ของคุณดูเหมือนไม่ได้ใช้งาน การแก้ไขใหม่จะไม่ถูกเก็บในประวัติจนกว่าจะกู้คืน Pro",
+    "restorePro": "กู้คืน Pro",
+    "storagePastDue": "ชำระค่าสมัครพื้นที่จัดเก็บไม่สำเร็จ อัปเดตบัตรใน Paddle เพื่อไม่ให้เสียพื้นที่เพิ่มเติม",
+    "updateCard": "อัปเดตบัตร"
+  },
+  "sidebar": {
+    "collapse": "ยุบแถบด้านข้าง"
+  },
+  "notesList": {
+    "collapse": "ยุบรายการโน้ต",
+    "expand": "ขยายรายการโน้ต"
+  },
+  "split": {
+    "action": "แยกโน้ต",
+    "done": "แยกเป็น “{{title}}” แล้ว",
+    "overLimit": "“{{title}}” มีขนาดเกิน 1 MB จึงอยู่บนอุปกรณ์นี้เท่านั้น",
+    "cannot": "แยกโน้ตนี้ตรงนี้ไม่ได้ วางเคอร์เซอร์ไว้ตรงที่โน้ตใหม่ควรเริ่มต้น",
+    "continuedTitle": "{{title}} (ต่อ)",
+    "continuedIn": "อ่านต่อใน {{link}}"
+  },
+  "paneResize": {
+    "hintCollapse": "คลิกเพื่อยุบ · ลากเพื่อปรับขนาด",
+    "hintExpand": "คลิกเพื่อขยาย · ลากเพื่อปรับขนาด"
+  },
+  "emptyEditor": {
+    "selectFile": "เลือกไฟล์เพื่อดูตัวอย่าง",
+    "uploadFiles": "หรืออัปโหลดไฟล์ใหม่ไปยังพื้นที่จัดเก็บที่เข้ารหัส",
+    "selectNote": "เลือกโน้ตหรือสร้างโน้ตใหม่",
+    "selectMarkdown": "เปิดไฟล์ Markdown เพื่ออ่านที่นี่"
+  },
+  "zen": {
+    "exit": "ออกจากเซน",
+    "exitHover": "ออกจากโหมดเซน",
+    "enterHover": "เข้าสู่โหมดเซน",
+    "proHover": "โหมดเซน (Pro)",
+    "enterAriaShortcut": "เข้าสู่โหมดเซน ({{keys}})"
+  },
+  "editor": {
+    "backToList": "กลับไปที่รายการโน้ต",
+    "backToGrid": "กลับไปที่ตาราง",
+    "titlePlaceholder": "ไม่มีชื่อ (คลิกเพื่อแก้ไข หรือปล่อยให้สร้างอัตโนมัติ)",
+    "titlePlaceholderLogin": "เช่น GitHub",
+    "titlePlaceholderCard": "เช่น Visa ลงท้าย 4242",
+    "unlocked": "ปลดล็อกแล้ว",
+    "lock": "ล็อก",
+    "lockNow": "ล็อกตอนนี้",
+    "lockNowHint": "ซ่อนเนื้อหาตอนนี้",
+    "turnOffHint": "อนุญาตให้แก้ไขได้อีกครั้ง",
+    "unarchiveHint": "แสดงในรายการของคุณอีกครั้ง",
+    "showFormatted": "แสดงแบบจัดรูปแบบ",
+    "invisiblesShow": "แสดงอักขระที่มองไม่เห็น",
+    "invisiblesHide": "ซ่อนอักขระที่มองไม่เห็น",
+    "undo": "เลิกทำ",
+    "redo": "ทำซ้ำ",
+    "hide": "ซ่อน",
+    "show": "แสดง",
+    "hideToolbar": "ซ่อนแถบเครื่องมือจัดรูปแบบ",
+    "showToolbar": "แสดงแถบเครื่องมือจัดรูปแบบ",
+    "widthDefault": "ความกว้างปกติ",
+    "widthWide": "กว้างขึ้น",
+    "widthFull": "เต็มความกว้าง",
+    "titlePlaceholderLink": "ชื่อบุ๊กมาร์ก",
+    "notBackedUpTooLarge": "เกินขีดจำกัด 1 MB จึงยังไม่ได้สำรอง ย้ายรูปภาพไปเป็นไฟล์แนบหรือแยกโน้ต",
+    "notBackedUpFailed": "ยังไม่ได้สำรอง ข้อผิดพลาดล่าสุด: {{message}} กำลังลองใหม่",
+    "unknownType": "รายการนี้สร้างด้วย PrivacyNotes เวอร์ชันที่ใหม่กว่า อัปเดตแอปเพื่อเปิดรายการนี้"
+  },
+  "share": {
+    "hover": "แชร์ / ส่งออก",
+    "ariaLabel": "แชร์หรือส่งออก",
+    "currentMdTitle": "โน้ตปัจจุบัน (.md)",
+    "currentMdDesc": "Markdown ดิบพร้อม front matter",
+    "currentHtmlTitle": "โน้ตปัจจุบัน (.html)",
+    "currentHtmlDesc": "เหมาะสำหรับพิมพ์ แสดง Markdown บนหน้ากระดาษสีขาว",
+    "printTitle": "พิมพ์ / บันทึกเป็น PDF",
+    "printDesc": "เปิดหน้าต่างพิมพ์ บันทึกเป็น PDF หรือส่งไปยังเครื่องพิมพ์",
+    "printTextTitle": "พิมพ์เฉพาะข้อความ",
+    "printTextDesc": "คงชื่อเรื่องไว้ ไม่รวมวันที่ โฟลเดอร์ และแท็ก",
+    "burnTitle": "แชร์และเผาหลังอ่าน",
+    "burnDesc": "เผยแพร่โน้ตนี้เป็นลิงก์ที่ดูได้ครั้งเดียว ลิงก์จะทำลายตัวเองหลังอ่าน โน้ตของคุณยังปลอดภัยในบัญชี",
+    "drawingFileTitle": "ภาพวาด (.excalidraw)",
+    "drawingFileDesc": "เปิดใน Excalidraw และ Obsidian ได้ พร้อมรูปภาพที่อยู่ในภาพวาด",
+    "drawingPngTitle": "รูปภาพ (.png)",
+    "drawingPngDesc": "ภาพวาดทั้งหมดเป็นรูปภาพเดียว"
+  },
+  "weekReview": {
+    "title": "สรุปประจำสัปดาห์",
+    "daysLogged": "บันทึกแล้ว {{count}}/7",
+    "mood": "อารมณ์",
+    "meds": "ยา"
+  },
+  "footer": {
+    "settings": "การตั้งค่า",
+    "viewShortcuts": "ดูแป้นพิมพ์ลัดทั้งหมด",
+    "newNote": "สร้าง",
+    "newNoteHintMac": "Option + Shift + N",
+    "newNoteHintOther": "Alt + Shift + N",
+    "newNoteHintMacDesktop": "Command + N",
+    "newNoteHintOtherDesktop": "Ctrl + N",
+    "openStats": "เปิดสถิติ",
+    "journalCalendar": "ปฏิทินบันทึกประจำวัน",
+    "words_other": "คำ",
+    "zen": "เซน",
+    "lockApp": "ล็อกแอป",
+    "lockAppSetUp": "ตั้ง PIN ใน ความปลอดภัย ก่อน",
+    "goToTop": "ไปที่ด้านบนสุด",
+    "goToEnd": "ไปที่ท้ายสุด",
+    "signingOut": "กำลังออกจากระบบ…",
+    "switchToLight": "สลับเป็นโหมดสว่าง",
+    "switchToDark": "สลับเป็นโหมดมืด"
+  },
+  "settings": {
+    "groupYourNotes": "ข้อมูลของคุณ",
+    "groupPreferences": "ค่ากำหนด",
+    "groupBrand": "PrivacyNotes",
+    "statsLabel": "สถิติ",
+    "importLabel": "โอนย้าย",
+    "backupLabel": "สำรองข้อมูล",
+    "planLabel": "บัญชี",
+    "storageLabel": "พื้นที่จัดเก็บ",
+    "imagesLabel": "รูปภาพ",
+    "securityLabel": "ความปลอดภัย",
+    "accountLabel": "ID และการซิงค์",
+    "appearanceLabel": "รูปลักษณ์",
+    "editorLabel": "ตัวแก้ไข",
+    "formatBarLabel": "แถบเครื่องมือ",
+    "listsLabel": "รายการ",
+    "trackersLabel": "ตัวติดตาม",
+    "helpLabel": "ความช่วยเหลือ",
+    "aboutLabel": "เกี่ยวกับ",
+    "languageLabel": "ภาษา",
+    "dateLabel": "วันที่และเวลา",
+    "dateTabFormat": "รูปแบบ",
+    "languageDesc": "เลือกภาษาที่ใช้แสดง PrivacyNotes",
+    "calendarLabel": "ปฏิทิน"
+  },
+  "importStore": {
+    "title": "นำเข้าหรือจัดเก็บ?",
+    "confirm": "นำเข้าเป็นโน้ต",
+    "cancel": "จัดเก็บเป็นไฟล์",
+    "bodySingle": "<strong>{{filename}}</strong> ดูเหมือนไฟล์ Markdown นำเข้าเป็นโน้ตเพื่ออ่านและแก้ไข หรือจัดเก็บเป็นไฟล์แนบที่เข้ารหัส?",
+    "bodyMulti": "ไฟล์ {{count}} รายการนี้ดูเหมือน Markdown นำเข้าเป็นโน้ตเพื่ออ่านและแก้ไข หรือจัดเก็บเป็นไฟล์แนบที่เข้ารหัส?"
+  },
+  "archiveConfirm": {
+    "body_other": "เก็บถาวร <highlight>{{count}} รายการ</highlight> หรือไม่? รายการจะออกจากรายการต่าง ๆ ของคุณและไปรออยู่ในมุมมองเก็บถาวร เลิกเก็บถาวรจะนำกลับมา"
+  },
+  "bulkTrash": {
+    "body_other": "ลบ <highlight>{{count}} รายการ</highlight> หรือไม่? ย้ายไปที่ถังขยะเพื่อกู้คืนภายหลัง หรือลบถาวร",
+    "confirm": "ย้ายไปที่ถังขยะ",
+    "keys": "นอกหน้าต่างนี้ <kbd>{{trash}}</kbd> จะย้ายรายการไปที่ถังขยะทันที และ <kbd>{{ask}}</kbd> จะเปิดหน้าต่างนี้แม้จะเลือก \"ไม่ต้องถามอีก\" ไว้แล้ว",
+    "dontAskAgain": "ไม่ต้องถามอีก",
+    "readOnlyAcknowledge": "เข้าใจแล้ว",
+    "readOnlyBlocked_other": "<highlight>{{count}} รายการ</highlight> เป็นแบบอ่านอย่างเดียว จึงย้ายไปที่ถังขยะไม่ได้ ปิดโหมดอ่านอย่างเดียวในเมนูตัวเลือกโน้ตก่อน",
+    "readOnlySkipped_other": "<highlight>{{count}} รายการ</highlight> เป็นแบบอ่านอย่างเดียวและจะอยู่ที่เดิม"
+  },
+  "deleteCheckedTasks": {
+    "title": "ลบรายการที่ทำเครื่องหมายแล้วหรือไม่?",
+    "body_other": "จะลบ <highlight>{{count}} รายการ</highlight> ออกจากโน้ตนี้ รวมถึงรายการย่อย การดำเนินการนี้ย้อนกลับไม่ได้"
+  },
+  "tagConfirm": {
+    "mergeTitle": "รวมแท็ก",
+    "mergeConfirm": "รวม",
+    "mergeBody_other": "แท็ก <highlight>“{{targetTag}}”</highlight> มีอยู่แล้ว รวม<highlight>โน้ต {{count}} รายการ</highlight>ที่มีแท็ก “{{tag}}” เข้าด้วยกันหรือไม่?",
+    "deleteBody_other": "นำแท็ก <highlight>“{{tag}}”</highlight> ออกจาก<highlight>โน้ต {{count}} รายการ</highlight>หรือไม่? ตัวโน้ตจะไม่ถูกลบ",
+    "deleteWithNotesBody_other": "ลบแท็ก <highlight>“{{tag}}”</highlight> และย้าย<highlight>โน้ต {{count}} รายการ</highlight>ไปที่ถังขยะหรือไม่? กู้คืนได้จากที่นั่น"
+  },
+  "createNote": {
+    "title": "สร้างโน้ตหรือไม่?",
+    "confirm": "สร้างโน้ต",
+    "body": "ไม่มีโน้ตชื่อ <highlight>“{{title}}”</highlight> อาจเป็นเพราะโน้ตที่ลิงก์ไว้ถูกเปลี่ยนชื่อ สร้างโน้ตใหม่ด้วยชื่อนี้หรือไม่?"
+  },
+  "freshVault": {
+    "title": "สร้างตู้นิรภัยใหม่แล้ว",
+    "confirm": "เข้าใจแล้ว",
+    "body": "ไม่มีตู้นิรภัยที่ตรงกับวลีที่ใส่ จึงสร้างตู้นิรภัยใหม่ที่ว่างเปล่า หากคาดว่าจะเห็นโน้ตของคุณ ให้ออกจากระบบแล้วใส่วลีอีกครั้งอย่างระมัดระวัง แค่คำเดียวที่ต่างไปจะเปิดตู้นิรภัยคนละตู้"
+  },
+  "ambiguousLink": {
+    "title": "มีโน้ตสองรายการใช้ชื่อนี้",
+    "body": "มีโน้ตมากกว่าหนึ่งรายการชื่อ <highlight>“{{title}}”</highlight> ลิงก์นี้จึงไม่รู้ว่าหมายถึงรายการใด เปลี่ยนชื่อรายการหนึ่ง แล้วลิงก์จะชี้ไปที่อีกรายการ"
+  },
+  "connections": {
+    "title": "การเชื่อมโยง",
+    "hide": "ซ่อนการเชื่อมโยง",
+    "linkedFrom": "ลิงก์มาจาก",
+    "linksTo": "ลิงก์ไปยัง",
+    "missing": "ยังไม่ได้สร้าง",
+    "protectedHidden_other": "ไม่แสดงรายการที่ป้องกันด้วย PIN {{count}} รายการ",
+    "related": "การเชื่อมโยงที่แนะนำ",
+    "relatedWords": "ทั้งสองกล่าวถึง {{words}}",
+    "relatedLinksTo": "ทั้งสองลิงก์ไปยัง {{title}}",
+    "relatedLinkedFrom": "ทั้งสองลิงก์มาจาก {{title}}",
+    "relatedTag": "ทั้งสองมีแท็ก {{tag}}",
+    "relatedMeaning": "ความหมายเดียวกัน",
+    "meaningDoor": "การเชื่อมโยงอัจฉริยะ: ค้นหาโน้ตที่มีความหมายเดียวกันด้วย AI ออฟไลน์",
+    "meaningDoorNo": "ไม่ต้องแสดงอีก",
+    "meaningDoorHidden": "ซ่อนในโน้ตทั้งหมดแล้ว การเชื่อมโยงอัจฉริยะยังอยู่ใน การตั้งค่า > ตัวแก้ไข > การทำงาน",
+    "hideSuggestions": "ซ่อนการเชื่อมโยงที่แนะนำ",
+    "notRelated": "ไม่เกี่ยวข้อง",
+    "notRelatedDone": "จะไม่แนะนำอีกแล้ว",
+    "notRelatedCount": "ไม่เกี่ยวข้อง ({{n}})",
+    "restoreSuggestion": "แนะนำอีกครั้ง",
+    "linkAtCursor": "ลิงก์ที่ตำแหน่งเคอร์เซอร์",
+    "linkNeedsCursor": "คลิกในโน้ตก่อน",
+    "linkAsFootnote": "ลิงก์เป็นเชิงอรรถ"
+  },
+  "drawing": {
+    "fullScreen": "เต็มหน้าจอ",
+    "frame": "เฟรม",
+    "laser": "เลเซอร์พอยน์เตอร์",
+    "bar": {
+      "hiddenNote": "ยังใช้ได้ด้วยแป้นของเครื่องมือนั้น"
+    },
+    "resetTitle": "รีเซ็ตผืนผ้าใบหรือไม่?",
+    "resetBody": "การดำเนินการนี้จะลบทุกอย่างบนผืนผ้าใบ เลิกทำเพื่อนำกลับมาได้",
+    "hotkeysTitle": "แป้นลัดของภาพวาด",
+    "tools": {
+      "label": "เครื่องมือวาด",
+      "keepTool": "ใช้เครื่องมือเดิมต่อหลังวาด",
+      "hand": "เลื่อนผืนผ้าใบ",
+      "rectangle": "สี่เหลี่ยมผืนผ้า",
+      "diamond": "สี่เหลี่ยมขนมเปียกปูน",
+      "ellipse": "วงรี",
+      "arrow": "ลูกศร",
+      "line": "เส้น",
+      "pen": "ปากกา",
+      "text": "กล่องข้อความ",
+      "steps": "ขั้นตอนแบบมีหมายเลข",
+      "eraser": "ยางลบ",
+      "resetZoom": "รีเซ็ตการซูม",
+      "open": "เปิดไฟล์ภาพวาด",
+      "reset": "รีเซ็ตผืนผ้าใบ",
+      "style": "สไตล์",
+      "more": "เครื่องมือเพิ่มเติม",
+      "fewer": "เครื่องมือน้อยลง"
+    }
+  },
+  "location": {
+    "add": "เพิ่มตำแหน่ง",
+    "title": "ตำแหน่ง",
+    "chipLabel": "ตำแหน่ง: {{place}}",
+    "useCurrent": "ใช้ตำแหน่งปัจจุบันของฉัน",
+    "locating": "กำลังหาตำแหน่งของคุณ",
+    "inputLabel": "สถานที่ พิกัด หรือลิงก์แผนที่",
+    "nameLabel": "ชื่อ (ไม่บังคับ)",
+    "openOsm": "เปิดใน OpenStreetMap",
+    "copyCoordinates": "คัดลอกพิกัด",
+    "remove": "นำตำแหน่งออก",
+    "errorUnreadable": "ไม่พบสถานที่ พิมพ์ชื่อสถานที่ หรือวางพิกัดหรือลิงก์แผนที่",
+    "errorShortLink": "ลิงก์แบบย่อต้องใช้อินเทอร์เน็ตจึงจะเปิดได้ เปิดลิงก์ก่อน แล้วคัดลอกที่อยู่แบบเต็ม",
+    "errorRange": "ตัวเลขเหล่านี้อยู่นอกแผนที่",
+    "errorDenied": "ตำแหน่งถูกปิดสำหรับ PrivacyNotes เปิดได้ในการตั้งค่า หรือวางพิกัด",
+    "errorOff": "บริการหาตำแหน่งปิดอยู่บนโทรศัพท์เครื่องนี้ เปิดได้ในการตั้งค่า หรือวางพิกัด",
+    "errorTimeout": "หาตำแหน่งของคุณไม่ได้ ลองอีกครั้งในที่โล่งกลางแจ้ง หรือวางพิกัด",
+    "saveFailed": "ยังไม่ได้บันทึกสถานที่ ลองอีกครั้ง",
+    "mapNotice": "แผนที่จากเซิร์ฟเวอร์ของเราเอง เพื่อความเป็นส่วนตัวของคุณ: maps.privacynotes.app",
+    "mapLoading": "กำลังโหลดแผนที่",
+    "mapLabel": "แผนที่ของ {{place}}",
+    "mapFailed": "แสดงแผนที่ที่นี่ไม่ได้ เปิดใน OpenStreetMap แทน",
+    "inputPlaceholder": "ภูเขาฟุจิ หรือ 35.36, 138.72",
+    "townsLoading": "กำลังโหลดรายชื่อสถานที่",
+    "insertMap": "แทรกแผนที่",
+    "gestureCtrl": "กด Ctrl ค้างไว้แล้วเลื่อนเพื่อซูมแผนที่",
+    "gestureMac": "กด ⌘ ค้างไว้แล้วเลื่อนเพื่อซูมแผนที่",
+    "gestureTouch": "ใช้สองนิ้วเพื่อเลื่อนแผนที่",
+    "autoNote": "เพิ่มตำแหน่งของฉันในโน้ตใหม่ทุกรายการ",
+    "autoJournal": "เพิ่มตำแหน่งของฉันในบันทึกประจำวันใหม่ทุกรายการ",
+    "autoDenied": "ตำแหน่งถูกปิดสำหรับ PrivacyNotes เปิดในการตั้งค่าของโทรศัพท์ก่อน",
+    "autoOff": "บริการหาตำแหน่งปิดอยู่บนโทรศัพท์เครื่องนี้ เปิดก่อน"
+  }
+}

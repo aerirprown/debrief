@@ -1,0 +1,238 @@
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+  <img src="assets/logo-light.svg" alt="PrivacyNotes" width="380">
+</picture>
+<br><br>
+
+**Notes, tasks, and journal, encrypted on your device.**<br>
+Your 12-word phrase is your identity and your key. With a phrase sign-up there is no email, no password and no account to leak.
+
+[**Website**](https://privacynotes.app/en) &nbsp;·&nbsp; [**Try it, no account**](https://try.privacynotes.app) &nbsp;·&nbsp; [**Verify it yourself**](VERIFY.md) &nbsp;·&nbsp; [**Security**](SECURITY.md) &nbsp;·&nbsp; [**Threat model**](THREAT_MODEL.md)
+
+Signed apps for [**macOS**](https://privacynotes.app/en#downloads), [**Windows**](https://privacynotes.app/en#downloads), [**Linux**](https://privacynotes.app/en#downloads), [**Android**](https://privacynotes.app/en#downloads) and [**iOS**](https://apps.apple.com/app/id6785958812), or run it in the browser.
+
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL--3.0-1E40AF.svg)](LICENSE)
+[![Encryption](https://img.shields.io/badge/Encryption-XChaCha20--Poly1305-10B981.svg)](crypto/crypto.ts)
+[![Release](https://img.shields.io/github/v/release/LifetimeLabsHQ/PrivacyNotes.app)](https://github.com/LifetimeLabsHQ/PrivacyNotes.app/releases)
+[![Stars](https://img.shields.io/github/stars/LifetimeLabsHQ/PrivacyNotes.app)](https://github.com/LifetimeLabsHQ/PrivacyNotes.app/stargazers)
+[![GitGem](https://gitgem.org/api/badge/github/LifetimeLabsHQ/PrivacyNotes.app.svg)](https://gitgem.org/github/LifetimeLabsHQ/PrivacyNotes.app)
+
+<br>
+
+<a href="https://try.privacynotes.app">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/app-dark.webp">
+  <img src="assets/app.webp" alt="The PrivacyNotes app" width="820">
+</picture>
+</a>
+
+<em>This screenshot is a link. It opens the <a href="https://try.privacynotes.app">live demo</a> in your browser:<br>
+no account, nothing saved, the real app with the real encryption.</em>
+
+<br>
+
+### What your data looks like on our server
+
+<img src="assets/database.webp" alt="Real rows from the notes table, containing only ciphertext" width="760">
+
+<em>Real rows from the <code>notes</code> table in production. A public key, a ciphertext, a nonce.<br>
+No title, no body, no tags. Just bytes that only your phrase opens.</em>
+
+<br>
+
+**Do not take our word for it.** [**Check it yourself in about a minute**](VERIFY.md), with nothing but your browser's network tab.
+
+<br>
+
+<a href="https://privacytools.io/app/privacynotes">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://privacytools.io/stats/privacynotes.dark.svg">
+    <img src="https://privacytools.io/stats/privacynotes.light.svg" alt="PrivacyNotes GitHub stats on PrivacyTools.io" width="100%">
+  </picture>
+</a>
+
+</div>
+
+---
+
+## What PrivacyNotes is
+
+A notes, tasks and journal app for macOS, Windows, Linux, Android, iOS and the browser, encrypted on your device. You get a 12-word phrase instead of an account, and everything you write is encrypted on your device under a key derived from it, on disk and on the way to us. Under self-custody, that key is yours alone. Notes, journal entries, tasks, a password vault, and file attachments all live under that one key.
+
+---
+
+## Why this repo exists
+
+Privacy claims need proof. The parts you actually have to trust are here: the client applications, the cryptographic core, and the threat model - the real files that ship, not summaries. Reading `crypto.ts` proves the encryption is sound; having the client around it proves the encryption is used on every path.
+
+Three claims we make, and where to check each one without taking our word for it:
+
+| The claim | Check it here |
+| :--- | :--- |
+| Under self-custody, your phrase never leaves your device | [`crypto/crypto.ts`](crypto/crypto.ts), and the derivation strings in the live bundle |
+| Your notes are encrypted on your device, at rest and on the way to us | [`crypto/crypto.ts`](crypto/crypto.ts), the XChaCha20-Poly1305 path |
+| The server stores only ciphertext | [VERIFY.md](VERIFY.md) tier 1: watch your own notes leave in your browser's network tab |
+
+If any of those stops holding, the claim is broken and you can prove it. That is the entire point of this repo.
+
+The first claim holds under self-custody, which every phrase sign-up uses. Its exception is [custodial mode](#custodial-mode-the-exception-to-the-first-claim), which a sign-up with Google, Apple or GitHub preselects.
+
+---
+
+## What is in here
+
+| Path | What it is |
+| :--- | :--- |
+| [`application/`](application/) | The client applications, as we build them: the web app, the desktop and mobile shells, and the shared crypto package. `cd application && pnpm install && pnpm build`. |
+| [`crypto/crypto.ts`](crypto/crypto.ts) | Key derivation and note encryption, about 650 lines, commented step by step. Not a reference implementation. The production code, copied here so the link is short; the canonical file is `application/packages/shared/src/crypto.ts`. Attachments and images use the same cipher through [`crypto/blob.ts`](crypto/blob.ts), which is another 50 lines. |
+| [`SECURITY.md`](SECURITY.md) | What we protect against, what we do not, and what the server can see. Written for users. |
+| [`THREAT_MODEL.md`](THREAT_MODEL.md) | Trust boundaries, cryptographic detail, and known limitations, including the unflattering ones. Written for auditors. **Start here if you are reviewing the project.** |
+
+### The design in brief
+
+**Identity and key derivation.** A 12-word BIP-39 mnemonic (128 bits of entropy) is generated on your device and turned into a 64-byte seed via the standard BIP-39 PBKDF2 path. Every key comes out of that seed via HKDF-SHA256, each under its own domain-separated info string so that no two uses share key material:
+
+| Info string | Produces | Used for |
+| :--- | :--- | :--- |
+| `privacynotes-signing-v1` | Ed25519 private key | Its public key is your user ID |
+| `privacynotes-encryption-v1` | 32-byte symmetric key | Note, attachment and image encryption |
+| `privacynotes-local-at-rest-v1` | 32-byte symmetric key | Seals note content at rest in the device's own storage; never stored, never transmitted |
+| `privacynotes-auth-password-v1` | 32-byte secret | The password for the anonymous account that carries your session |
+| `privacynotes-fp-pepper-v1` | 32-byte pepper | Hashes the device-grouping signals described in SECURITY.md, so the server never sees the raw values |
+
+**Note encryption.** Each note is encrypted with XChaCha20-Poly1305 under a random 24-byte nonce. The plaintext payload includes title, body, tags, and metadata such as trashed and starred state. The server sees none of it. The 24-byte nonce is what makes random generation safe without collision risk, unlike AES-GCM's 12 bytes.
+
+**Challenge signing.** Pubkey-to-account binding uses Ed25519 signatures over structured challenges (`link:<authUid>`). Device registration and revocation use the same shape. Every signature binds to the session's auth UID, so a captured signature cannot be replayed into another session.
+
+**Dependencies**, all from the [@noble](https://github.com/paulmillr/noble-hashes) and [@scure](https://github.com/paulmillr/scure-bip39) families: `@scure/bip39`, `@noble/hashes`, `@noble/ed25519`, `@noble/ciphers`. Zero dependencies each, written to be auditable, deployed in production by major wallets.
+
+---
+
+## Verify it yourself
+
+**Read it.** [`crypto/crypto.ts`](crypto/crypto.ts) is one file and you can finish it in a sitting.
+
+**Run the derivation.** The same path the app uses, from the same audited packages, in a scratch directory you can delete afterwards. Copy the whole block:
+
+```bash
+mkdir -p /tmp/pn-verify && cd /tmp/pn-verify
+npm install --silent @scure/bip39@^2 @noble/hashes@^2
+
+node --input-type=module -e "
+import { generateMnemonic, mnemonicToSeedSync } from '@scure/bip39';
+import { wordlist } from '@scure/bip39/wordlists/english.js';
+import { hkdf } from '@noble/hashes/hkdf.js';
+import { sha256 } from '@noble/hashes/sha2.js';
+
+const utf8 = new TextEncoder();
+const hex  = b => Buffer.from(b).toString('hex');
+
+const phrase = generateMnemonic(wordlist, 128);
+const seed   = mnemonicToSeedSync(phrase);
+const encKey = hkdf(sha256, seed, undefined, utf8.encode('privacynotes-encryption-v1'), 32);
+const sigKey = hkdf(sha256, seed, undefined, utf8.encode('privacynotes-signing-v1'), 32);
+
+console.log('Phrase           :', phrase);
+console.log('Encryption key   :', hex(encKey));
+console.log('Signing key      :', hex(sigKey));
+console.log('Deterministic    :', hex(hkdf(sha256, mnemonicToSeedSync(phrase), undefined, utf8.encode('privacynotes-encryption-v1'), 32)) === hex(encKey));
+console.log('Domain-separated :', hex(encKey) !== hex(sigKey));
+"
+```
+
+Two lines of that output are the ones that matter. `Deterministic: true` says the phrase alone reproduces the key, on any machine, forever, with nothing fetched from us. `Domain-separated: true` says the signing key and the encryption key cannot be derived from each other, so publishing your user ID does not leak the key your notes are under.
+
+**Diff it against production.** The bundle is minified, so a textual diff is not practical, but the derivation is falsifiable anyway. Open the JavaScript served at PrivacyNotes.app and search it for `privacynotes-signing-v1` and `privacynotes-encryption-v1`, the HKDF-SHA256 construction, and XChaCha20-Poly1305 with 24-byte nonces. They are in there right now. If they ever are not, we are lying and you can show it.
+
+**Watch the wire.** The strongest check needs no source at all. Open your browser's network tab, type a word into a note, and read what the app sends: a ciphertext, a nonce, a public key and timestamps. No title, no body, nothing you typed. [VERIFY.md](VERIFY.md) walks it in about a minute. It beats reading our table definitions, because it measures what actually leaves your machine rather than what we say we store.
+
+---
+
+## The parts that are not absolute
+
+[SECURITY.md](SECURITY.md) states each one in full, and [THREAT_MODEL.md](THREAT_MODEL.md) says how it works.
+
+### Custodial mode, the exception to the first claim
+
+A sign-up with Google, Apple or GitHub preselects custodial mode: your phrase is kept on our server under a key we hold, so we could decrypt your notes. A phrase sign-up never uses it, and Settings > Account > Key custody switches either way. [SECURITY.md](SECURITY.md#oauth-and-custodial-mode) has the full trade.
+
+### The rest, one line each
+
+- **Metadata.** The server sees your public key, ciphertext sizes, timestamps, note counts, request IPs and sync patterns.
+- **OAuth.** A Google, Apple or GitHub sign-in links that provider's email to your key, custodial or not.
+- **Web code.** A browser fetches the app's code again on every visit, so if your threat model includes us being coerced, prefer the signed native apps.
+- **Your device.** Malware on your device reads what you read, and a lost phrase under self-custody means lost notes.
+
+---
+
+## Security contact
+
+Found a flaw in the crypto, the derivation, or the client? [**Report it privately on GitHub**](https://github.com/LifetimeLabsHQ/PrivacyNotes.app/security/advisories/new) rather than opening a public issue, so it can be fixed before it is public. A private report there reaches us fastest and keeps the whole exchange in one place.
+
+If you cannot use GitHub, email **sec@lifetimelabs.dev** as a backup. That address is also published in our [security.txt](https://privacynotes.app/.well-known/security.txt) on our own domain, so you can confirm it is really us. If a fix needs coordination we will work with you on timing before disclosure. There is no paid bounty program yet.
+
+**No third-party audit has been performed yet.** The first serious spend out of revenue is one, with Cure53 as the target firm.
+
+---
+
+<!-- credits:start -->
+## Credits
+
+PrivacyNotes is shaped by the people who report bugs and ask for features in our issues. 105 people have opened an issue, and 447 reports are now fixed or built.
+
+<p align="center">
+<a href="https://github.com/tech2-user" title="tech2-user, 79 shipped"><img src="https://github.com/tech2-user.png?size=112" width="56" height="56" alt="tech2-user"></a>
+<a href="https://github.com/harishbewe" title="harishbewe, 38 shipped"><img src="https://github.com/harishbewe.png?size=112" width="56" height="56" alt="harishbewe"></a>
+<a href="https://github.com/scamidge" title="scamidge, 28 shipped"><img src="https://github.com/scamidge.png?size=112" width="56" height="56" alt="scamidge"></a>
+<a href="https://github.com/Real-Fruit-Snacks" title="Real-Fruit-Snacks, 27 shipped"><img src="https://github.com/Real-Fruit-Snacks.png?size=112" width="56" height="56" alt="Real-Fruit-Snacks"></a>
+<a href="https://github.com/AndreFeliciano" title="AndreFeliciano, 20 shipped"><img src="https://github.com/AndreFeliciano.png?size=112" width="56" height="56" alt="AndreFeliciano"></a>
+<a href="https://github.com/les-incompetent" title="les-incompetent, 11 shipped"><img src="https://github.com/les-incompetent.png?size=112" width="56" height="56" alt="les-incompetent"></a>
+<a href="https://github.com/mburr" title="mburr, 11 shipped"><img src="https://github.com/mburr.png?size=112" width="56" height="56" alt="mburr"></a>
+<a href="https://github.com/shriganesh" title="shriganesh, 11 shipped"><img src="https://github.com/shriganesh.png?size=112" width="56" height="56" alt="shriganesh"></a>
+<a href="https://github.com/MrJarvisHere" title="MrJarvisHere, 11 shipped"><img src="https://github.com/MrJarvisHere.png?size=112" width="56" height="56" alt="MrJarvisHere"></a>
+<a href="https://github.com/laulaugaby" title="laulaugaby, 11 shipped"><img src="https://github.com/laulaugaby.png?size=112" width="56" height="56" alt="laulaugaby"></a>
+<a href="https://github.com/Tobias1000" title="Tobias1000, 11 shipped"><img src="https://github.com/Tobias1000.png?size=112" width="56" height="56" alt="Tobias1000"></a>
+<a href="https://github.com/block6791" title="block6791, 10 shipped"><img src="https://github.com/block6791.png?size=112" width="56" height="56" alt="block6791"></a>
+<a href="https://github.com/grub-basket" title="grub-basket, 9 shipped"><img src="https://github.com/grub-basket.png?size=112" width="56" height="56" alt="grub-basket"></a>
+<a href="https://github.com/deftly1970" title="deftly1970, 8 shipped"><img src="https://github.com/deftly1970.png?size=112" width="56" height="56" alt="deftly1970"></a>
+<a href="https://github.com/snogglefromp" title="snogglefromp, 8 shipped"><img src="https://github.com/snogglefromp.png?size=112" width="56" height="56" alt="snogglefromp"></a>
+<a href="https://github.com/TheArtForm" title="TheArtForm, 8 shipped"><img src="https://github.com/TheArtForm.png?size=112" width="56" height="56" alt="TheArtForm"></a>
+<a href="https://github.com/pdmcgeejr" title="pdmcgeejr, 7 shipped"><img src="https://github.com/pdmcgeejr.png?size=112" width="56" height="56" alt="pdmcgeejr"></a>
+<a href="https://github.com/javaskript" title="javaskript, 7 shipped"><img src="https://github.com/javaskript.png?size=112" width="56" height="56" alt="javaskript"></a>
+<a href="https://github.com/thecoffeebin" title="thecoffeebin, 6 shipped"><img src="https://github.com/thecoffeebin.png?size=112" width="56" height="56" alt="thecoffeebin"></a>
+<a href="https://github.com/thediamondgeezer" title="thediamondgeezer, 5 shipped"><img src="https://github.com/thediamondgeezer.png?size=112" width="56" height="56" alt="thediamondgeezer"></a>
+<a href="https://github.com/KamikazeWolf" title="KamikazeWolf, 5 shipped"><img src="https://github.com/KamikazeWolf.png?size=112" width="56" height="56" alt="KamikazeWolf"></a>
+<a href="https://github.com/gijs-epping" title="gijs-epping, 5 shipped"><img src="https://github.com/gijs-epping.png?size=112" width="56" height="56" alt="gijs-epping"></a>
+<a href="https://github.com/michaeldurland" title="michaeldurland, 4 shipped"><img src="https://github.com/michaeldurland.png?size=112" width="56" height="56" alt="michaeldurland"></a>
+<a href="https://github.com/ajgraves" title="ajgraves, 4 shipped"><img src="https://github.com/ajgraves.png?size=112" width="56" height="56" alt="ajgraves"></a>
+<a href="https://github.com/FrostyLime" title="FrostyLime, 4 shipped"><img src="https://github.com/FrostyLime.png?size=112" width="56" height="56" alt="FrostyLime"></a>
+<a href="https://github.com/gitglub" title="gitglub, 4 shipped"><img src="https://github.com/gitglub.png?size=112" width="56" height="56" alt="gitglub"></a>
+<a href="https://github.com/GregHabiskis" title="GregHabiskis, 4 shipped"><img src="https://github.com/GregHabiskis.png?size=112" width="56" height="56" alt="GregHabiskis"></a>
+<a href="https://github.com/ylnztrkk" title="ylnztrkk, 4 shipped"><img src="https://github.com/ylnztrkk.png?size=112" width="56" height="56" alt="ylnztrkk"></a>
+<a href="https://github.com/BackupSFG" title="BackupSFG, 3 shipped"><img src="https://github.com/BackupSFG.png?size=112" width="56" height="56" alt="BackupSFG"></a>
+<a href="https://github.com/RuinTD" title="RuinTD, 3 shipped"><img src="https://github.com/RuinTD.png?size=112" width="56" height="56" alt="RuinTD"></a>
+<a href="https://github.com/tactfuljeer" title="tactfuljeer, 3 shipped"><img src="https://github.com/tactfuljeer.png?size=112" width="56" height="56" alt="tactfuljeer"></a>
+<a href="https://github.com/825i" title="825i, 3 shipped"><img src="https://github.com/825i.png?size=112" width="56" height="56" alt="825i"></a>
+<a href="https://github.com/ameetjeeva" title="ameetjeeva, 3 shipped"><img src="https://github.com/ameetjeeva.png?size=112" width="56" height="56" alt="ameetjeeva"></a>
+</p>
+
+Everyone, with their counts, is in [CREDITS.md](CREDITS.md).
+<!-- credits:end -->
+
+---
+
+## License
+
+This repository is **AGPL-3.0**. Read it, audit it, build it, fork it. If you run a modified version as a network service, publish your changes.
+
+The name PrivacyNotes, the wordmark and the icon are not part of that grant. A fork needs its own name.
+
+<img src="assets/icon.svg" alt="The PrivacyNotes app icon" width="64" height="64">
+
+Writing about PrivacyNotes? The square app icon is [`assets/icon.svg`](assets/icon.svg), and the full brand kit, with lockups and usage rules, is at [privacynotes.app/brand](https://privacynotes.app/brand). [NOTICE.md](NOTICE.md) says what the license grant does not cover.
+
+A note on the earlier MIT releases of the encryption files is in [`crypto/README.md`](crypto/README.md).
+
+The app is built on other open source software. Every package, font and crate it includes, each with its license, is listed at [privacynotes.app/licenses](https://privacynotes.app/licenses).

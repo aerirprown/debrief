@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- iOS-ONLY additions, merged into the generated iOS bundle at BUILD time.
+     Tauri looks for both `Info.plist` and `Info.ios.plist` beside tauri.conf.json;
+     the shared one carries the TCC usage strings and CFBundleLocalizations for
+     macOS and iOS alike, and this one carries what must NOT reach the macOS
+     bundle.
+
+     The iOS bundle registers NO custom URL scheme, and none may be added
+     here. Any installed app can claim a scheme, so a scheme cannot say which
+     app receives a sign-in. The sign-in sheet returns over the https address
+     that iOS delivers only to the app whose `webcredentials` entitlement names
+     its host, and the tests hold that address in place. Tauri does not turn
+     `plugins.deep-link.mobile` into CFBundleURLTypes on iOS, so this file is
+     the only place a scheme could come back from.
+     Spec: docs/internal/macos-ios-setup.md (native Google sign-in / deep links) -->
+<plist version="1.0">
+<dict>
+	<!-- iOS does not open documents, so it must not advertise that it does.
+	     `bundle.fileAssociations` in tauri.conf.json exists for macOS (Apple
+	     Events), Windows (registry) and Linux (MimeType), but Tauri emits it into
+	     the iOS bundle too as CFBundleDocumentTypes. Nothing on iOS can act on
+	     that: the Rust open handler is `#[cfg(target_os = "macos")]`, and the
+	     Markdown folder capability gate returns 'unavailable' on phones because
+	     the File System Access API does not exist there.
+
+	     Transporter rejects the upload for it (error 90737, "Missing Document
+	     Configuration"), which demands either UISupportsDocumentBrowser or
+	     LSSupportsOpeningDocumentsInPlace. Both would be false claims: setting
+	     either to YES puts PrivacyNotes in the Files app's "Open With" list for
+	     every .md and .txt, where tapping it would do nothing at all. So the
+	     declaration is emptied instead, which is what the app actually supports,
+	     and the LS key is set false so the validator has its explicit answer
+	     regardless of how it reads an empty array.
+
+	     The suppression itself lives in `tauri.ios.conf.json`, which empties
+	     `bundle.fileAssociations` for iOS only (Tauri merges a per-platform config
+	     file automatically). Emptying CFBundleDocumentTypes from HERE was tried
+	     first on 2026-08-15 and does NOT work: the plist merge does not replace
+	     Tauri's generated array, so the entries survived. The key below stays as a
+	     belt-and-braces answer for the validator in case anything ever
+	     reintroduces a document type on iOS.
+
+	     If iOS ever DOES learn to open files, delete `tauri.ios.conf.json` and the
+	     key below, and let the shared fileAssociations flow through.
+	     Spec: docs/internal/specs/markdown-folder-handoff.md (platform matrix) -->
+	<!-- Export compliance, answered here so App Store Connect stops asking at
+	     every upload. The app uses standard encryption (XChaCha20-Poly1305,
+	     Ed25519, AES-GCM) beyond the OS crypto, so the answer is YES, and YES must
+	     carry the key value of an APPROVED App Encryption Documentation record, or
+	     Transporter rejects the upload with error 409 "Invalid Export Compliance
+	     Code" (seen 2026-08-16, when no record existed). The record is the ANSSI
+	     declaration, uploaded 2026-11-02 and approved (App Store Connect > App
+	     Information > App Encryption Documentation). If Apple ever issues a new
+	     key value, replace it here. Never set the first key to false: that claims
+	     an exemption the app does not have.
+	     Spec: docs/internal/tsu-notification.md (the filing, and what is still open) -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<true/>
+	<key>ITSEncryptionExportComplianceCode</key>
+	<string>d8a6a1dc-bd39-47e2-9dcd-1f6ab56c7afb</string>
+	<!-- iOS 27 TERMINATES an app that has not adopted the scene life cycle. The
+	     check is _UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption and
+	     it kills the process during launch, so the app never draws a frame. The
+	     same binary runs on iOS 26.5, which is how the runtime was identified as
+	     the trigger rather than the SDK or the build machine (2026-09-18).
+
+	     tao already implements a scene delegate and an
+	     application:configurationForConnectingSceneSession: that returns it. It
+	     registers neither unless this manifest says multiple scenes are supported,
+	     so the flag below is what switches tao's scene path on. It is a gate, not
+	     a preference: tao reads this exact key.
+
+	     Consequence to know about: on iPad this also permits more than one window
+	     of the app. Nothing here has been exercised with two windows open.
+	     Spec: docs/internal/specs/app-switcher-privacy-screen.md (section 13) -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<true/>
+	</dict>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<false/>
+	<!-- "Use my current location" in a note's place popover. iOS shows this
+	     text in its own question, and asks only when the person taps that
+	     button (currentPosition.ts), never at launch. When In Use only: there
+	     is no "Always" key, and the app never reads the position in the
+	     background. iOS-only here because the macOS bundle has no location
+	     feature. Spec: docs/internal/plans/note-location.md (section 3) -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>PrivacyNotes uses your location only when you tap Use my current location, to add that place to the note.</string>
+</dict>
+</plist>

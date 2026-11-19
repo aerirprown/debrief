@@ -1,0 +1,296 @@
+import { useEffect, useRef, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
+import type { LocalNote } from '../db';
+import { BracketsSquare, Export, EXPORT_GLYPHS, LinkSimple } from '../icons';
+import { shortcutNoun } from '../noteShortcut';
+import { isUuid } from '../uuid';
+import { HoverLabel } from '../HoverLabel';
+import { usePopoverPosition } from '../usePopoverPosition';
+
+export function ShareMenu({
+  open,
+  onClose,
+  onToggle,
+  triggerHidden,
+  fallbackAnchorRef,
+  selected,
+  exportSingleMarkdown,
+  exportSingleHtml,
+  printNote,
+  handleBurnShare,
+  exportDrawing,
+  onCopyShortcut,
+  onCopyNoteLink,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onToggle: () => void;
+  /** Zen and a compact header hide the button; the "..." strip opens the
+   *  panel instead. */
+  triggerHidden: boolean;
+  /** Where the panel opens while its own button is hidden: the "..." button
+   *  that opened it. A hidden trigger measures as a zero box at the window's
+   *  corner, and the panel opened on top of the header there. */
+  fallbackAnchorRef: RefObject<HTMLElement | null>;
+  selected: LocalNote;
+  exportSingleMarkdown: (n: LocalNote) => Promise<void> | void;
+  exportSingleHtml: (n: LocalNote) => Promise<void> | void;
+  printNote: (n: LocalNote, titleOnly?: boolean) => Promise<void> | void;
+  handleBurnShare: (n: LocalNote) => Promise<void> | void;
+  /** A drawing's two ways out, in place of the text formats and burn. */
+  exportDrawing: (n: LocalNote, format: 'excalidraw' | 'png') => Promise<void> | void;
+  /** Copy the shortcut that opens this item from other apps. */
+  onCopyShortcut: (n: LocalNote) => void;
+  /** Copy the note-link to this item, for a link inside the notes; null
+   *  when it has no name a note-link can carry. */
+  onCopyNoteLink: ((n: LocalNote) => void) | null;
+}) {
+  const { t } = useTranslation('notes');
+  const anchorRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  // Positioned by the same hook and the same alignment as the "..." menu one
+  // button along, and for the same reason it was needed there: the panel used
+  // to be pinned to the viewport at a fixed 3.5rem, which assumes the header
+  // starts at the top of the window. It does not whenever a banner sits above
+  // the shell - the demo bar, or an announcement - and the panel then opened
+  // ON TOP of the button that had just been pressed. The hook measures the
+  // trigger, opens below it, and flips above when there is no room.
+  // Spec: docs/internal/design/ui-patterns.md (section 15)
+  const pos = usePopoverPosition(open, triggerHidden ? fallbackAnchorRef : anchorRef, panelRef, { align: 'end' });
+
+  // Close on an outside pointerdown, ignoring the trigger so it can toggle
+  // without a re-open flicker. Same handler shape as NoteOptionsMenu.
+  useEffect(() => {
+    if (!open) return;
+    function handler(e: PointerEvent) {
+      const target = e.target as Node | null;
+      if (!target) return;
+      if (panelRef.current && panelRef.current.contains(target)) return;
+      if (anchorRef.current && anchorRef.current.contains(target)) return;
+      onClose();
+    }
+    window.addEventListener('pointerdown', handler, true);
+    return () => window.removeEventListener('pointerdown', handler, true);
+  }, [open, onClose]);
+
+  return (
+    <>
+      {/* Share / Export button. It holds its place on any header wide
+          enough for it, because it is the action people reach for and the
+          header no longer carries burn, pin or trash to crowd it. Zen and a
+          compact header are where it stands down, and the "..." menu grows
+          a Share cell there instead. The dropdown owns both per-note exports
+          and whole-vault backups. */}
+      <div ref={anchorRef} className={`shrink-0 ${triggerHidden ? 'hidden' : 'block'}`}>
+        {/* Same tip placement as the "..." button beside it: both sit at
+            the end of the row, and a centred tip on the last control is cut
+            by the window edge. */}
+        <HoverLabel label={t('share.hover')} position="below-end">
+          <button
+            onClick={onToggle}
+            aria-label={t('share.ariaLabel')}
+            aria-expanded={open}
+            className={`shrink-0 flex items-center justify-center w-8 h-8 rounded-md transition ${
+              open
+                ? 'text-accent-strong bg-accent/15'
+                : 'text-pn-soft active:scale-95 [@media(hover:hover)]:hover:text-accent [@media(hover:hover)]:hover:bg-pn/10'
+            }`}
+          >
+          {/* 18px in a 32px box, the size every button in the editor header
+              wears. Spec: docs/internal/design/ui-patterns.md (section 80) */}
+          <Export />
+          </button>
+        </HoverLabel>
+      </div>
+      {open && createPortal(
+        (
+          <div
+            ref={panelRef}
+            role="dialog"
+            aria-label={t('share.ariaLabel')}
+            className="fixed z-50 w-72 max-h-[calc(100vh-16px)] overflow-y-auto rounded-lg border border-divider bg-surface-2 shadow-lg text-body py-1"
+            style={{
+              top: pos?.top ?? 0,
+              left: pos?.left ?? 0,
+              visibility: pos ? 'visible' : 'hidden',
+            }}
+          >
+              {/* Icon column in accent, the grammar the "..." menu next door
+                  already uses, and the same marks the Export tab of Settings
+                  > Import & Export wears for these file types. Burn keeps its
+                  orange, because colour in this header means burn or
+                  destructive and never decoration. */}
+              {/* The shortcut first: it is the one row here that shares
+                  nothing, so its line says who can open it.
+                  Spec: docs/internal/specs/note-shortcuts.md (4) */}
+              {isUuid(selected.id) && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    onCopyShortcut(selected);
+                  }}
+                  className="w-full text-start px-3 py-2.5 flex items-start gap-2.5 hover:bg-surface-1 transition"
+                >
+                  <span className="shrink-0 mt-0.5 text-accent"><LinkSimple aria-hidden="true" /></span>
+                  <span className="min-w-0">
+                    <span className="block font-medium text-pn">
+                      {t(shortcutNoun(selected.type) === 'item' ? 'shell:shortcut.copyItem' : 'shell:shortcut.copyNote')}
+                    </span>
+                    <span className="block text-small text-pn-muted">
+                      {t(shortcutNoun(selected.type) === 'item' ? 'shell:shortcut.descItem' : 'shell:shortcut.descNote')}
+                    </span>
+                  </span>
+                </button>
+              )}
+              {onCopyNoteLink && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    onCopyNoteLink(selected);
+                  }}
+                  className="w-full text-start px-3 py-2.5 flex items-start gap-2.5 hover:bg-surface-1 transition"
+                >
+                  <span className="shrink-0 mt-0.5 text-accent"><BracketsSquare aria-hidden="true" /></span>
+                  <span className="min-w-0">
+                    <span className="block font-medium text-pn">{t('shell:shortcut.copyNoteLink')}</span>
+                    <span className="block text-small text-pn-muted">{t('shell:shortcut.descNoteLink')}</span>
+                  </span>
+                </button>
+              )}
+              {/* A drawing has no text to print or burn: it leaves as a file
+                  Excalidraw opens, or as a picture.
+                  Spec: docs/internal/specs/drawing.md (section 7, Export) */}
+              {selected.type === 'drawing' ? (
+              <>
+              <button
+                onClick={() => {
+                  onClose();
+                  void exportDrawing(selected, 'excalidraw');
+                }}
+                className="w-full text-start px-3 py-2.5 flex items-start gap-2.5 hover:bg-surface-1 transition"
+              >
+                <span className="shrink-0 mt-0.5 text-accent"><EXPORT_GLYPHS.drawing aria-hidden="true" /></span>
+                <span className="min-w-0">
+                  <span className="block font-medium text-pn">
+                    {t('share.drawingFileTitle')}
+                  </span>
+                  <span className="block text-small text-pn-muted">
+                    {t('share.drawingFileDesc')}
+                  </span>
+                </span>
+              </button>
+              <button
+                onClick={() => {
+                  onClose();
+                  void exportDrawing(selected, 'png');
+                }}
+                className="w-full text-start px-3 py-2.5 flex items-start gap-2.5 hover:bg-surface-1 transition"
+              >
+                <span className="shrink-0 mt-0.5 text-accent"><EXPORT_GLYPHS.png aria-hidden="true" /></span>
+                <span className="min-w-0">
+                  <span className="block font-medium text-pn">
+                    {t('share.drawingPngTitle')}
+                  </span>
+                  <span className="block text-small text-pn-muted">
+                    {t('share.drawingPngDesc')}
+                  </span>
+                </span>
+              </button>
+              </>
+              ) : (
+              <>
+              <button
+                onClick={() => {
+                  onClose();
+                  void exportSingleMarkdown(selected);
+                }}
+                className="w-full text-start px-3 py-2.5 flex items-start gap-2.5 hover:bg-surface-1 transition"
+              >
+                <span className="shrink-0 mt-0.5 text-accent"><EXPORT_GLYPHS.markdown aria-hidden="true" /></span>
+                <span className="min-w-0">
+                  <span className="block font-medium text-pn">
+                    {t('share.currentMdTitle')}
+                  </span>
+                  <span className="block text-small text-pn-muted">
+                    {t('share.currentMdDesc')}
+                  </span>
+                </span>
+              </button>
+              <button
+                onClick={() => {
+                  onClose();
+                  void exportSingleHtml(selected);
+                }}
+                className="w-full text-start px-3 py-2.5 flex items-start gap-2.5 hover:bg-surface-1 transition"
+              >
+                <span className="shrink-0 mt-0.5 text-accent"><EXPORT_GLYPHS.html aria-hidden="true" /></span>
+                <span className="min-w-0">
+                  <span className="block font-medium text-pn">
+                    {t('share.currentHtmlTitle')}
+                  </span>
+                  <span className="block text-small text-pn-muted">
+                    {t('share.currentHtmlDesc')}
+                  </span>
+                </span>
+              </button>
+              <button
+                onClick={() => {
+                  onClose();
+                  void printNote(selected);
+                }}
+                className="w-full text-start px-3 py-2.5 flex items-start gap-2.5 hover:bg-surface-1 transition"
+              >
+                <span className="shrink-0 mt-0.5 text-accent"><EXPORT_GLYPHS.print aria-hidden="true" /></span>
+                <span className="min-w-0">
+                  <span className="block font-medium text-pn">
+                    {t('share.printTitle')}
+                  </span>
+                  <span className="block text-small text-pn-muted">
+                    {t('share.printDesc')}
+                  </span>
+                </span>
+              </button>
+              <button
+                onClick={() => {
+                  onClose();
+                  void printNote(selected, true);
+                }}
+                className="w-full text-start px-3 py-2.5 flex items-start gap-2.5 hover:bg-surface-1 transition"
+              >
+                <span className="shrink-0 mt-0.5 text-accent"><EXPORT_GLYPHS.printText size={18} aria-hidden="true" /></span>
+                <span className="min-w-0">
+                  <span className="block font-medium text-pn">
+                    {t('share.printTextTitle')}
+                  </span>
+                  <span className="block text-small text-pn-muted">
+                    {t('share.printTextDesc')}
+                  </span>
+                </span>
+              </button>
+              <button
+                onClick={() => {
+                  onClose();
+                  void handleBurnShare(selected);
+                }}
+                className="w-full text-start px-3 py-2.5 flex items-start gap-2.5 hover:bg-surface-1 transition"
+              >
+                <span className="shrink-0 mt-0.5 text-orange-800 dark:text-orange-400"><EXPORT_GLYPHS.burn aria-hidden="true" /></span>
+                <span className="min-w-0">
+                  <span className="block font-medium text-orange-800 dark:text-orange-400">
+                    {t('share.burnTitle')}
+                  </span>
+                  <span className="block text-small text-pn-muted">
+                    {t('share.burnDesc')}
+                  </span>
+                </span>
+              </button>
+              </>
+              )}
+          </div>
+        ),
+        document.body,
+      )}
+    </>
+  );
+}

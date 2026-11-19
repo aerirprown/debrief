@@ -1,0 +1,257 @@
+import { zipEntryText } from './zipEntry';
+import { openZip } from './zipOpen';
+import { linkifyMarkdown } from './linkify';
+import i18n from '../i18n';
+import type { Importer, ImportedNote, ParsedImport } from './types';
+import { isoOrNow, normalizeTagList } from './importHelpers';
+
+const msg = (key: string, options?: Record<string, unknown>): string =>
+  i18n.t(`importLog:simplenote.${key}`, options);
+
+/**
+ * Simplenote import adapter.
+ *
+ * Reads the official Simplenote export (.zip from Settings > Export).
+ * The zip contains:
+ *   source/notes.json  - authoritative JSON with all metadata
+ *   *.txt              - flat text mirrors of active notes (ignored)
+ *   trash/*.txt        - flat text mirrors of trashed notes (ignored)
+ *
+ * notes.json schema:
+ *   {
+ *     activeNotes:  [ NoteObject, … ],
+ *     trashedNotes: [ NoteObject, … ]
+ *   }
+ *
+ * NoteObject (active):
+ *   id:                 string (UUID)
+ *   content:            string (first line is displayed as title in the app)
+ *   creationDate:       string (ISO 8601)
+ *   lastModified:       string (ISO 8601)
+ *   pinned:             boolean
+ *   markdown:           boolean (per-note markdown toggle)
+ *   tags:               string[]
+ *   collaboratorEmails: string[] (shared-with addresses)
+ *
+ * Trashed notes have the same core fields but may lack pinned/markdown/
+ * collaboratorEmails (stripped on trash in some export versions).
+ *
+ * Title extraction: Simplenote has no separate title field - the first
+ * line of `content` serves as the visible title in their UI. We split on
+ * the first newline: line 1 → title, remainder → body. This matches what
+ * the user saw in Simplenote and gives PrivacyNotes a real title field
+ * rather than relying on first-line derivation for every note.
+ */
+
+interface SnNote {
+  id?: string;
+  content?: string;
+  creationDate?: string;
+  lastModified?: string;
+  pinned?: boolean;
+  markdown?: boolean;
+  tags?: string[];
+  collaboratorEmails?: string[];
+}
+
+interface SnExport {
+  activeNotes?: SnNote[];
+  trashedNotes?: SnNote[];
+}
+
+export const simplenoteImporter: Importer = {
+  id: 'simplenote',
+  label: 'Simplenote',
+  description:
+    'Export from Simplenote (Settings -> Tools -> Export Notes). Drop the .zip.',
+  accept: '.zip,.json,application/zip,application/json',
+  enabled: true,
+  sourceTag: 'simplenote',
+
+  async parse(file, onProgress) {
+    onProgress?.(i18n.t('importExport:status.readingFile'));
+    const jsonText = await extractNotesJson(file, onProgress);
+
+    onProgress?.(i18n.t('importLog:shared.parsingJson'));
+    let data: SnExport;
+    try {
+      data = JSON.parse(jsonText) as SnExport;
+    } catch {
+      throw new Error(msg('invalidJson'));
+    }
+
+    const active = Array.isArray(data?.activeNotes) ? data.activeNotes : [];
+    const trashed = Array.isArray(data?.trashedNotes) ? data.trashedNotes : [];
+
+    if (active.length === 0 && trashed.length === 0) {
+      throw new Error(msg('noNotes'));
+    }
+
+    onProgress?.(i18n.t('importLog:shared.buildingNotes'));
+    const notes: ImportedNote[] = [];
+    const warnings: string[] = [];
+
+    let emptyCount = 0;
+    let untaggedCount = 0;
+    let linkifiedCount = 0;
+    let starredCount = 0;
+    let trashedImportCount = 0;
+    let blankGhostCount = 0;
+    let markdownCount = 0;
+    let collaboratorCount = 0;
+
+    const processNote = (raw: SnNote, isTrashed: boolean) => {
+      const rawContent = raw.content ?? '';
+
+      // Split first line as title, rest as body.
+      const newlineIdx = rawContent.indexOf('\n');
+      let rawTitle: string;
+      let rawBody: string;
+      if (newlineIdx === -1) {
+        // Single-line note: entire content is the title, body is empty.
+        rawTitle = rawContent.trim();
+        rawBody = '';
+      } else {
+        rawTitle = rawContent.slice(0, newlineIdx).trim();
+        rawBody = rawContent.slice(newlineIdx + 1).replace(/^\n+/, '');
+      }
+
+      // Strip leading markdown heading markers from the title if present
+      // (some users prefix with "# " in Simplenote's markdown mode).
+      rawTitle = rawTitle.replace(/^#{1,6}\s+/, '');
+
+      // Blank ghost: no title, no body. Skip silently.
+      if (!rawTitle && !rawBody.trim()) {
+        blankGhostCount++;
+        return;
+      }
+
+      const rawTags = Array.isArray(raw.tags) ? raw.tags : [];
+      const pinned = raw.pinned === true;
+      const isMarkdown = raw.markdown === true;
+      const collabs = Array.isArray(raw.collaboratorEmails)
+        ? raw.collaboratorEmails.filter((e) => typeof e === 'string' && e.trim())
+        : [];
+
+      if (!rawBody.trim()) emptyCount++;
+      if (rawTags.length === 0) untaggedCount++;
+      if (pinned) starredCount++;
+      if (isTrashed) trashedImportCount++;
+      if (isMarkdown) markdownCount++;
+      if (collabs.length > 0) collaboratorCount++;
+
+      // Simplenote is a plain-text editor - every \n is a real line
+      // break the user sees. TipTap's markdown parser collapses single
+      // \n into spaces (only \n\n creates paragraph breaks). Insert
+      // <br> tags for single newlines so tiptap-markdown (html: true)
+      // creates hardBreak nodes within the same paragraph - giving
+      // tight line spacing that matches Simplenote's rendering.
+      // Double+ newlines (paragraph breaks) are left untouched.
+      // Skip lines that start markdown block syntax (lists, headings,
+      // blockquotes, code fences) - <br> before those breaks parsing.
+      const hardBroken = rawBody.replace(
+        /(?<!\n)\n(?!\n)/g,
+        (_, offset) => {
+          const after = rawBody.slice(offset + 1);
+          // Don't insert <br> before markdown block-level syntax.
+          if (/^(?:[-*+] |\d+\. |#{1,6} |> |```)/.test(after)) return '\n';
+          return '<br>\n';
+        },
+      );
+
+      // Linkify bare URLs so they render as clickable on first load.
+      const body = linkifyMarkdown(hardBroken);
+      if (body !== hardBroken) linkifiedCount++;
+
+      notes.push({
+        title: rawTitle,
+        body,
+        tags: normalizeTagList(rawTags),
+        createdAt: isoOrNow(raw.creationDate),
+        updatedAt: isoOrNow(raw.lastModified ?? raw.creationDate),
+        starred: pinned,
+        trashed: isTrashed,
+      });
+    };
+
+    for (const n of active) processNote(n, false);
+    for (const n of trashed) processNote(n, true);
+
+    // Transforms (accent-colored, positive).
+    const transforms: string[] = [];
+    if (linkifiedCount > 0) {
+      transforms.push(i18n.t('importLog:shared.linkifiedNotes', { count: linkifiedCount }));
+    }
+    if (starredCount > 0) {
+      transforms.push(i18n.t('importLog:shared.keptStarred', { count: starredCount }));
+    }
+    if (trashedImportCount > 0) {
+      transforms.push(i18n.t('importLog:shared.restoredTrashed', { count: trashedImportCount }));
+    }
+    if (markdownCount > 0) {
+      transforms.push(msg('markdownMode', { count: markdownCount }));
+    }
+
+    // Warnings (amber-colored, potential issues).
+    if (blankGhostCount > 0) {
+      warnings.push(msg('blank', { count: blankGhostCount }));
+    }
+    if (collaboratorCount > 0) {
+      warnings.push(msg('collaborators', { count: collaboratorCount }));
+    }
+
+    const uniqueTags = new Set<string>();
+    for (const n of notes) for (const t of n.tags) uniqueTags.add(t);
+
+    return {
+      notes,
+      warnings,
+      transforms,
+      stats: {
+        totalNotes: notes.length,
+        emptyNotes: emptyCount,
+        untaggedNotes: untaggedCount,
+        uniqueTags: uniqueTags.size,
+      },
+      source: 'simplenote',
+    } satisfies ParsedImport;
+  },
+};
+
+/**
+ * Extract the notes.json payload from whatever the user gave us:
+ *   - .zip containing source/notes.json
+ *   - the notes.json file directly
+ */
+async function extractNotesJson(
+  file: File,
+  onProgress?: (m: string) => void
+): Promise<string> {
+  const lowerName = file.name.toLowerCase();
+
+  if (lowerName.endsWith('.zip')) {
+    onProgress?.(i18n.t('importLog:shared.unzipping'));
+    const zip = await openZip(file);
+
+    // Look for source/notes.json first (official export structure).
+    let entry = zip.file('source/notes.json');
+    // Fall back to notes.json at root in case the user re-zipped.
+    if (!entry) entry = zip.file('notes.json');
+    // Last resort: find any .json file that looks like the export.
+    if (!entry) {
+      const candidates = Object.values(zip.files).filter(
+        (f) => !f.dir && f.name.toLowerCase().endsWith('.json')
+      );
+      if (candidates.length === 1) entry = candidates[0]!;
+    }
+
+    if (!entry) {
+      throw new Error(msg('noNotesJson'));
+    }
+    return zipEntryText(entry);
+  }
+
+  // .json or anything else - read as text.
+  return file.text();
+}
+

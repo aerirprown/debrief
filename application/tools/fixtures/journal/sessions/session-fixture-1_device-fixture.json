@@ -1,0 +1,10 @@
+{
+  "id": "session-fixture-1",
+  "device_id": "device-fixture",
+  "game_id": "game-fixture-1",
+  "started_at": "2026-11-11T01:00:00Z",
+  "stopped_at": "2026-11-11T02:30:00Z",
+  "text": "cleared the chapel",
+  "what_next": "open the side door",
+  "frame_id": "frame-fixture-1"
+}

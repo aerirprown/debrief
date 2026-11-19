@@ -1,0 +1,582 @@
+import type JSZip from 'jszip';
+import { mediaTooLargeWarning, zipEntryMedia, zipEntryText } from './zipEntry';
+import { openZip } from './zipOpen';
+import type { FolderDef } from '../folders';
+import { extractInlineTags, parseYamlTags } from '../notesRepo';
+import { FRONT_MATTER } from '../markdownFolder/adapter';
+import { ATTACHMENT_EXT, isBlobReferenced, mimeFromExt } from './blobImport';
+import { buildFolderTree, commonRootPrefix } from './folderImport';
+import { linkifyMarkdown } from './linkify';
+import { detailsToFold } from './detailsFold';
+import { parseFrontMatterDate } from './markdown';
+import { noteLinkTarget } from '../noteLinks';
+import i18n from '../i18n';
+import { isUntitledStem } from '../exportNames';
+import { DRAWING_FILE, drawingNote, drawingWarnings, readDrawing } from './excalidraw';
+import { CANVAS_PICTURE_EXT, canvasFilePaths, canvasToDrawing } from './jsonCanvas';
+import type { ImportBlob, ImportedNote, ParsedImport } from './types';
+import { FRONT_MATTER_LOCATION, FRONT_MATTER_LOCATION_NAME, LOCATION_KEY, parseFrontMatterLocation, type NoteLocation } from '../noteLocation';
+
+const msg = (key: string, options?: Record<string, unknown>): string =>
+  i18n.t(`importLog:obsidian.${key}`, options);
+
+/**
+ * Obsidian vault importer.
+ *
+ * Obsidian vaults are folders of .md files with optional YAML
+ * frontmatter. Users zip their vault folder and drop it here.
+ *
+ * What we handle:
+ *   - YAML frontmatter: tags (array or inline), aliases, created/date
+ *   - Subfolder structure rebuilt as real folders at any depth; each
+ *     note's folderId points at its folder. Folder tagging is an
+ *     apply-time choice (see folderImport.ts), not done here.
+ *   - Inline #tags extracted from body and merged into tags field
+ *   - [[wiki-links]] preserved as-is (our editor renders them)
+ *   - Bare URLs linkified
+ *   - .obsidian/ config folder and .trash/ skipped
+ *   - Attachments (images, PDFs, audio) imported through the shared blob
+ *     pipeline, including `![[embeds]]`; anything no note links to is
+ *     skipped and counted, because an orphan blob is pure quota burn
+ *   - Drawings: each `.canvas` (JSON Canvas, `jsonCanvas.ts`) and each
+ *     Excalidraw plugin drawing (`.excalidraw.md`, `excalidraw.ts`) becomes
+ *     a drawing item in its folder; a picture a canvas shows comes from the
+ *     vault. One `.canvas` file on its own imports too.
+ */
+
+/* ------------------------------------------------------------------ */
+/* YAML front-matter parser (Obsidian-aware)                          */
+/* ------------------------------------------------------------------ */
+
+interface FrontMatter {
+  tags: string[];
+  title: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+  place?: NoteLocation;
+}
+
+function parseFrontMatter(content: string): {
+  meta: FrontMatter;
+  body: string;
+} {
+  const fmMatch = content.match(FRONT_MATTER);
+  if (!fmMatch || !fmMatch[1]) {
+    return {
+      meta: { tags: [], title: '', createdAt: null, updatedAt: null },
+      body: content,
+    };
+  }
+
+  const yaml = fmMatch[1];
+  const body = fmMatch[2] ?? '';
+
+  const tags: string[] = [];
+  let title = '';
+  let createdAt: string | null = null;
+  let updatedAt: string | null = null;
+  let location: unknown;
+  let locationName = '';
+
+  // Tags come from the shared parser in notesRepo - the Markdown folder
+  // adapter needs the same grammar and had its own copy until v0.400.0.
+  tags.push(...parseYamlTags(yaml));
+
+  const lines = yaml.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    const colonIdx = line.indexOf(':');
+    if (colonIdx < 0) continue;
+    const key = line.slice(0, colonIdx).trim().toLowerCase();
+    const rawVal = line.slice(colonIdx + 1).trim();
+
+    if (key === 'title' || key === 'aliases') {
+      // Use title if present; aliases as fallback (take first)
+      if (key === 'title' && rawVal) {
+        title = rawVal.replace(/^["']|["']$/g, '');
+      } else if (key === 'aliases' && !title && rawVal) {
+        const stripped = rawVal.replace(/^\[/, '').replace(/\]$/, '');
+        const first = stripped.split(',')[0]?.trim().replace(/^["']|["']$/g, '');
+        if (first) title = first;
+      }
+    } else if (key === 'created' || key === 'date' || key === 'date created') {
+      createdAt = parseFrontMatterDate(rawVal) ?? createdAt;
+    } else if (key === 'updated' || key === 'modified' || key === 'date modified') {
+      updatedAt = parseFrontMatterDate(rawVal) ?? updatedAt;
+    } else if (key === FRONT_MATTER_LOCATION) {
+      // Map View's `location:` in any of the forms Obsidian writes: inline
+      // (`40.68,-74.04` or `[40.68, -74.04]`), or the block list its
+      // Properties panel makes, one `- value` line per number.
+      // Spec: docs/internal/plans/note-location.md (section 6)
+      if (rawVal) {
+        location = rawVal;
+      } else {
+        const items: string[] = [];
+        while (i + 1 < lines.length && /^\s*-\s+/.test(lines[i + 1]!)) {
+          items.push(lines[i + 1]!.replace(/^\s*-\s+/, '').trim());
+          i++;
+        }
+        location = items;
+      }
+    } else if (key === FRONT_MATTER_LOCATION_NAME) {
+      locationName = rawVal.replace(/^["']|["']$/g, '');
+    }
+  }
+
+  const place = parseFrontMatterLocation(location, locationName);
+  return { meta: { tags, title, createdAt, updatedAt, ...(place ? { place } : {}) }, body };
+}
+
+/* ------------------------------------------------------------------ */
+/* Obsidian-specific markdown preprocessing                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Convert the Obsidian syntax the editor does not read into syntax it
+ * does. Runs before linkify so we don't accidentally touch URLs or code
+ * content.
+ *
+ * Handles: %% comments %%, attachment embeds, qualified [[note links]].
+ * Highlights (`==x==`), math (`$x$`, `$$x$$`) and footnotes (`[^1]`) pass
+ * through as they are: the editor reads all three.
+ */
+function preprocessObsidianMarkdown(body: string): string {
+  // Step 1: Pull fenced code blocks out so we don't mangle them.
+  const fences: string[] = [];
+  let text = body.replace(/```[\s\S]*?```/g, (m) => {
+    const idx = fences.length;
+    fences.push(m);
+    return `\x00F${idx}\x00`;
+  });
+
+  // Step 2: Pull inline code spans out.
+  const codeSpans: string[] = [];
+  text = text.replace(/`[^`\n]+`/g, (m) => {
+    const idx = codeSpans.length;
+    codeSpans.push(m);
+    return `\x00C${idx}\x00`;
+  });
+
+  // Strip multiline %% comments %% (Obsidian comments are invisible).
+  text = text.replace(/%%[\s\S]*?%%/g, '');
+
+  // Obsidian's own link syntax, for the targets that name a FILE rather than
+  // a note: `![[photo.png]]`, `![[doc.pdf|300]]`, and the non-embedding
+  // `[[report.pdf]]`. Those become standard markdown so the shared blob
+  // pipeline can find and rewrite them. A target that names a note is left
+  // exactly as it is - our editor renders [[note links]] natively.
+  //
+  // The embedding and non-embedding forms have to convert TOGETHER. The
+  // importer only ships a blob it can also rewrite (isBlobReferenced), so
+  // converting `![[x.pdf]]` alone would leave `[[x.pdf]]` pointing at a file
+  // that never came across, and converting neither would lose both.
+  text = text.replace(
+    /(!?)\[\[([^\]\n|]+)(?:\|[^\]\n]*)?\]\]/g,
+    (whole: string, bang: string, target: string) => {
+      const path = target.trim();
+      if (!ATTACHMENT_EXT.test(path)) return whole;
+      return `${bang}[${path.split('/').pop() ?? path}](${path})`;
+    },
+  );
+
+  // Obsidian's qualified note targets. A vault writes `[[folder/Note]]` to
+  // disambiguate and `[[Note#^b1c2]]` to point at a block, while a note here
+  // is found by its title alone and a block is not a target. Left as they
+  // were, both imported as links that resolve to nothing and offer to create
+  // a junk note. A heading, `[[Note#Heading]]` or `[[#Heading]]`, IS a target
+  // here and keeps its heading.
+  //
+  // The folder path and a block part are dropped from the target; the text
+  // the vault SHOWED is kept as the display label, so the note reads exactly
+  // as it did in Obsidian and only the destination changes. `[[#^b1c2]]`, a
+  // block in the same note, has no target left and becomes plain text.
+  text = text.replace(
+    /(?<!!)\[\[([^\]\n]+)\]\]/g,
+    (whole: string, inner: string) => {
+      const pipe = inner.indexOf('|');
+      const path = (pipe >= 0 ? inner.slice(0, pipe) : inner).trim();
+      const alias = pipe >= 0 ? inner.slice(pipe + 1).trim() : '';
+      const hash = path.indexOf('#');
+      const notePath = hash >= 0 ? path.slice(0, hash) : path;
+      const anchor = hash >= 0 ? path.slice(hash + 1).trim() : '';
+      const name = noteLinkTarget(notePath.split('/').pop() ?? '');
+      const heading = anchor && !anchor.startsWith('^') ? noteLinkTarget(anchor) : '';
+      if (!name && !heading) return alias || path.replace(/^#\^?/, '');
+      const dest = heading ? `${name}#${heading}` : name;
+      if (dest === path) return whole;
+      const label = alias || (heading && !notePath.includes('/') ? '' : path);
+      return label ? `[[${dest}|${label}]]` : `[[${dest}]]`;
+    },
+  );
+
+  // Restore inline code spans.
+  text = text.replace(/\x00C(\d+)\x00/g, (_m, i: string) => codeSpans[Number(i)] ?? '');
+
+  // Restore fenced code blocks.
+  text = text.replace(/\x00F(\d+)\x00/g, (_m, i: string) => fences[Number(i)] ?? '');
+
+  // Clean up any runs of 3+ blank lines left by stripping comments.
+  text = text.replace(/\n{3,}/g, '\n\n');
+
+  return text;
+}
+
+/* ------------------------------------------------------------------ */
+/* Single file parser                                                 */
+/* ------------------------------------------------------------------ */
+
+function parseOneObsidian(
+  content: string,
+  relativePath: string,
+  fileDate: Date | null,
+): ImportedNote {
+  const { meta, body } = parseFrontMatter(content);
+  // Obsidian vaults don't store creation dates in note content by default
+  // (the timestamp lives on the filesystem). When frontmatter has no
+  // created/updated, fall back to the file's modified time preserved in
+  // the zip entry, matching the Samsung importer. Only if that's missing
+  // do we use the import time.
+  const fallback =
+    fileDate && !Number.isNaN(fileDate.getTime())
+      ? fileDate.toISOString()
+      : new Date().toISOString();
+
+  // Title: frontmatter > filename
+  const filename = relativePath.split('/').pop() ?? '';
+  const filenameTitle = filename
+    .replace(/\.md$/i, '')
+    .trim();
+  // An Obsidian note has no title field: the filename IS the name, so it is
+  // the right fallback here. The exception is the name Obsidian itself gives
+  // a note the user never named - "Untitled", then "Untitled 1" - which is a
+  // stand-in rather than a name. See `isUntitledStem`.
+  const title = meta.title || (isUntitledStem(filenameTitle) ? '' : filenameTitle);
+
+  // Tags: frontmatter + inline #tags. The subfolder structure becomes
+  // real folders in parseZip, not tags (that was the #178 bug).
+  // `stripComments`: an Obsidian %%comment%% is removed from the body a few
+  // lines below, so a tag inside one must not outlive it (#146).
+  const inlineTags = extractInlineTags(body, { stripComments: true });
+  const allTags = [...meta.tags];
+  for (const t of inlineTags) {
+    if (!allTags.includes(t)) allTags.push(t);
+  }
+
+  // Dates
+  const createdAt = meta.createdAt ?? fallback;
+  const updatedAt = meta.updatedAt ?? meta.createdAt ?? fallback;
+
+  // Convert Obsidian-specific syntax, then linkify bare URLs.
+  const processedBody = linkifyMarkdown(detailsToFold(preprocessObsidianMarkdown(body.trim())));
+
+  return {
+    title,
+    body: processedBody,
+    tags: allTags,
+    createdAt,
+    updatedAt,
+    ...(meta.place ? { trackers: { [LOCATION_KEY]: meta.place } } : {}),
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Zip parser                                                         */
+/* ------------------------------------------------------------------ */
+
+/** Files/folders to skip entirely. */
+function shouldSkip(path: string): boolean {
+  const lower = path.toLowerCase();
+  // Obsidian config
+  if (lower.startsWith('.obsidian/') || lower.includes('/.obsidian/')) return true;
+  // Obsidian trash
+  if (lower.startsWith('.trash/') || lower.includes('/.trash/')) return true;
+  // macOS resource forks
+  if (lower.startsWith('__macosx/') || lower.includes('/__macosx/')) return true;
+  // Hidden files
+  const name = path.split('/').pop() ?? '';
+  if (name.startsWith('.')) return true;
+  return false;
+}
+
+const MD_EXT = /\.md$/i;
+const CANVAS_EXT = /\.canvas$/i;
+
+/** What the vault's drawings came to, for the warnings. */
+type DrawingCounts = {
+  refused: string[];
+  compressed: string[];
+  outsidePictures: number;
+  unreadablePictures: number;
+  refusedCanvases: string[];
+  canvasPicturesMissing: number;
+};
+
+const noDrawingCounts = (): DrawingCounts => ({ refused: [], compressed: [], outsidePictures: 0, unreadablePictures: 0, refusedCanvases: [], canvasPicturesMissing: 0 });
+
+/** One `.canvas` text as a drawing item, or null when it is not a canvas. */
+function canvasNote(path: string, text: string, date: Date | null, pictureOf: Parameters<typeof canvasToDrawing>[1], counts: DrawingCounts): ImportedNote | null {
+  const drawing = canvasToDrawing(text, pictureOf);
+  const name = path.split('/').pop() ?? path;
+  if (!drawing) {
+    counts.refusedCanvases.push(name);
+    return null;
+  }
+  counts.canvasPicturesMissing += drawing.outsidePictures;
+  return drawingNote(path, name.replace(CANVAS_EXT, ''), drawing.body, date);
+}
+
+async function parseZip(
+  file: File,
+  onProgress?: (msg: string) => void,
+  canvasOnly = false,
+): Promise<{
+  notes: ImportedNote[];
+  skippedAttachments: number;
+  tooLarge: number;
+  folders: FolderDef[];
+  blobs: Map<string, ImportBlob>;
+  counts: DrawingCounts;
+}> {
+  onProgress?.(i18n.t('importLog:shared.readingZip'));
+  const buf = await file.arrayBuffer();
+  const zip = await openZip(buf);
+
+  // Find the common root prefix. Many users zip a folder, so paths
+  // look like "MyVault/note.md" - strip that prefix for cleaner tags.
+  const allPaths: string[] = [];
+  zip.forEach((path, entry) => {
+    if (!entry.dir && !shouldSkip(path)) allPaths.push(path);
+  });
+
+  const prefix = commonRootPrefix(allPaths);
+
+  const mdFiles: [string, JSZip.JSZipObject][] = [];
+  const drawingFiles: [string, JSZip.JSZipObject][] = [];
+  const canvasFiles: [string, JSZip.JSZipObject][] = [];
+  const attachments: [string, JSZip.JSZipObject][] = [];
+
+  zip.forEach((path, entry) => {
+    if (entry.dir || shouldSkip(path)) return;
+    const rel = prefix ? path.slice(prefix.length) : path;
+    if (CANVAS_EXT.test(rel)) {
+      canvasFiles.push([rel, entry]);
+    } else if (canvasOnly && !ATTACHMENT_EXT.test(rel)) {
+      return;
+    } else if (DRAWING_FILE.test(rel)) {
+      drawingFiles.push([rel, entry]);
+    } else if (MD_EXT.test(rel)) {
+      mdFiles.push([rel, entry]);
+    } else if (ATTACHMENT_EXT.test(rel)) {
+      attachments.push([rel, entry]);
+    }
+  });
+
+  onProgress?.(i18n.t('importLog:shared.foundNotes', { count: mdFiles.length }));
+
+  // Rebuild the vault's subfolder structure as a real folder tree. Each
+  // note's folderId points at the deepest folder created for its path.
+  const dirOf = (rel: string) =>
+    rel.split('/').slice(0, -1).filter(Boolean).join('/');
+  const { folders, dirToFolderId } = buildFolderTree(
+    [...mdFiles, ...drawingFiles, ...canvasFiles].map(([rel]) => dirOf(rel)),
+  );
+
+  const notes: ImportedNote[] = [];
+  for (let i = 0; i < mdFiles.length; i++) {
+    const [rel, entry] = mdFiles[i]!;
+    const text = await zipEntryText(entry);
+    const note = parseOneObsidian(text, rel, entry.date ?? null);
+    const dir = dirOf(rel);
+    if (dir) {
+      note.folderId = dirToFolderId.get(dir) ?? null;
+      note.folderPath = dir.split('/').filter(Boolean);
+    }
+    notes.push(note);
+    if ((i + 1) % 50 === 0) {
+      onProgress?.(i18n.t('importLog:shared.parsed', { done: i + 1, total: mdFiles.length }));
+    }
+  }
+
+  // Drawings: the Excalidraw plugin's files, then the canvases. A picture
+  // a canvas shows is read from the vault by its path, once per path.
+  const blobs = new Map<string, ImportBlob>();
+  const counts = noDrawingCounts();
+  const drawings: ImportedNote[] = [];
+  for (const [rel, entry] of drawingFiles) {
+    const read = readDrawing(rel, await zipEntryText(entry), entry.date ?? null, blobs);
+    const name = rel.split('/').pop() ?? rel;
+    if (read === 'compressed') counts.compressed.push(name);
+    else if (read === 'refused') counts.refused.push(name);
+    else {
+      drawings.push(read.note);
+      counts.outsidePictures += read.outsidePictures;
+      counts.unreadablePictures += read.unreadablePictures;
+    }
+  }
+  const attachmentAt = new Map(attachments);
+  const canvasPictures = new Map<string, { key: string; mime: string } | null>();
+  for (const [rel, entry] of canvasFiles) {
+    const text = await zipEntryText(entry);
+    for (const path of canvasFilePaths(text)) {
+      if (canvasPictures.has(path) || !CANVAS_PICTURE_EXT.test(path)) continue;
+      const source = attachmentAt.get(path);
+      const data = source ? await zipEntryMedia(source) : null;
+      if (!data) {
+        canvasPictures.set(path, null);
+        continue;
+      }
+      const key = `canvasimg:${crypto.randomUUID()}`;
+      blobs.set(key, { data, mime: mimeFromExt(path), name: path.split('/').pop() ?? path });
+      canvasPictures.set(path, { key, mime: mimeFromExt(path) });
+    }
+    const note = canvasNote(rel, text, entry.date ?? null, (path) => canvasPictures.get(path) ?? null, counts);
+    if (note) drawings.push(note);
+  }
+  for (const note of drawings) {
+    const dir = note.folderPath?.join('/');
+    if (dir) note.folderId = dirToFolderId.get(dir) ?? null;
+    notes.push(note);
+  }
+
+  // Attachments, read AFTER the notes because only a referenced file is
+  // worth carrying: a working vault accumulates images nothing links to any
+  // more, and every one of those would be charged against the user's storage
+  // quota to render nowhere. The predicate is the shared one the rewrite
+  // itself uses, so "shipped" and "rewritten" cannot drift apart.
+  const bodies = notes.filter((n) => n.type !== 'drawing').map((n) => n.body).join('\n');
+  let skippedAttachments = 0;
+  let tooLarge = 0;
+  for (const [rel, entry] of attachments) {
+    // A picture a canvas shows is in `blobs` already; the canvas card
+    // reads no other file.
+    if (canvasOnly || canvasPictures.get(rel)) continue;
+    if (!isBlobReferenced(rel, bodies)) {
+      skippedAttachments++;
+      continue;
+    }
+    if (blobs.size % 10 === 0) {
+      onProgress?.(i18n.t('importLog:shared.readingAttachments', { done: blobs.size + 1, total: attachments.length }));
+    }
+    const data = await zipEntryMedia(entry);
+    if (!data) {
+      tooLarge++;
+      continue;
+    }
+    blobs.set(rel, {
+      data,
+      mime: mimeFromExt(rel),
+      name: rel.split('/').pop() ?? rel,
+    });
+  }
+
+  return { notes, skippedAttachments, tooLarge, folders, blobs, counts };
+}
+
+/* ------------------------------------------------------------------ */
+/* Public importer                                                    */
+/* ------------------------------------------------------------------ */
+
+export async function parseObsidian(
+  file: File,
+  onProgress?: (msg: string) => void,
+): Promise<ParsedImport> {
+  return parseVault(file, onProgress, false);
+}
+
+/** The Drawings group's Obsidian Canvas card: only a vault's canvases. */
+export async function parseObsidianCanvas(
+  file: File,
+  onProgress?: (msg: string) => void,
+): Promise<ParsedImport> {
+  return parseVault(file, onProgress, true);
+}
+
+async function parseVault(file: File, onProgress: ((msg: string) => void) | undefined, canvasOnly: boolean): Promise<ParsedImport> {
+  const source = canvasOnly ? 'obsidian-canvas' : 'obsidian';
+  const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+  if (!(head[0] === 0x50 && head[1] === 0x4b)) return { ...(await parseOneCanvas(file)), source };
+  const { notes, skippedAttachments, tooLarge, folders, blobs, counts } = await parseZip(
+    file,
+    onProgress,
+    canvasOnly,
+  );
+  if (canvasOnly && notes.length === 0) throw new Error(msg(counts.refusedCanvases.length > 0 ? 'noCanvasRead' : 'noCanvas'));
+
+  const uniqueTags = new Set(notes.flatMap((n) => n.tags));
+  const emptyNotes = notes.filter(
+    (n) => !n.title.trim() && !n.body.trim()
+  ).length;
+  const untaggedNotes = notes.filter((n) => n.tags.length === 0).length;
+
+  const warnings: string[] = [];
+  if (skippedAttachments > 0) {
+    warnings.push(i18n.t('importLog:shared.skippedUnlinked', { count: skippedAttachments }));
+  }
+  if (tooLarge > 0) warnings.push(mediaTooLargeWarning(tooLarge));
+  warnings.push(...drawingCountWarnings(counts));
+  const transforms: string[] = [];
+  const drawingCount = notes.filter((n) => n.type === 'drawing').length;
+  if (drawingCount > 0) transforms.push(msg('drawingsMade', { count: drawingCount }));
+  if (blobs.size > 0) {
+    const images = [...blobs.values()].filter((b) => b.mime.startsWith('image/')).length;
+    const files = blobs.size - images;
+    const parts: string[] = [];
+    if (images > 0) parts.push(i18n.t('importLog:shared.imageCount', { count: images }));
+    if (files > 0) parts.push(i18n.t('importExport:missing.files', { count: files }));
+    transforms.push(msg('broughtAcross', { parts: parts.length === 2 ? i18n.t('importExport:missing.both', { pictures: parts[0], files: parts[1] }) : parts[0] }));
+  }
+  if (folders.length > 0) {
+    const filed = notes.filter((n) => n.folderId).length;
+    transforms.push(msg('foldersRebuilt', { count: folders.length, filed: i18n.t('importLog:shared.filedNotes', { count: filed }) }));
+  }
+  const withFm = notes.filter((n) => n.tags.length > 0).length;
+  if (withFm > 0) {
+    transforms.push(msg('tagsExtracted', { count: withFm }));
+  }
+  const withLinks = notes.filter((n) => n.type !== 'drawing' && /\[\[.+?\]\]/.test(n.body)).length;
+  if (withLinks > 0) {
+    transforms.push(msg('linksPreserved', { count: withLinks }));
+  }
+  if (!canvasOnly) transforms.push(i18n.t('importLog:shared.linkifiedBare'));
+
+  return {
+    notes,
+    warnings,
+    transforms,
+    stats: {
+      totalNotes: notes.length,
+      emptyNotes,
+      untaggedNotes,
+      uniqueTags: uniqueTags.size,
+    },
+    source,
+    folders,
+    blobs: blobs.size > 0 ? blobs : undefined,
+  };
+}
+
+function drawingCountWarnings(counts: DrawingCounts): string[] {
+  const warnings = drawingWarnings(counts.refused, counts.compressed, counts.outsidePictures, counts.unreadablePictures);
+  if (counts.refusedCanvases.length > 0) {
+    const names = counts.refusedCanvases;
+    warnings.push(msg('canvasRefused', { count: names.length, names: names.length > 5 ? `${names.slice(0, 5).join(', ')}, ...` : names.join(', ') }));
+  }
+  if (counts.canvasPicturesMissing > 0) warnings.push(msg('canvasPicturesMissing', { count: counts.canvasPicturesMissing }));
+  return warnings;
+}
+
+/** One `.canvas` file on its own: one drawing. Its pictures are outside it. */
+async function parseOneCanvas(file: File): Promise<ParsedImport> {
+  const counts = noDrawingCounts();
+  const note = CANVAS_EXT.test(file.name)
+    ? canvasNote(file.name, await file.text(), file.lastModified ? new Date(file.lastModified) : null, undefined, counts)
+    : null;
+  if (!note) throw new Error(msg('notVaultOrCanvas'));
+  return {
+    notes: [note],
+    warnings: drawingCountWarnings(counts),
+    transforms: [msg('drawingsMade', { count: 1 })],
+    stats: { totalNotes: 1, emptyNotes: 0, untaggedNotes: 1, uniqueTags: 0 },
+    source: 'obsidian',
+  };
+}

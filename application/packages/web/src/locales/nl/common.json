@@ -1,0 +1,337 @@
+{
+  "actions": {
+    "save": "Opslaan",
+    "cancel": "Annuleren",
+    "close": "Sluiten",
+    "delete": "Verwijderen",
+    "done": "Klaar",
+    "edit": "Bewerken",
+    "confirm": "Bevestigen",
+    "back": "Terug",
+    "next": "Volgende",
+    "remove": "Verwijderen",
+    "deleteConfirm": "Verwijderen?",
+    "removeConfirm": "Verwijderen?",
+    "copy": "Kopiëren",
+    "rename": "Naam wijzigen",
+    "create": "Aanmaken",
+    "search": "Zoeken",
+    "add": "Toevoegen",
+    "clearSearch": "Zoekopdracht wissen"
+  },
+  "state": {
+    "loading": "Laden...",
+    "saving": "Opslaan...",
+    "untitled": "Naamloos",
+    "noResults": "Geen resultaten"
+  },
+  "deleteNote": {
+    "confirm": "Definitief verwijderen",
+    "body": "<highlight>“{{title}}”</highlight> definitief verwijderen? Dit kan niet ongedaan worden gemaakt."
+  },
+  "emptyTrash": {
+    "title": "Prullenbak legen",
+    "body_one": "<highlight>{{count}} notitie</highlight> definitief verwijderen? Dit kan niet ongedaan worden gemaakt.",
+    "body_other": "<highlight>{{count}} notities</highlight> definitief verwijderen? Dit kan niet ongedaan worden gemaakt."
+  },
+  "storageBar": {
+    "usage": "{{percent}}% gebruikt ({{used}} / {{max}})",
+    "refresh": "Opslag vernieuwen",
+    "cleanupInfo": "Verwijderde items tellen meteen niet meer mee. De versleutelde bestanden zelf verdwijnen binnen een paar dagen van de server.",
+    "open": "Opslaginstellingen openen"
+  },
+  "updateToast": {
+    "available": "Update beschikbaar",
+    "required": "Update vereist",
+    "changelog": "Changelog",
+    "refresh": "Herladen",
+    "restart": "Herstarten",
+    "dismiss": "Sluiten",
+    "download": "Downloaden",
+    "update": "Bijwerken",
+    "copyCommand": "Opdracht kopiëren"
+  },
+  "hotkeys": {
+    "heading": "Sneltoetsen",
+    "typingNote": "De meeste sneltoetsen worden genegeerd terwijl je in een tekstveld typt, dus gewone toetsen als J en K typen gewoon J en K.",
+    "cheatSheet": "Spiekbriefje om af te drukken"
+  },
+  "palette": {
+    "label": "Opdrachten",
+    "empty": "Geen overeenkomende opdracht",
+    "groups": {
+      "features": "Functies",
+      "commands": "Opdrachten",
+      "new": "Nieuw",
+      "goTo": "Ga naar",
+      "themes": "Thema's"
+    },
+    "commands": {
+      "quickSwitcher": "Ninja openen: een item vinden, iets toevoegen, een opdracht uitvoeren",
+      "historyBack": "Terug",
+      "historyForward": "Vooruit",
+      "toggleSidebar": "Zijbalk tonen of verbergen",
+      "toggleTheme": "Wisselen tussen licht en donker",
+      "openSettings": "Instellingen openen",
+      "zen": "Zen-modus",
+      "markdownView": "Markdown-weergave aan of uit",
+      "invisibles": "Onzichtbare tekens aan of uit",
+      "find": "Zoeken in notitie",
+      "findReplace": "Zoeken en vervangen",
+      "outline": "Overzicht tonen of verbergen",
+      "insertDate": "Datum invoegen",
+      "insertDateTime": "Datum en tijd invoegen",
+      "clearFilters": "Filters wissen",
+      "moveToTrash": "Notitie verwijderen",
+      "closeTab": "Tabblad of notitie sluiten",
+      "nextTab": "Volgend tabblad",
+      "previousTab": "Vorig tabblad",
+      "zoomIn": "App groter maken",
+      "zoomOut": "App kleiner maken",
+      "zoomReset": "App terug naar normale grootte",
+      "help": "Sneltoetsen"
+    }
+  },
+  "quickNote": {
+    "bodyPlaceholder": "Schrijf hier meer",
+    "hint": "Typ / voor een map, # voor een tag",
+    "locked": "PrivacyNotes is vergrendeld. Je notitie is verzegeld en opent zodra je ontgrendelt.",
+    "queued": "Opgeslagen. Hij opent zodra je ontgrendelt.",
+    "tooLong": "Deze notitie is te lang. Splits hem in twee notities.",
+    "full": "Er wachten te veel notities. Ontgrendel om ze toe te voegen.",
+    "empty": "Schrijf eerst iets.",
+    "failed": "Kan de notitie niet opslaan. Open PrivacyNotes en probeer het opnieuw.",
+    "added_other": "{{count}} snelle notities toegevoegd",
+    "added_one": "{{count}} snelle notitie toegevoegd"
+  },
+  "quickSwitcher": {
+    "label": "Ninja: een item of instelling vinden, iets toevoegen, een opdracht uitvoeren",
+    "jumpTo": "Ninja",
+    "placeholder": "Ninja tot je dienst: een titel, + om toe te voegen, > voor opdrachten",
+    "recent": "Recent geopend",
+    "empty": "Geen item of instelling met die naam",
+    "searchAll": "Alles doorzoeken: ‘{{query}}’",
+    "searchIn": "Zoeken in {{section}}: ‘{{query}}’",
+    "searchList": "Zoeken in de lijst: ‘{{query}}’",
+    "searchDetail": "Vindt woorden in de tekst",
+    "move": "navigeren",
+    "open": "openen",
+    "openInTab": "openen in een tabblad",
+    "edit": "bewerken",
+    "close": "sluiten",
+    "folders": "Mappen",
+    "tagItems_one": "{{count}} item",
+    "tagItems_other": "{{count}} items",
+    "emptyTags": "Geen tag met die naam",
+    "emptyFolders": "Geen map met die naam",
+    "emptyVault": "Hier staat nog niets. Typ + om je eerste item toe te voegen.",
+    "onlyTags": "tags",
+    "onlyFolders": "mappen",
+    "showOnlyTags": "Alleen tags",
+    "showOnlyFolders": "Alleen mappen",
+    "showOnlyCommands": "Alleen opdrachten",
+    "goToTag": "Naar een tag gaan",
+    "goToFolder": "Naar een map gaan",
+    "createTag": "Tag #{{name}} aanmaken",
+    "createFolder": "Map ‘{{name}}’ aanmaken",
+    "newTag": "Nieuwe tag",
+    "newFolder": "Nieuwe map",
+    "goToDay": "Naar dag gaan",
+    "inText": "In de tekst",
+    "actions": "acties",
+    "back": "terug",
+    "actionsPlaceholder": "Acties filteren",
+    "onlyCreate": "toevoegen",
+    "ninjaLockedTitle": "PrivacyNotes is vergrendeld",
+    "ninjaLockedBody": "Open PrivacyNotes en ontgrendel het. Dan vindt Ninja je notities vanuit elke app."
+  },
+  "cardForm": {
+    "cardholderName": "Naam kaarthouder",
+    "cardholderPlaceholder": "Jan Jansen",
+    "cardNumber": "Kaartnummer",
+    "cardNumberPlaceholder": "4242 4242 4242 4242",
+    "showNumber": "Nummer tonen",
+    "hideNumber": "Nummer verbergen",
+    "copyCardNumber": "Kaartnummer kopiëren",
+    "unknownNetwork": "Onbekend netwerk",
+    "network": "Netwerk",
+    "numberTooShort_one": "Kaartnummer te kort ({{count}} cijfer, {{expected}} verwacht)",
+    "numberTooShort_other": "Kaartnummer te kort ({{count}} cijfers, {{expected}} verwacht)",
+    "expiry": "Vervaldatum",
+    "monthPlaceholder": "MM",
+    "yearPlaceholder": "JJ",
+    "cvv": "CVV",
+    "cvvPlaceholder": "123",
+    "showCvv": "CVV tonen",
+    "hideCvv": "CVV verbergen",
+    "expiredHint": "Deze kaart lijkt verlopen te zijn.",
+    "billingZip": "Postcode factuuradres",
+    "billingZipPlaceholder": "1011 AB",
+    "notes": "Notities",
+    "notesPlaceholder": "Extra notities (optioneel)",
+    "requirePin": "PIN vereisen om te bekijken",
+    "whatDoesThisDo": "Wat doet dit?",
+    "setUpPinFirst": "Stel eerst een PIN in bij Beveiliging."
+  },
+  "sshKeyForm": {
+    "label": "Label",
+    "labelPlaceholder": "bijv. GitHub deploy key",
+    "publicKey": "Public Key",
+    "copyPublicKey": "Openbare sleutel kopiëren",
+    "privateKey": "Private Key",
+    "copyPrivateKey": "Privésleutel kopiëren",
+    "downloadPublicKey": "Openbare sleutel downloaden",
+    "downloadPrivateKey": "Privésleutel downloaden",
+    "downloadHint": "Verplaats de gedownloade sleutel naar ~/.ssh en voer er chmod 600 op uit, anders weigert ssh hem.",
+    "downloadHintDesktop": "PrivacyNotes slaat niet op in ~/.ssh, om de sleutels daar veilig te houden. Sla de sleutel ergens anders op, verplaats hem naar ~/.ssh en voer er chmod 600 op uit, anders weigert ssh hem.",
+    "downloadHintWindows": "PrivacyNotes slaat niet op in je map .ssh, om de sleutels daar veilig te houden. Sla de sleutel ergens anders op en verplaats hem naar %USERPROFILE%\\.ssh. Windows heeft geen chmod nodig.",
+    "downloadFailed": "Het sleutelbestand kon niet worden opgeslagen. Controleer het bestand en probeer het opnieuw.",
+    "passphrase": "Wachtwoordzin",
+    "passphrasePlaceholder": "Wachtwoordzin van de sleutel (indien aanwezig)",
+    "show": "Tonen",
+    "hide": "Verbergen",
+    "copyPassphrase": "Wachtwoordzin kopiëren"
+  },
+  "tagInput": {
+    "placeholder": "Tags toevoegen… scheiden met komma, # of enter",
+    "create": "“#{{tag}}” aanmaken",
+    "removeTag": "{{tag}} verwijderen"
+  },
+  "loading": {
+    "pause": "De regels pauzeren",
+    "play": "De regels afspelen",
+    "lines": [
+      "zwitserse bankenergie voor je notities",
+      "we beschermen je douchegedachten",
+      "je notities zijn versleuteld op je apparaat",
+      "koude opslag voor warme gedachten",
+      "weer een prachtige dag om te versleutelen",
+      "we houden geheimen saai sinds dag één",
+      "privacy zonder de ted talk",
+      "we houden de cloud in het ongewisse",
+      "de server bewaart cijfertekst. hij vindt het saai",
+      "minder surveillance. meer notities",
+      "versleutelde onzin, zoals verwacht",
+      "tracking uitgeschakeld, emotioneel én technisch",
+      "jouw apparaat houdt de roddels voor zich",
+      "privégedachten gaan in privémodus",
+      "weer een notitie verborgen voor het kapitalisme",
+      "privacy kost hier niets extra",
+      "veiligheid door daadwerkelijke veiligheid",
+      "we dwarsbomen databrokers in stilte",
+      "geen trainingsmateriaal voor ai gevonden",
+      "harder versleuteld dan nodig",
+      "alleen signaal. geen surveillance",
+      "vertrouwensproblemen omgezet in software",
+      "je gedachten blijven van de markt",
+      "dataminers vonden alleen verdriet",
+      "je kluis blijft agressief versleuteld",
+      "zwitserse neutraliteit, maar dan voor notities",
+      "geen advertenties. geen trackers. geen plotwending",
+      "open source, zodat je de wiskunde kunt nakijken",
+      "cijfertekst is onze liefdestaal",
+      "we maken je notities saai voor vreemden",
+      "je dagboek belde. het wil privacy",
+      "je stemmingstracker heeft je gemist",
+      "je ideeën, zonder publiek",
+      "je dagboek heeft je geheimen vannacht bewaard",
+      "één privéplek voor alles wat je nooit zou posten",
+      "geen algoritme bepaalt wat je hier ziet",
+      "je hersenspinsels zijn veilig en wel",
+      "schrijven is denken. denken is privé",
+      "er zijn geen influencers geraadpleegd",
+      "geheimen worden verantwoord geladen.",
+      "alleen signaal. geen surveillance.",
+      "weer een versleuteld meesterwerk onderweg.",
+      "vertrouwensproblemen omgezet in software.",
+      "je gedachten zijn niet te koop.",
+      "deze synchronisatie bevat nul roddels voor ons.",
+      "want “vertrouw ons nou maar” is dom.",
+      "privé denken, op grote schaal.",
+      "je notities blijven juridisch mysterieus.",
+      "orde scheppen in versleutelde chaos.",
+      "dataminers vonden niets dan verdriet.",
+      "existentiële gedachten worden lokaal ontsleuteld…",
+      "je kluis blijft agressief onleesbaar.",
+      "zwitserse neutraliteit, maar dan voor notities."
+    ],
+    "loadingOnly": [
+      "je versleutelde gepieker wordt geladen",
+      "momentje, we stellen adverteerders even teleur",
+      "je geheimen overleefden weer een herstart",
+      "de kluis gaat stilletjes open",
+      "lokaal ontsleuteld. wereldwijd genegeerd",
+      "we ontsleutelen alsof het niemand wat aangaat",
+      "gedachten worden onleesbare soep",
+      "weer een versleuteld meesterwerk op komst",
+      "orde scheppen in versleutelde chaos",
+      "existentiële gedachten worden lokaal ontsleuteld",
+      "de sleutels worden opgewarmd",
+      "we zoeken je gedachtegang terug",
+      "we tellen je open taken. zonder oordeel",
+      "tijdens dit laden zijn geen advertenties getoond",
+      "we leggen je notities terug waar je ze liet",
+      "we ontwarren de gedachten van gisteren",
+      "bits worden netjes op volgorde gezet",
+      "we onthouden wat je vergat te onthouden"
+    ]
+  },
+  "neverBackedUp": {
+    "one": "Nooit geback-upt. Dit is de enige kopie.",
+    "some_one": "{{count}} van deze notities is nooit geback-upt. Dit is de enige kopie.",
+    "some_other": "{{count}} van deze notities zijn nooit geback-upt. Dit zijn de enige kopieën.",
+    "changesOne": "De laatste wijzigingen zijn niet geback-upt en zouden verloren gaan.",
+    "changesSome_one": "{{count}} van deze notities heeft niet-geback-upte wijzigingen die verloren zouden gaan.",
+    "changesSome_other": "{{count}} van deze notities hebben niet-geback-upte wijzigingen die verloren zouden gaan."
+  },
+  "ninja": {
+    "topHit": "Beste overeenkomst",
+    "trashEmpty": "De prullenbak is leeg",
+    "allThemes": "Alle thema's",
+    "features": {
+      "stats": {
+        "detail": "Je schrijven, reeksen en trackers door de tijd"
+      },
+      "trackers": {
+        "detail": "Stemming, gewoonten, factoren en medicatie"
+      },
+      "medication": {
+        "label": "Medicatie",
+        "detail": "Doses, tijden en herinneringen"
+      },
+      "yearInPixels": {
+        "label": "Jaar in pixels",
+        "detail": "Elke dag van het jaar als één gekleurd vakje"
+      },
+      "importExport": {
+        "detail": "Notities binnenhalen of meenemen"
+      },
+      "backup": {
+        "detail": "Nu een back-up maken, automatische back-ups en herstellen"
+      },
+      "generator": {
+        "label": "Wachtwoordgenerator",
+        "detail": "Een sterk wachtwoord of een wachtwoordzin, klaar om te kopiëren"
+      },
+      "themes": {
+        "detail": "Kleurthema's voor licht en donker"
+      }
+    },
+    "new": {
+      "medication": "Nieuwe medicatie",
+      "customTracker": "Nieuwe eigen tracker"
+    },
+    "commands": {
+      "syncResume": "Synchronisatie hervatten",
+      "lockProtected": "Deze notitie vergrendelen",
+      "changelog": "Wat is er nieuw",
+      "themesPage": "Communitythema's",
+      "website": "Website van PrivacyNotes"
+    },
+    "themes": {
+      "word": "Thema",
+      "light": "Licht thema",
+      "dark": "Donker thema"
+    }
+  }
+}

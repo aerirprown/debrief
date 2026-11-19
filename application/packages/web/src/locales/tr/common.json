@@ -1,0 +1,337 @@
+{
+  "actions": {
+    "save": "Kaydet",
+    "cancel": "İptal",
+    "close": "Kapat",
+    "delete": "Sil",
+    "done": "Tamam",
+    "edit": "Düzenle",
+    "confirm": "Onayla",
+    "back": "Geri",
+    "next": "İleri",
+    "remove": "Kaldır",
+    "deleteConfirm": "Silinsin mi?",
+    "removeConfirm": "Kaldırılsın mı?",
+    "copy": "Kopyala",
+    "rename": "Yeniden adlandır",
+    "create": "Oluştur",
+    "search": "Ara",
+    "add": "Ekle",
+    "clearSearch": "Aramayı temizle"
+  },
+  "state": {
+    "loading": "Yükleniyor...",
+    "saving": "Kaydediliyor...",
+    "untitled": "Başlıksız",
+    "noResults": "Sonuç yok"
+  },
+  "deleteNote": {
+    "confirm": "Kalıcı olarak sil",
+    "body": "<highlight>“{{title}}”</highlight> kalıcı olarak silinsin mi? Bu işlem geri alınamaz."
+  },
+  "emptyTrash": {
+    "title": "Çöp kutusunu boşalt",
+    "body_one": "<highlight>{{count}} not</highlight> kalıcı olarak silinsin mi? Bu işlem geri alınamaz.",
+    "body_other": "<highlight>{{count}} not</highlight> kalıcı olarak silinsin mi? Bu işlem geri alınamaz."
+  },
+  "storageBar": {
+    "usage": "%{{percent}} kullanıldı ({{used}} / {{max}})",
+    "refresh": "Depolamayı yenile",
+    "cleanupInfo": "Silinen öğeler depolama kullanımından hemen düşülür. Şifreli dosyaların kendisi birkaç gün içinde sunucudan kaldırılır.",
+    "open": "Depolama ayarlarını aç"
+  },
+  "updateToast": {
+    "available": "Güncelleme mevcut",
+    "required": "Güncelleme gerekli",
+    "changelog": "Changelog",
+    "refresh": "Yenile",
+    "restart": "Yeniden başlat",
+    "dismiss": "Kapat",
+    "download": "İndir",
+    "update": "Güncelle",
+    "copyCommand": "Komutu kopyala"
+  },
+  "hotkeys": {
+    "heading": "Kısayol yardımı",
+    "typingNote": "Bir metin alanına yazarken çoğu kısayol yok sayılır, böylece J ve K gibi normal tuşlar yine J ve K yazar.",
+    "cheatSheet": "Yazdırılabilir kısayol kartı"
+  },
+  "palette": {
+    "label": "Komutlar",
+    "empty": "Eşleşen komut yok",
+    "groups": {
+      "features": "Özellikler",
+      "commands": "Komutlar",
+      "new": "Yeni",
+      "goTo": "Şuraya git",
+      "themes": "Temalar"
+    },
+    "commands": {
+      "quickSwitcher": "Ninja'yı aç: bir öğe bulun, her şeyi ekleyin, bir komut çalıştırın",
+      "historyBack": "Geri git",
+      "historyForward": "İleri git",
+      "toggleSidebar": "Kenar çubuğunu göster veya gizle",
+      "toggleTheme": "Açık ve koyu arasında geçiş yap",
+      "openSettings": "Ayarları aç",
+      "zen": "Zen modu",
+      "markdownView": "Markdown görünümünü aç/kapat",
+      "invisibles": "Görünmez karakterleri aç/kapat",
+      "find": "Notta bul",
+      "findReplace": "Bul ve değiştir",
+      "outline": "Ana hattı göster veya gizle",
+      "insertDate": "Tarihi ekle",
+      "insertDateTime": "Tarih ve saati ekle",
+      "clearFilters": "Filtreleri temizle",
+      "moveToTrash": "Notu sil",
+      "closeTab": "Sekmeyi veya notu kapat",
+      "nextTab": "Sonraki sekme",
+      "previousTab": "Önceki sekme",
+      "zoomIn": "Uygulamayı büyüt",
+      "zoomOut": "Uygulamayı küçült",
+      "zoomReset": "Uygulamayı normal boyuta döndür",
+      "help": "Klavye kısayolları"
+    }
+  },
+  "quickNote": {
+    "bodyPlaceholder": "Buraya daha fazlasını yazın",
+    "hint": "Klasör için /, etiket için # yazın",
+    "locked": "PrivacyNotes kilitli. Notunuz mühürlendi ve kilidi açtığınızda açılır.",
+    "queued": "Kaydedildi. Kilidi açtığınızda açılır.",
+    "tooLong": "Bu not çok uzun. İki nota bölün.",
+    "full": "Bekleyen çok fazla not var. Eklemek için kilidi açın.",
+    "empty": "Önce bir şey yazın.",
+    "failed": "Not kaydedilemedi. PrivacyNotes'u açıp tekrar deneyin.",
+    "added_other": "{{count}} hızlı not eklendi",
+    "added_one": "{{count}} hızlı not eklendi"
+  },
+  "quickSwitcher": {
+    "label": "Ninja: bir öğe veya ayar bulun, her şeyi ekleyin, bir komut çalıştırın",
+    "jumpTo": "Ninja",
+    "placeholder": "Ninja hizmetinizde: bir başlık, eklemek için +, komutlar için >",
+    "recent": "Son kullanılanlar",
+    "empty": "Bu adda öğe veya ayar yok",
+    "searchAll": "Her yerde ara: “{{query}}”",
+    "searchIn": "{{section}} içinde ara: “{{query}}”",
+    "searchList": "Listede ara: “{{query}}”",
+    "searchDetail": "Metnin içindeki kelimeleri bulur",
+    "move": "gezin",
+    "open": "aç",
+    "openInTab": "sekmede aç",
+    "edit": "düzenle",
+    "close": "kapat",
+    "folders": "Klasörler",
+    "tagItems_one": "{{count}} öğe",
+    "tagItems_other": "{{count}} öğe",
+    "emptyTags": "Bu adda etiket yok",
+    "emptyFolders": "Bu adda klasör yok",
+    "emptyVault": "Burada henüz bir şey yok. İlk öğenizi eklemek için + yazın.",
+    "onlyTags": "etiketler",
+    "onlyFolders": "klasörler",
+    "showOnlyTags": "Yalnızca etiketler",
+    "showOnlyFolders": "Yalnızca klasörler",
+    "showOnlyCommands": "Yalnızca komutlar",
+    "goToTag": "Bir etikete git",
+    "goToFolder": "Bir klasöre git",
+    "createTag": "#{{name}} etiketini oluştur",
+    "createFolder": "“{{name}}” klasörünü oluştur",
+    "newTag": "Yeni etiket",
+    "newFolder": "Yeni klasör",
+    "goToDay": "Güne git",
+    "inText": "Metnin içinde",
+    "actions": "eylemler",
+    "back": "geri",
+    "actionsPlaceholder": "Eylemleri süzün",
+    "onlyCreate": "ekle",
+    "ninjaLockedTitle": "PrivacyNotes kilitli",
+    "ninjaLockedBody": "PrivacyNotes'u açın ve kilidini açın. Ardından Ninja notlarınızı her uygulamadan bulur."
+  },
+  "cardForm": {
+    "cardholderName": "Kart sahibinin adı",
+    "cardholderPlaceholder": "Ahmet Yılmaz",
+    "cardNumber": "Kart numarası",
+    "cardNumberPlaceholder": "4242 4242 4242 4242",
+    "showNumber": "Numarayı göster",
+    "hideNumber": "Numarayı gizle",
+    "copyCardNumber": "Kart numarasını kopyala",
+    "unknownNetwork": "Bilinmeyen ağ",
+    "network": "Ağ",
+    "numberTooShort_one": "Kart numarası çok kısa ({{count}} hane, {{expected}} bekleniyor)",
+    "numberTooShort_other": "Kart numarası çok kısa ({{count}} hane, {{expected}} bekleniyor)",
+    "expiry": "Son kullanma",
+    "monthPlaceholder": "AA",
+    "yearPlaceholder": "YY",
+    "cvv": "CVV",
+    "cvvPlaceholder": "123",
+    "showCvv": "CVV'yi göster",
+    "hideCvv": "CVV'yi gizle",
+    "expiredHint": "Bu kartın süresi dolmuş görünüyor.",
+    "billingZip": "Fatura posta kodu",
+    "billingZipPlaceholder": "34000",
+    "notes": "Notlar",
+    "notesPlaceholder": "Ek notlar (isteğe bağlı)",
+    "requirePin": "Görüntülemek için PIN iste",
+    "whatDoesThisDo": "Bu ne işe yarar?",
+    "setUpPinFirst": "Önce Güvenlik ayarlarından bir PIN oluşturun."
+  },
+  "sshKeyForm": {
+    "label": "Etiket",
+    "labelPlaceholder": "örn. GitHub dağıtım anahtarı",
+    "publicKey": "Public Key",
+    "copyPublicKey": "Genel anahtarı kopyala",
+    "privateKey": "Private Key",
+    "copyPrivateKey": "Özel anahtarı kopyala",
+    "downloadPublicKey": "Genel anahtarı indir",
+    "downloadPrivateKey": "Özel anahtarı indir",
+    "downloadHint": "İndirilen anahtarı ~/.ssh klasörüne taşıyın ve üzerinde chmod 600 çalıştırın, aksi halde ssh onu reddeder.",
+    "downloadHintDesktop": "PrivacyNotes, oradaki anahtarları korumak için ~/.ssh klasörüne kaydetmez. Anahtarı başka bir yere kaydedin, ~/.ssh klasörüne taşıyın ve üzerinde chmod 600 çalıştırın, aksi halde ssh onu reddeder.",
+    "downloadHintWindows": "PrivacyNotes, oradaki anahtarları korumak için .ssh klasörünüze kaydetmez. Anahtarı başka bir yere kaydedin ve %USERPROFILE%\\.ssh klasörüne taşıyın. Windows'ta chmod gerekmez.",
+    "downloadFailed": "Anahtar dosyası kaydedilemedi. Dosyayı kontrol edip tekrar deneyin.",
+    "passphrase": "Parola",
+    "passphrasePlaceholder": "Anahtar parolası (varsa)",
+    "show": "Göster",
+    "hide": "Gizle",
+    "copyPassphrase": "Parolayı kopyala"
+  },
+  "tagInput": {
+    "placeholder": "Etiket ekleyin… virgül, # veya Enter ile ayırın",
+    "create": "“#{{tag}}” oluştur",
+    "removeTag": "{{tag}} etiketini kaldır"
+  },
+  "loading": {
+    "pause": "Satırları duraklat",
+    "play": "Satırları oynat",
+    "lines": [
+      "not tutmaya isviçre bankası havası katıyoruz",
+      "duşta aklınıza gelenleri koruyoruz",
+      "notlarınız cihazınızda şifrelenir",
+      "sıcak düşünceler için soğuk depolama",
+      "şifreleme için güzel bir gün daha",
+      "ilk günden beri sırları sıkıcı tutuyoruz",
+      "ted konuşması olmadan gizlilik",
+      "bulutun kafasını karıştırıyoruz",
+      "sunucu şifreli metin saklıyor. onu sıkıcı buluyor",
+      "daha az gözetim. daha çok not",
+      "beklendiği gibi, şifreli saçmalık",
+      "takip hem duygusal hem teknik olarak kapalı",
+      "dedikodu cihazınızda kalıyor",
+      "özel düşünceler özel moda geçiyor",
+      "kapitalizmden gizlenmiş bir not daha",
+      "burada gizlilik ek ücrete tabi değil",
+      "gerçek güvenlik yoluyla güvenlik",
+      "veri simsarlarına sessizce direniyoruz",
+      "yapay zekâ eğitim malzemesi bulunamadı",
+      "gereğinden fazla şifrelendi",
+      "hep sinyal. hiç gözetim yok",
+      "güven sorunlarını yazılıma dönüştürüyoruz",
+      "düşünceleriniz piyasaya çıkmıyor",
+      "veri madencileri hüzünden başka bir şey bulamadı",
+      "kasanız inatla şifreli kalıyor",
+      "isviçre tarafsızlığı, ama notlar için",
+      "reklam yok. izleyici yok. sürpriz son yok",
+      "açık kaynak, matematiği kendiniz kontrol edin",
+      "şifreli metin bizim sevgi dilimiz",
+      "notlarınızı yabancılar için sıkıcı hale getiriyoruz",
+      "günlüğünüz aradı. biraz mahremiyet istiyor",
+      "ruh hali takibiniz sizi özledi",
+      "fikirleriniz, seyircisiz",
+      "günlüğünüz sırlarınızı gece boyunca sakladı",
+      "asla paylaşmayacağınız her şey için tek bir özel yer",
+      "burada ne göreceğinize hiçbir algoritma karar vermez",
+      "aklınızdan geçenler güvende",
+      "yazmak düşünmektir. düşünmek özeldir",
+      "hiçbir fenomene danışılmadı",
+      "sırlar sorumlu bir şekilde yükleniyor.",
+      "hep sinyal. sıfır gözetim.",
+      "şifreli bir başyapıt daha geliyor.",
+      "güven sorunlarını yazılıma çeviriyoruz.",
+      "düşünceleriniz piyasaya çıkmıyor.",
+      "bu eşitlemede bize dedikodu yok.",
+      "çünkü “bize güvenin yeter” saçmalık.",
+      "büyük ölçekte özel düşünme.",
+      "notlarınız hukuken gizemli kalıyor.",
+      "şifreli kaostan düzen çıkarıyoruz.",
+      "veri madencileri hüzünden başka bir şey bulamadı.",
+      "varoluşsal düşünceler yerelde çözülüyor…",
+      "kasanız agresif biçimde okunamaz kalıyor.",
+      "isviçre tarafsızlığı, ama notlar için."
+    ],
+    "loadingOnly": [
+      "şifrelenmiş aşırı düşünceleriniz yükleniyor",
+      "bir saniye, reklamcıları hayal kırıklığına uğratıyoruz",
+      "sırlarınız bir yeniden başlatmayı daha atlattı",
+      "kasayı sessizce açıyoruz",
+      "yerelde çözüldü. küresel olarak umursanmadı",
+      "kimseyi ilgilendirmeyecek şekilde çözülüyor",
+      "düşünceleri okunmaz çorbaya çeviriyoruz",
+      "şifreli bir başyapıt daha geliyor",
+      "şifreli kaostan düzen kuruyoruz",
+      "varoluşsal düşünceler yerelde çözülüyor",
+      "anahtarları ısıtıyoruz",
+      "düşüncenizin ipini buluyoruz",
+      "işaretlenmemiş görevlerinizi sayıyoruz. yargı yok",
+      "bu yükleme sırasında hiç reklam gösterilmedi",
+      "notlarınızı bıraktığınız yere geri koyuyoruz",
+      "dünkü düşünceleri çözüyoruz",
+      "bitleri güzel bir sıraya diziyoruz",
+      "hatırlamayı unuttuğunuz şeyi hatırlıyoruz"
+    ]
+  },
+  "neverBackedUp": {
+    "one": "Hiç yedeklenmedi. Bu tek kopya.",
+    "some_one": "Bu notlardan {{count}} tanesi hiç yedeklenmedi. Bu onun tek kopyası.",
+    "some_other": "Bu notlardan {{count}} tanesi hiç yedeklenmedi. Bunlar tek kopyaları.",
+    "changesOne": "Son değişiklikleri yedeklenmedi ve kaybolur.",
+    "changesSome_one": "Bu notlardan {{count}} tanesinin yedeklenmemiş değişiklikleri var ve kaybolur.",
+    "changesSome_other": "Bu notlardan {{count}} tanesinin yedeklenmemiş değişiklikleri var ve kaybolur."
+  },
+  "ninja": {
+    "topHit": "En iyi eşleşme",
+    "trashEmpty": "Çöp kutusu boş",
+    "allThemes": "Tüm temalar",
+    "features": {
+      "stats": {
+        "detail": "Zaman içinde yazdıklarınız, serileriniz ve takipleriniz"
+      },
+      "trackers": {
+        "detail": "Ruh hali, alışkanlıklar, etkenler ve ilaçlar"
+      },
+      "medication": {
+        "label": "İlaçlar",
+        "detail": "Dozlar, saatler ve hatırlatıcılar"
+      },
+      "yearInPixels": {
+        "label": "Piksellerle yıl",
+        "detail": "Yılın her günü tek bir renkli kare olarak"
+      },
+      "importExport": {
+        "detail": "Notları içe aktarın veya dışa aktarın"
+      },
+      "backup": {
+        "detail": "Şimdi yedekle, otomatik yedekler ve geri yükleme"
+      },
+      "generator": {
+        "label": "Parola üretici",
+        "detail": "Kopyalamaya hazır güçlü bir parola veya parola ifadesi"
+      },
+      "themes": {
+        "detail": "Açık ve koyu renk temaları"
+      }
+    },
+    "new": {
+      "medication": "Yeni ilaç",
+      "customTracker": "Yeni özel takip"
+    },
+    "commands": {
+      "syncResume": "Eşitlemeyi sürdür",
+      "lockProtected": "Bu notu kilitle",
+      "changelog": "Yenilikler",
+      "themesPage": "Topluluk temaları",
+      "website": "PrivacyNotes web sitesi"
+    },
+    "themes": {
+      "word": "Tema",
+      "light": "Açık tema",
+      "dark": "Koyu tema"
+    }
+  }
+}

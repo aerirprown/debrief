@@ -1,0 +1,2388 @@
+import { readCustomHabits, type CustomHabitDef } from './habitList';
+import { latestRevision, withRevision } from './medicationDoses';
+import { isMfaRefusal, MfaRequiredError } from './mfaStep';
+import { encryptJson, decryptJson, bytesToBase64, base64ToBytes, type SupabaseClient } from '@notes/shared';
+import { hydrateListPrefsStore } from './listPrefs';
+import { CAFFEINE_UNITS, defaultTrackerSettings, readFactors, readHabits, WATER_UNITS, type CaffeineUnit, WEIGHT_UNITS, type WaterUnit, type FactorDef, type TrackerSettings, type WeightUnit, type CustomTrackerTemplate, type MedicationTemplate } from './trackerTypes';
+import { isColorTheme, isLineSpacing, isNestedNumbers } from './theme';
+import { isJournalTitleFormat, JOURNAL_SUFFIX_MAX } from './notesViewUtils';
+import { isClock, isDateOrder, isWeekStart } from './intlFormat';
+import { credentialKey, isDemoMode } from './demo';
+import { settingsLocalKey } from './settingsLocalKey';
+import { applyPrivacyScreen } from './privacyScreen';
+import { isTrustedDevice } from './trustStorage';
+import { hasPinWrap, PIN_CHANGE_LOST_KEY } from './pin';
+import type { View } from './views';
+import { isServerWriteBlocked } from './syncPause';
+import { dmsGate, dropForeignDmsHold } from './dms';
+import { logAuthEvent } from './authDiag';
+import { recordSyncFault } from './syncFaults';
+import { mayWriteUnstamped, signInStamp, signedOutSince, type SignInStamp } from './liveSignIn';
+import { folderTreesEqual, isFolderSortField, mergeFolderTrees, validateFolders, validateFolderTombstones } from './folders';
+import { deletedFolderIds, isNoteColorStyle, itemStylesEqual, mergeItemStyles, validateItemStyles } from './itemStyles';
+import { deviceLabelsEqual, mergeDeviceLabels, validateDeviceLabels } from './deviceLabels';
+import { extensionKeysEqual, mergeExtensionKeys, validateExtensionKeys } from './extensionKeys';
+import { customThemesEqual, mergeCustomThemes, validateCustomThemes } from './customThemes';
+import { calendarFeedsEqual, mergeCalendarFeeds, validateCalendarFeeds } from './calendarFeeds';
+import { formatBarSettingsEqual, mergeFormatBarSettings, validateFormatBarSetting } from './formatBar';
+import { dashboardSettingsEqual, mergeDashboardSettings, validateDashboardSetting } from './dashboard/dashboardLayout';
+import { CREDENTIAL_FIELDS, defaultCalendarSettings, defaultCheckInSettings, defaultSettings, type CalendarSettings, type CheckInSettings, type UserSettings } from './userSettingsShape';
+import { isTime, type Alert } from './schedule';
+import { fromLockedRead, pickSealed, readSealedSettings, removeSealedSettings, settingsSealOn, stripSealed, withPlaceholders, writeSealedSettings } from './settingsSeal';
+import { currentKeyEpoch, epochOf, holdsEpoch, keyEpochColumn, noteAccountEpoch, openWithRing } from './keyRing';
+import { isPhraseReplacedRefusal, PhraseReplacedError, phraseReplacedStop, reportPhraseReplaced } from './phraseReplaced';
+import { localDataKeyCopy } from './localKey';
+import { readPwGen } from './passwordGen';
+import { MAX_DISMISSED_SUGGESTIONS, mergeDismissedSuggestions } from './dismissedSuggestions';
+
+
+/**
+ * Synced user settings.
+ *
+ * The one and only cross-device user preference blob, end-to-end
+ * encrypted with the same phrase-derived key as notes. The full field
+ * list is the UserSettings type in userSettingsShape.ts; favoriteTags holds the tags
+ * pinned by the user, shown in a "Favorites" section above the
+ * regular Tags list.
+ *
+ * Shape is intentionally forward-compatible: new fields default to
+ * sensible values at decode time so older clients never crash on
+ * newer blobs, and newer clients tolerate missing keys from older
+ * blobs.
+ *
+ * Storage:
+ *   - In-memory React state (the caller owns this)
+ *   - localStorage.`privacynotes.settings` - local cache so the UI
+ *     paints instantly on reload, before the network sync lands. On a
+ *     device the user marked untrusted it never carries the PIN wrap
+ *     fields; see the note above LocalCache.
+ *   - public.user_settings row on Supabase - remote truth. A dirty
+ *     device merges key by key against its last synced base before it
+ *     pushes (perKeyMerge), and some settings merge by their own rule.
+ *
+ * All server I/O goes through `syncUserSettings`, which does a
+ * pull-then-push pass just like notes/sync.ts. It's safe to call
+ * this repeatedly - it no-ops when nothing is dirty and remote is
+ * up to date.
+ */
+
+// The settings shape and its defaults live in userSettingsShape.ts; callers
+// keep importing them from here.
+export { defaultSettings, toggleHiddenView, isShownInAll, withCredentialChanges, type CalendarSettings, type CheckInSettings, type ImageSwitch, type UserSettings } from './userSettingsShape';
+
+/** Merge a partial/legacy blob into a fully-populated settings object. */
+function hydrate(raw: unknown): UserSettings {
+  const base = defaultSettings();
+  if (!raw || typeof raw !== 'object') return base;
+  const obj = raw as Partial<UserSettings>;
+  // Preserve fields this client does not know about. Without this, an
+  // older client that hydrates a newer blob and then pushes it strips
+  // every field added after it shipped (that is how a stale client can
+  // silently wipe e.g. the folders array). Copying unknown keys through
+  // makes settings round-trip safely across mixed client versions.
+  // Known keys are validated field-by-field below as before.
+  for (const key of Object.keys(raw)) {
+    if (!(key in base)) {
+      (base as Record<string, unknown>)[key] = (raw as Record<string, unknown>)[key];
+    }
+  }
+  if (Array.isArray(obj.favoriteTags)) {
+    base.favoriteTags = obj.favoriteTags.filter((t): t is string => typeof t === 'string');
+  }
+  if (Array.isArray(obj.dismissedSuggestions)) {
+    base.dismissedSuggestions = obj.dismissedSuggestions
+      .filter((t): t is string => typeof t === 'string')
+      .slice(-MAX_DISMISSED_SUGGESTIONS);
+  }
+  if (Array.isArray(obj.dismissedAnnouncements)) {
+    base.dismissedAnnouncements = obj.dismissedAnnouncements.filter(
+      (t): t is string => typeof t === 'string'
+    );
+  }
+  if (typeof obj.welcomeNoteSeeded === 'boolean') {
+    base.welcomeNoteSeeded = obj.welcomeNoteSeeded;
+  }
+  if (typeof obj.importHintDismissed === 'boolean') {
+    base.importHintDismissed = obj.importHintDismissed;
+  }
+  if (typeof obj.pinTimeoutMinutes === 'number' && Number.isFinite(obj.pinTimeoutMinutes)) {
+    // "Immediately" (0) was removed - it re-prompted every render on
+    // PIN-protected notes. Coerce any legacy 0 to the default 5.
+    base.pinTimeoutMinutes = obj.pinTimeoutMinutes === 0 ? 5 : obj.pinTimeoutMinutes;
+  }
+  // A blob with no window of its own for the app lock inherits the PIN one
+  // rather than the default, so a device set to lock after a minute cannot
+  // come back sitting at five. Runs after the field above, which it reads.
+  if (
+    typeof obj.appLockTimeoutMinutes === 'number' &&
+    Number.isFinite(obj.appLockTimeoutMinutes)
+  ) {
+    base.appLockTimeoutMinutes =
+      obj.appLockTimeoutMinutes === 0 ? 5 : obj.appLockTimeoutMinutes;
+  } else {
+    base.appLockTimeoutMinutes = base.pinTimeoutMinutes;
+  }
+  if (obj.listPrefs !== undefined) {
+    base.listPrefs = hydrateListPrefsStore(obj.listPrefs);
+  }
+  if (typeof obj.tasksShowDone === 'boolean') {
+    base.tasksShowDone = obj.tasksShowDone;
+  }
+  if (typeof obj.sinkCheckedTasks === 'boolean') {
+    base.sinkCheckedTasks = obj.sinkCheckedTasks;
+  }
+  if (typeof obj.taskConfetti === 'boolean') {
+    base.taskConfetti = obj.taskConfetti;
+  }
+  if (obj.agentFolder === null || (typeof obj.agentFolder === 'string' && obj.agentFolder.length <= 64)) {
+    base.agentFolder = obj.agentFolder;
+  }
+  if (typeof obj.typedSymbols === 'boolean') {
+    base.typedSymbols = obj.typedSymbols;
+  }
+  if (typeof obj.linkSuggestions === 'boolean') {
+    base.linkSuggestions = obj.linkSuggestions;
+  }
+  if (typeof obj.confirmTrash === 'boolean') {
+    base.confirmTrash = obj.confirmTrash;
+  }
+  if (typeof obj.confirmArchive === 'boolean') {
+    base.confirmArchive = obj.confirmArchive;
+  }
+  if (typeof obj.spaces === 'boolean') {
+    base.spaces = obj.spaces;
+  }
+  if (typeof obj.autoProtectLogins === 'boolean') {
+    base.autoProtectLogins = obj.autoProtectLogins;
+  }
+  if (typeof obj.pinSalt === 'string') {
+    base.pinSalt = obj.pinSalt;
+  }
+  if (typeof obj.pinHash === 'string') {
+    base.pinHash = obj.pinHash;
+  }
+  if (typeof obj.pinIterations === 'number' && Number.isFinite(obj.pinIterations)) {
+    base.pinIterations = obj.pinIterations;
+  }
+  if (Array.isArray(obj.medications)) {
+    base.medications = obj.medications;
+  }
+  if (obj.trackerSettings && typeof obj.trackerSettings === 'object') {
+    const ts = obj.trackerSettings as Partial<TrackerSettings>;
+    const dts = defaultTrackerSettings();
+    // A blob without the Habits question list predates the Habits tracker,
+    // so nobody switched it off: it starts on, like on a new account. Once
+    // the list is written, the person's choice stands.
+    const adoptHabits = !('habits' in ts) && Array.isArray(ts.activeBuiltins) && !ts.activeBuiltins.includes('habits');
+    base.trackerSettings = {
+      activeBuiltins: Array.isArray(ts.activeBuiltins) ? (adoptHabits ? [...ts.activeBuiltins, 'habits'] : ts.activeBuiltins) : dts.activeBuiltins,
+      customTrackers: Array.isArray(ts.customTrackers) ? ts.customTrackers : dts.customTrackers,
+      archivedMedications: Array.isArray(ts.archivedMedications) ? ts.archivedMedications : dts.archivedMedications,
+      habits: readHabits(ts.habits),
+      weightUnit: WEIGHT_UNITS.includes(ts.weightUnit as WeightUnit) ? (ts.weightUnit as WeightUnit) : dts.weightUnit,
+      waterUnit: WATER_UNITS.includes(ts.waterUnit as WaterUnit) ? (ts.waterUnit as WaterUnit) : dts.waterUnit,
+      caffeineUnit: CAFFEINE_UNITS.includes(ts.caffeineUnit as CaffeineUnit) ? (ts.caffeineUnit as CaffeineUnit) : dts.caffeineUnit,
+    };
+  }
+  if (typeof obj.autoDeleteTrashDays === 'number' && Number.isFinite(obj.autoDeleteTrashDays) && obj.autoDeleteTrashDays >= 0) {
+    base.autoDeleteTrashDays = obj.autoDeleteTrashDays;
+  }
+  if (typeof obj.biometricEnabled === 'boolean') {
+    base.biometricEnabled = obj.biometricEnabled;
+  }
+  if (typeof obj.appLockEnabled === 'boolean') {
+    base.appLockEnabled = obj.appLockEnabled;
+  }
+  if (typeof obj.pinWrapSalt === 'string') {
+    base.pinWrapSalt = obj.pinWrapSalt;
+  }
+  if (typeof obj.pinWrapIV === 'string') {
+    base.pinWrapIV = obj.pinWrapIV;
+  }
+  if (typeof obj.pinWrapCiphertext === 'string') {
+    base.pinWrapCiphertext = obj.pinWrapCiphertext;
+  }
+  if (typeof obj.pinWrapIterations === 'number') {
+    base.pinWrapIterations = obj.pinWrapIterations;
+  }
+  if (isColorTheme(obj.colorTheme)) {
+    base.colorTheme = obj.colorTheme;
+  } else if ((obj as Record<string, unknown>).colorTheme === 'cool-white') {
+    // Legacy migration: cool-white was replaced by slate in v0.132.10.
+    base.colorTheme = 'slate';
+  }
+  if (obj.viewMode === 'auto' || obj.viewMode === 'list' || obj.viewMode === 'grid') {
+    base.viewMode = obj.viewMode;
+  }
+  // Members are NOT validated against the View union on purpose. An older
+  // client that dropped a value it did not recognise would silently un-hide
+  // a newer client's row on its next write; unknown members are ignored at
+  // render instead. Same shape as favoriteTags above.
+  if (Array.isArray(obj.viewOrder)) {
+    base.viewOrder = obj.viewOrder.filter((v) => typeof v === 'string') as View[];
+  }
+  if (Array.isArray(obj.hiddenViews)) {
+    base.hiddenViews = obj.hiddenViews.filter((v) => typeof v === 'string') as View[];
+  }
+  if (Array.isArray(obj.hiddenInAll)) {
+    base.hiddenInAll = obj.hiddenInAll.filter((v) => typeof v === 'string') as View[];
+  }
+  if (typeof obj.archivedInAll === 'boolean') {
+    base.archivedInAll = obj.archivedInAll;
+  }
+  if (typeof obj.includeSubfolders === 'boolean') {
+    base.includeSubfolders = obj.includeSubfolders;
+  }
+  // Not validated against the View union, for the reason above: an older
+  // client that refused a value it did not recognise and wrote the blob back
+  // would reset a newer client's choice. resolveStartView filters at read.
+  if (typeof obj.startView === 'string') {
+    base.startView = obj.startView as View;
+  }
+  if (obj.editorMode === 'formatted' || obj.editorMode === 'markdown') {
+    base.editorMode = obj.editorMode;
+  }
+  if (isLineSpacing(obj.lineSpacing)) {
+    base.lineSpacing = obj.lineSpacing;
+  }
+  if (isNestedNumbers(obj.nestedNumbers)) {
+    base.nestedNumbers = obj.nestedNumbers;
+  }
+  if (isJournalTitleFormat(obj.journalTitleFormat)) {
+    base.journalTitleFormat = obj.journalTitleFormat;
+  }
+  if (typeof obj.journalTitleSuffix === 'string') {
+    base.journalTitleSuffix = obj.journalTitleSuffix.slice(0, JOURNAL_SUFFIX_MAX);
+  }
+  if (isDateOrder(obj.dateOrder)) base.dateOrder = obj.dateOrder;
+  if (isClock(obj.clock)) base.clock = obj.clock;
+  if (isWeekStart(obj.weekStart)) base.weekStart = obj.weekStart;
+  if (typeof obj.journalTitlePattern === 'string') {
+    base.journalTitlePattern = obj.journalTitlePattern.slice(0, JOURNAL_SUFFIX_MAX);
+  }
+  if (obj.folders !== undefined) {
+    base.folders = validateFolders(obj.folders);
+  }
+  if (obj.foldersDeleted !== undefined) {
+    base.foldersDeleted = validateFolderTombstones(obj.foldersDeleted);
+  }
+  // A folder cannot be both live and deleted. The tombstone wins, so a
+  // client that predates the field and writes the array wholesale cannot
+  // undo a deletion just by carrying its own older copy of the tree.
+  if (base.foldersDeleted.length > 0 && base.folders.length > 0) {
+    const gone = new Set(base.foldersDeleted.map((d) => d.id));
+    if (base.folders.some((f) => gone.has(f.id))) {
+      base.folders = validateFolders(base.folders.filter((f) => !gone.has(f.id)));
+    }
+  }
+  if (obj.itemStyles !== undefined) {
+    base.itemStyles = validateItemStyles(obj.itemStyles);
+  }
+  if (obj.deviceLabels !== undefined) {
+    base.deviceLabels = validateDeviceLabels(obj.deviceLabels);
+  }
+  if (obj.extensionKeys !== undefined) {
+    base.extensionKeys = validateExtensionKeys(obj.extensionKeys);
+  }
+  if (obj.customThemes !== undefined) {
+    base.customThemes = validateCustomThemes(obj.customThemes);
+  }
+  if (obj.calendarFeeds !== undefined) {
+    base.calendarFeeds = validateCalendarFeeds(obj.calendarFeeds);
+  }
+  if (obj.formatBar !== undefined) {
+    base.formatBar = validateFormatBarSetting(obj.formatBar);
+  }
+  if (obj.dashboard !== undefined) {
+    base.dashboard = validateDashboardSetting(obj.dashboard);
+  }
+  if (typeof obj.tintNotes === 'boolean') {
+    base.tintNotes = obj.tintNotes;
+  }
+  if (isNoteColorStyle(obj.noteColorStyle)) {
+    base.noteColorStyle = obj.noteColorStyle;
+  }
+  if (obj.folderSort && typeof obj.folderSort === 'object') {
+    const raw = obj.folderSort as { field?: unknown; dir?: unknown };
+    base.folderSort = {
+      field: isFolderSortField(raw.field) ? raw.field : 'name',
+      dir: raw.dir === 'desc' ? 'desc' : 'asc',
+    };
+  }
+  if (obj.sidebarBrowse === 'tags' || obj.sidebarBrowse === 'folders') {
+    base.sidebarBrowse = obj.sidebarBrowse;
+  }
+  if (obj.imageSpaceSaver === 'on' || obj.imageSpaceSaver === 'off') {
+    base.imageSpaceSaver = obj.imageSpaceSaver;
+  }
+  if (obj.imageStripMetadata === 'on' || obj.imageStripMetadata === 'off') {
+    base.imageStripMetadata = obj.imageStripMetadata;
+  }
+  if (obj.imageContactCeiling === 'on' || obj.imageContactCeiling === 'off') {
+    base.imageContactCeiling = obj.imageContactCeiling;
+  }
+  if (Array.isArray(obj.milestonesSeen)) {
+    base.milestonesSeen = obj.milestonesSeen.filter((k): k is string => typeof k === 'string');
+  }
+  if (typeof obj.firstSeenAt === 'string' && !Number.isNaN(Date.parse(obj.firstSeenAt))) {
+    base.firstSeenAt = obj.firstSeenAt;
+  }
+  if (typeof obj.ratingDone === 'boolean') {
+    base.ratingDone = obj.ratingDone;
+  }
+  if (obj.calendar && typeof obj.calendar === 'object') base.calendar = readCalendarSettings(obj.calendar as Record<string, unknown>);
+  if (obj.checkIn && typeof obj.checkIn === 'object') base.checkIn = readCheckInSettings(obj.checkIn as Record<string, unknown>);
+  if (Array.isArray(obj.factors)) base.factors = readFactors(obj.factors);
+  if (Array.isArray(obj.customHabits)) base.customHabits = readCustomHabits(obj.customHabits);
+  if (typeof obj.importPromptDismissed === 'boolean') {
+    base.importPromptDismissed = obj.importPromptDismissed;
+  }
+  if (typeof obj.clipperHintDismissed === 'boolean') {
+    base.clipperHintDismissed = obj.clipperHintDismissed;
+  }
+  // Anything that is not a finite, non-negative number reads as 0, which is
+  // the value a blob written before this field existed effectively carries.
+  if (typeof obj.settingsRev === 'number' && Number.isFinite(obj.settingsRev) && obj.settingsRev >= 0) {
+    base.settingsRev = Math.floor(obj.settingsRev);
+  }
+  if (
+    typeof obj.notesCreated === 'number' &&
+    Number.isFinite(obj.notesCreated) &&
+    obj.notesCreated >= 0
+  ) {
+    base.notesCreated = Math.floor(obj.notesCreated);
+  }
+  base.pwGen = readPwGen(obj.pwGen);
+  return base;
+}
+
+/** Settings › Calendar from a blob: each field that holds, the default for the rest. */
+function readCalendarSettings(c: Record<string, unknown>): CalendarSettings {
+  const out = defaultCalendarSettings();
+  const dayAlert = (v: unknown) => {
+    if (v === null) return null;
+    const a = v as { days?: unknown; at?: unknown } | undefined;
+    return a && Number.isInteger(a.days) && (a.days as number) >= 0 && (a.days as number) <= 28 && isTime(a.at) ? { days: a.days as number, at: a.at } : undefined;
+  };
+  if (c.alertTimed === null || (Number.isInteger(c.alertTimed) && (c.alertTimed as number) >= 0 && (c.alertTimed as number) <= 40320)) out.alertTimed = c.alertTimed as number | null;
+  const allDay = dayAlert(c.alertAllDay);
+  if (allDay !== undefined) out.alertAllDay = allDay;
+  const birthday = dayAlert(c.alertBirthday);
+  if (birthday !== undefined) out.alertBirthday = birthday;
+  if (typeof c.weekNumbers === 'boolean') out.weekNumbers = c.weekNumbers;
+  if (isTime(c.hourStart)) out.hourStart = c.hourStart;
+  if (isTime(c.hourEnd)) out.hourEnd = c.hourEnd;
+  if (typeof c.reminderTitles === 'boolean') out.reminderTitles = c.reminderTitles;
+  return out;
+}
+
+function readCheckInSettings(c: Record<string, unknown>): CheckInSettings {
+  const out = defaultCheckInSettings();
+  for (const key of ['all', 'askTrackers', 'showTextless'] as const) {
+    if (typeof c[key] === 'boolean') out[key] = c[key] as boolean;
+  }
+  return out;
+}
+
+/** The alert lists a new alert starts with, from Settings › Calendar. */
+export function alertDefaults(s: Pick<UserSettings, 'calendar'>): { timed: Alert[]; allDay: Alert[] } {
+  const c = s.calendar;
+  return {
+    timed: c.alertTimed === null ? [] : [{ before: c.alertTimed }],
+    allDay: c.alertAllDay === null ? [] : [{ ...c.alertAllDay }],
+  };
+}
+
+/**
+ * Scalars that clients in the field can predate. A blob such a client pushed
+ * has no key for one, and `hydrate` fills in the default, which reads as the
+ * person switching it back. Where the blob lacks the key, this device's value
+ * stands. A merged collection needs no entry: its merge never reads absence
+ * as a reset.
+ */
+const NEWER_SCALARS = ['tintNotes', 'noteColorStyle', 'archivedInAll', 'includeSubfolders', 'sinkCheckedTasks', 'taskConfetti', 'agentFolder', 'typedSymbols', 'linkSuggestions', 'confirmTrash', 'confirmArchive', 'spaces', 'dateOrder', 'clock', 'weekStart', 'viewOrder', 'journalTitlePattern', 'calendar', 'checkIn', 'nestedNumbers'] as const;
+
+/**
+ * Whether the blob lacks a newer scalar this device holds at a value of its
+ * own. The keep-list keeps it here; the pull then has to push it back, or
+ * the account row goes on without it and every other device, a new one
+ * included, reads the default.
+ */
+function keptNewerScalar(local: UserSettings, raw: unknown): boolean {
+  if (!raw || typeof raw !== 'object') return false;
+  const defaults = defaultSettings();
+  return (
+    NEWER_SCALARS.some((key) => !(key in raw) && JSON.stringify(local[key]) !== JSON.stringify(defaults[key])) ||
+    (lacksWeightUnit(raw) && local.trackerSettings.weightUnit !== defaults.trackerSettings.weightUnit) ||
+    (lacksTrackerKey(raw, 'waterUnit') && local.trackerSettings.waterUnit !== defaults.trackerSettings.waterUnit) ||
+    (lacksTrackerKey(raw, 'caffeineUnit') && local.trackerSettings.caffeineUnit !== defaults.trackerSettings.caffeineUnit) ||
+    (lacksHabits(raw) && JSON.stringify(local.trackerSettings.habits) !== JSON.stringify(defaults.trackerSettings.habits))
+  );
+}
+
+/** The template lists of a settings blob as one comparable string. */
+function templatesOf(s: UserSettings): string {
+  return JSON.stringify([s.medications, s.trackerSettings.customTrackers, s.trackerSettings.archivedMedications]);
+}
+
+/** `hydrate`, keeping this device's value of a newer scalar the blob lacks. */
+function hydrateOver(local: UserSettings, raw: unknown): UserSettings {
+  const out = hydrate(raw);
+  if (!raw || typeof raw !== 'object') return out;
+  const keep = <K extends (typeof NEWER_SCALARS)[number]>(key: K) => {
+    out[key] = local[key];
+  };
+  for (const key of NEWER_SCALARS) {
+    if (!(key in raw)) keep(key);
+  }
+  // The weight unit sits inside `trackerSettings`, which every client
+  // writes, so a blob from a client that predates the unit carries the
+  // object without the key.
+  if (lacksWeightUnit(raw)) {
+    out.trackerSettings = { ...out.trackerSettings, weightUnit: local.trackerSettings.weightUnit };
+  }
+  // The water unit and the Habits question list sit there too, and are
+  // kept the same way.
+  if (lacksTrackerKey(raw, 'waterUnit')) {
+    out.trackerSettings = { ...out.trackerSettings, waterUnit: local.trackerSettings.waterUnit };
+  }
+  if (lacksTrackerKey(raw, 'caffeineUnit')) {
+    out.trackerSettings = { ...out.trackerSettings, caffeineUnit: local.trackerSettings.caffeineUnit };
+  }
+  if (lacksHabits(raw)) {
+    out.trackerSettings = { ...out.trackerSettings, habits: local.trackerSettings.habits };
+  }
+  return out;
+}
+
+function lacksWeightUnit(raw: object): boolean {
+  return lacksTrackerKey(raw, 'weightUnit');
+}
+
+function lacksHabits(raw: object): boolean {
+  return lacksTrackerKey(raw, 'habits');
+}
+
+function lacksTrackerKey(raw: object, key: string): boolean {
+  const ts = (raw as { trackerSettings?: unknown }).trackerSettings;
+  return !!ts && typeof ts === 'object' && !(key in ts);
+}
+
+/** The earlier of two optional ISO stamps; null only when both are null. */
+function olderStamp(a: string | null, b: string | null): string | null {
+  if (!a) return b;
+  if (!b) return a;
+  return a < b ? a : b;
+}
+
+// ------------------------------------------------------------------
+// Local cache (localStorage)
+// ------------------------------------------------------------------
+
+// The key (and its demo twin) lives in settingsLocalKey.ts so the
+// light notesCreated.ts module can share it - see the comment there.
+const localKey = settingsLocalKey;
+
+type LocalCache = {
+  settings: UserSettings;
+  // ISO timestamp of the last local mutation - used as "client updatedAt"
+  // when pushing to the server, so last-write-wins is deterministic.
+  updatedAt: string;
+  // Whether we have a local change that hasn't been pushed yet. Set on
+  // every mutation; cleared after a successful push.
+  dirty: boolean;
+  // Whether this device has ever SEEN the server's settings row: a pull
+  // that decrypted it, a pre-push merge that decrypted it, or a pull that
+  // proved no row exists. While false, this device's blob is defaults plus
+  // seconds of local history - so a dirty push must take the server row as
+  // its base (full mergeSettings), never the ad-hoc local-wins merge. A
+  // fresh device that went dirty before its first pull (the v0.450.0
+  // firstSeenAt stamp, a pre-pull note create) used to skip the pull AND
+  // win the push, overwriting the account's folders, favorite tags, PIN
+  // and prefs with defaults. Legacy caches lack the field and default to
+  // TRUE: they belong to devices that synced before this field shipped,
+  // and treating them as never-pulled would revert their next genuine
+  // scalar edit.
+  everPulled: boolean;
+  // Whether this tab does NOT know the account's PIN fields. The four wrap
+  // fields are a durable copy of the phrase under four digits, and the PIN's
+  // own salt and hash give the four digits up to an offline search in
+  // minutes, so a device the user marked untrusted keeps all of them out of
+  // localStorage the way it keeps the phrase out: the envelope on disk
+  // carries them as null there, and the real values live in a sessionStorage
+  // side key for as long as the tab does. With no side key the fields are
+  // unknown, which is NOT the same as the account holding none: syncPinWrap
+  // does nothing with an unknown wrap, and the push takes the fields from the
+  // server row it reads rather than sending nulls over the account's PIN.
+  // Never written to disk. Always false on a trusted device, whose envelope
+  // is unchanged.
+  wrapWithheld: boolean;
+  // The account's freshness counter as of the last completed sync: the row
+  // this device last adopted or pushed. The restore of unknown wrap fields
+  // refuses a server row below it, and it cannot use `settings.settingsRev`
+  // for that, because a dirty cache also counts this device's own unpushed
+  // saves and an honest row would read as a rollback. Written to disk only
+  // on an untrusted device, where the restore can run; a trusted envelope
+  // keeps its shape.
+  syncedRev: number;
+  // A fingerprint per top-level setting of the values as last synced (the row
+  // this device last adopted or pushed), so a push sends only what changed
+  // here and keeps the server's value for everything else. Absent on a cache
+  // written before this shipped, which pushes as before until its next sync.
+  // The PIN group has one fingerprint under PIN_GROUP_KEY, kept off the disk
+  // of an untrusted device with the fields themselves.
+  syncedKeys?: Record<string, string>;
+  // Whether the sealed part of the cache (settingsSeal.ts) was locked when
+  // this cache was read: no local data key yet, at the boot or on the lock
+  // screen. Its settings are then placeholders, a write keeps the sealed part
+  // as it is, and no settings pass runs. Never written to disk.
+  sealedLocked?: boolean;
+  // The key epoch (keyRing.ts) of the server row these settings were last
+  // read from. Absent is epoch 1, so the cache of an account that never
+  // changed its phrase keeps its shape. syncPinWrap installs no wrap from a
+  // cache below the account's epoch: its wrap is one of an earlier phrase.
+  // Spec: docs/internal/plans/phrase-change.md (6.5, settings epoch)
+  keyEpoch?: number;
+};
+
+/** The cache field for a key epoch: none for epoch 1 or an unreadable one. */
+function epochField(epoch: number | undefined): { keyEpoch?: number } {
+  return epoch !== undefined && Number.isSafeInteger(epoch) && epoch > 1 ? { keyEpoch: epoch } : {};
+}
+
+/**
+ * The lock settings each device keeps for itself (#662): a phone can lock
+ * sooner than a computer at home. They stay in this cache like any other
+ * setting, and the sync never moves them: a pull keeps this device's values,
+ * and a push carries the server's, so the account row keeps the value it held
+ * before this shipped. A device that has never pulled takes the account's
+ * values with its first pull, which is how each device copied its own at the
+ * first start after the update. Spec: docs/contrib/biometric-unlock.md (section 5)
+ */
+export const DEVICE_SETTINGS = ['appLockEnabled', 'appLockTimeoutMinutes', 'pinTimeoutMinutes'] as const;
+
+/** `s` with the device settings of `from`. */
+function withDeviceSettings(s: UserSettings, from: UserSettings): UserSettings {
+  return {
+    ...s,
+    appLockEnabled: from.appLockEnabled,
+    appLockTimeoutMinutes: from.appLockTimeoutMinutes,
+    pinTimeoutMinutes: from.pinTimeoutMinutes,
+  };
+}
+
+/** The credential fields that change together: a hash from one edit beside a
+ *  wrap from another opens nothing. */
+const PIN_GROUP = [
+  'pinSalt', 'pinHash', 'pinIterations',
+  'pinWrapSalt', 'pinWrapIV', 'pinWrapCiphertext', 'pinWrapIterations',
+] as const;
+const PIN_GROUP_KEY = '#pin';
+// The group as it was before the app lock switch became a device setting. A
+// base written then fingerprints this shape, so a group that matches either
+// shape is unchanged; the next sync writes the new one.
+const LEGACY_PIN_GROUP = [...PIN_GROUP, 'appLockEnabled'] as const;
+
+/** Settings the push merges by their own rule (a union, a tree merge, a
+ *  maximum, a flag that never goes back), never by the per-key base. */
+const OWN_RULE_KEYS = new Set<string>([
+  'settingsRev', 'notesCreated', 'folders', 'foldersDeleted', 'itemStyles', 'deviceLabels', 'extensionKeys',
+  'customThemes', 'calendarFeeds', 'formatBar', 'dashboard', 'factors', 'customHabits', 'medications', 'trackerSettings',
+  'favoriteTags', 'dismissedAnnouncements', 'dismissedSuggestions', 'welcomeNoteSeeded', 'importHintDismissed',
+  'milestonesSeen', 'firstSeenAt', 'ratingDone', 'importPromptDismissed', 'clipperHintDismissed', ...PIN_GROUP,
+  ...DEVICE_SETTINGS,
+]);
+
+/** FNV-1a over canonical JSON: a change marker, not a secret. */
+function fingerprint(value: unknown): string {
+  const text = canonicalJson(value);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16) + ':' + text.length;
+}
+
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'undefined';
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  const keys = Object.keys(value as Record<string, unknown>).filter((k) => (value as Record<string, unknown>)[k] !== undefined).sort();
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${canonicalJson((value as Record<string, unknown>)[k])}`).join(',')}}`;
+}
+
+/** The group in a fixed order, an absent field written as null, so two
+ *  devices holding the same group always read the same marker. */
+function pinGroupOf(s: UserSettings): unknown[] {
+  return PIN_GROUP.map((k) => s[k] ?? null);
+}
+
+/** Whether `s` holds a PIN group other than the one the base fingerprints. */
+function pinGroupChanged(s: UserSettings, base: string): boolean {
+  return fingerprint(pinGroupOf(s)) !== base
+    && fingerprint(LEGACY_PIN_GROUP.map((k) => s[k] ?? null)) !== base;
+}
+
+/** The per-key base of a settings object this device has just synced. The
+ *  PIN group's marker only where the fields themselves are known. */
+function syncedKeysOf(s: UserSettings, wrapKnown: boolean): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(s)) {
+    if (!OWN_RULE_KEYS.has(key)) out[key] = fingerprint(value);
+  }
+  if (wrapKnown) out[PIN_GROUP_KEY] = fingerprint(pinGroupOf(s));
+  return out;
+}
+
+/**
+ * The blob a dirty device pushes over the server's: each setting this device
+ * changed since its last sync keeps its value, and every other setting takes
+ * the server's. A device that was offline while another changed a setting
+ * used to push its whole copy, and creating one note counts as a settings
+ * write, so the Trash auto-delete or the PIN came back the way they were.
+ * Spec: docs/internal/design-decisions.md (Settings merge key by key)
+ *
+ * The PIN group moves whole. Only one side changed it: that side's. Both:
+ * the server's, never the newer one, because a device clock can lie and an
+ * offline device would put an old PIN back; the loss is logged. Fields this
+ * tab does not know (an untrusted device) are not a change: the server's.
+ */
+function perKeyMerge(
+  local: UserSettings,
+  merged: UserSettings,
+  server: UserSettings,
+  base: Record<string, string> | undefined,
+  wrapWithheld: boolean,
+): UserSettings {
+  if (!base) return merged;
+  const out = { ...merged } as Record<string, unknown>;
+  const localRec = local as unknown as Record<string, unknown>;
+  const serverRec = server as unknown as Record<string, unknown>;
+  for (const key of new Set([...Object.keys(localRec), ...Object.keys(serverRec)])) {
+    if (OWN_RULE_KEYS.has(key)) continue;
+    const was = base[key];
+    // A setting the base does not know (newer than this cache) keeps the
+    // merge's answer.
+    if (was === undefined) continue;
+    if (fingerprint(localRec[key]) !== was) out[key] = localRec[key];
+    else if (key in serverRec) out[key] = serverRec[key];
+  }
+  const pinBase = base[PIN_GROUP_KEY];
+  const localPin = !wrapWithheld && pinBase !== undefined && pinGroupChanged(local, pinBase);
+  const serverPin = pinBase === undefined || pinGroupChanged(server, pinBase);
+  if (wrapWithheld || !localPin) {
+    for (const key of PIN_GROUP) out[key] = server[key];
+  } else if (!serverPin) {
+    // Set whole, not left to the loop above: the group never mixes sides.
+    for (const key of PIN_GROUP) out[key] = local[key];
+  } else {
+    for (const key of PIN_GROUP) out[key] = server[key];
+    markPinChangeLost();
+    logAuthEvent('settings:credential-change-lost');
+    console.warn('[settings] a PIN change made here lost to one made on another device');
+  }
+  return out as unknown as UserSettings;
+}
+
+// Set when a PIN change made on this device lost to one made on another;
+// the PIN tab says so once (takePinChangeLost). Not a secret; the key is
+// bucketed and cleared with the PIN cache (pin.ts).
+function markPinChangeLost(): void {
+  try {
+    localStorage.setItem(PIN_CHANGE_LOST_KEY, '1');
+  } catch {
+    /* the message is lost with it, the PIN is not */
+  }
+}
+
+/** Whether a PIN change made here lost to another device's since the PIN tab
+ *  last said so; reading it clears it. */
+export function takePinChangeLost(): boolean {
+  try {
+    const lost = localStorage.getItem(PIN_CHANGE_LOST_KEY) === '1';
+    localStorage.removeItem(PIN_CHANGE_LOST_KEY);
+    return lost;
+  } catch {
+    return false;
+  }
+}
+
+type PinHashFields = Pick<UserSettings, 'pinSalt' | 'pinHash' | 'pinIterations'>;
+
+type PinWrapFields = PinHashFields & Pick<
+  UserSettings,
+  'pinWrapSalt' | 'pinWrapIV' | 'pinWrapCiphertext' | 'pinWrapIterations'
+>;
+
+const NULL_WRAP: PinWrapFields = {
+  pinSalt: null,
+  pinHash: null,
+  pinIterations: null,
+  pinWrapSalt: null,
+  pinWrapIV: null,
+  pinWrapCiphertext: null,
+  pinWrapIterations: null,
+};
+
+// Credential-bucketed like the wrap keys biometric.ts writes, so a demo
+// session's copy is swept with the rest of the `.demo` bucket.
+const wrapSideKey = () => credentialKey('privacynotes.settings.pinWrap');
+// The PIN group's base marker on an untrusted device: in the tab, with the
+// wrap it describes, never on the disk.
+const pinMarkerSideKey = () => credentialKey('privacynotes.settings.pinMarker');
+
+function pickWrap(s: UserSettings): PinWrapFields {
+  return {
+    pinSalt: s.pinSalt,
+    pinHash: s.pinHash,
+    pinIterations: s.pinIterations,
+    pinWrapSalt: s.pinWrapSalt,
+    pinWrapIV: s.pinWrapIV,
+    pinWrapCiphertext: s.pinWrapCiphertext,
+    pinWrapIterations: s.pinWrapIterations,
+  };
+}
+
+function pickHash(s: UserSettings): PinHashFields {
+  return { pinSalt: s.pinSalt, pinHash: s.pinHash, pinIterations: s.pinIterations };
+}
+
+function readWrapSideKey(): PinWrapFields | null {
+  try {
+    const raw = sessionStorage.getItem(wrapSideKey());
+    if (!raw) return null;
+    const p = JSON.parse(raw) as Partial<PinWrapFields>;
+    return {
+      pinSalt: typeof p.pinSalt === 'string' ? p.pinSalt : null,
+      pinHash: typeof p.pinHash === 'string' ? p.pinHash : null,
+      pinIterations: typeof p.pinIterations === 'number' ? p.pinIterations : null,
+      pinWrapSalt: typeof p.pinWrapSalt === 'string' ? p.pinWrapSalt : null,
+      pinWrapIV: typeof p.pinWrapIV === 'string' ? p.pinWrapIV : null,
+      pinWrapCiphertext: typeof p.pinWrapCiphertext === 'string' ? p.pinWrapCiphertext : null,
+      pinWrapIterations: typeof p.pinWrapIterations === 'number' ? p.pinWrapIterations : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The untrusted view of a parsed envelope. An envelope that still carries a
+ * wrap was written before the cache withheld it: keep the values and rewrite
+ * it once, so the ciphertext leaves the disk on the first read. Otherwise the
+ * side key says what this tab knows, present or known absent, and no side
+ * key means unknown.
+ *
+ * An envelope can also predate the withheld PIN hash, with the wrap already
+ * nulled beside it and a side key that holds the wrap only. Its hash is the
+ * account's as this device last knew it, so it fills in what the side key
+ * lacks, and the rewrite takes it off the disk. The wrap stays as the side
+ * key says: present, known absent, or unknown.
+ */
+function untrustedView(cache: LocalCache): LocalCache {
+  if (hasPinWrap(cache.settings)) {
+    const known = { ...cache, wrapWithheld: false };
+    writeLocal(known);
+    return known;
+  }
+  const legacyHash = cache.settings.pinHash ? pickHash(cache.settings) : null;
+  const side = readWrapSideKey();
+  const marker = side ? readRaw(sessionStorage, pinMarkerSideKey()) : null;
+  const syncedKeys = cache.syncedKeys && marker ? { ...cache.syncedKeys, [PIN_GROUP_KEY]: marker } : cache.syncedKeys;
+  const view: LocalCache = side
+    ? { ...cache, settings: { ...cache.settings, ...side, ...(side.pinHash ? {} : legacyHash) }, wrapWithheld: false, ...(syncedKeys ? { syncedKeys } : {}) }
+    : { ...cache, settings: { ...cache.settings, ...NULL_WRAP }, wrapWithheld: withholdsWrap(false) };
+  if (legacyHash) writeLocal(view);
+  return view;
+}
+
+/**
+ * Whether a tab with no side key withholds the PIN fields as unknown. The
+ * demo never pulls a row that could fill them in, so there its nulls are
+ * known absent: otherwise every save writes a new PIN hash as null and the
+ * demo can never set a PIN. Pinned by tests/demoPin.test.ts.
+ */
+function withholdsWrap(trusted: boolean): boolean {
+  return !trusted && !isDemoMode();
+}
+
+const EPOCH = '1970-01-01T00:00:00.000Z';
+
+/** The base as an untrusted envelope keeps it: no marker of the PIN group. */
+function withoutPinMarker(keys: Record<string, string>): Record<string, string> {
+  const { [PIN_GROUP_KEY]: _pin, ...rest } = keys;
+  return rest;
+}
+
+function readSyncedKeys(raw: unknown): { syncedKeys?: Record<string, string> } {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) if (typeof v === 'string') out[k] = v;
+  return { syncedKeys: out };
+}
+
+function readLocal(): LocalCache {
+  const trusted = isTrustedDevice();
+  try {
+    const raw = localStorage.getItem(localKey());
+    if (!raw) {
+      return { settings: defaultSettings(), updatedAt: EPOCH, dirty: false, everPulled: false, wrapWithheld: withholdsWrap(trusted), syncedRev: 0 };
+    }
+    const parsed = JSON.parse(raw) as Partial<LocalCache>;
+    const opened = openSealedPart(parsed);
+    const hydrated = hydrate(opened.settings);
+    const settings = opened.locked
+      ? withPlaceholders(hydrated)
+      : opened.absorbed
+        ? { ...hydrated, settingsRev: hydrated.settingsRev + 1 }
+        : hydrated;
+    const cache: LocalCache = {
+      settings,
+      updatedAt: opened.absorbed ? new Date().toISOString() : typeof opened.updatedAt === 'string' ? opened.updatedAt : EPOCH,
+      dirty: parsed.dirty === true || opened.absorbed,
+      // Legacy caches (no field): a CLEAN one belongs to a device whose
+      // last pass completed, so it has pulled; a DIRTY one is ambiguous -
+      // it can be a healthy device with a pending offline edit, or a
+      // pre-fix fresh sign-in whose default blob never pushed (the wipe,
+      // one pass from completing). Treat dirty-legacy as never-pulled:
+      // the worst case for the healthy device is one server-base merge
+      // that reverts its pending scalar edit, while the worst case of
+      // the opposite guess is the full account wipe. One completed pass
+      // writes the field explicitly and retires this heuristic.
+      everPulled: everPulledOf(opened.everPulled, parsed.dirty),
+      wrapWithheld: false,
+      // An envelope without the field predates it, or was written by a
+      // trusted device: treating every local increment as synced is the
+      // conservative reading, and the legacy scrub below hands such a cache
+      // its wrap anyway, so the restore never needs the number there.
+      syncedRev:
+        typeof parsed.syncedRev === 'number' && Number.isFinite(parsed.syncedRev) && parsed.syncedRev >= 0
+          ? Math.floor(parsed.syncedRev)
+          : settings.settingsRev,
+      ...(readSyncedKeys(parsed.syncedKeys)),
+      ...(opened.locked ? { sealedLocked: true } : {}),
+      ...epochField(parsed.keyEpoch),
+    };
+    const view = viewFor(cache, parsed, trusted);
+    // A cache that still holds the sealed settings in the clear, or that
+    // took the sealed part back in, goes to the disk split on this read.
+    if (opened.rewrite && localDataKeyCopy() !== null && mayWriteUnstamped()) writeLocal(view);
+    return view;
+  } catch {
+    return { settings: defaultSettings(), updatedAt: EPOCH, dirty: false, everPulled: false, wrapWithheld: withholdsWrap(trusted), syncedRev: 0 };
+  }
+}
+
+function everPulledOf(value: unknown, dirty: unknown): boolean {
+  return value === undefined ? dirty !== true : value === true;
+}
+
+/** The parsed envelope as this tab may see it: the PIN fields an untrusted
+ *  device withholds, and the nulls a trusted reader must not believe. */
+function viewFor(cache: LocalCache, parsed: Partial<LocalCache>, trusted: boolean): LocalCache {
+  if (!trusted) return untrustedView(cache);
+  // A trusted reader of an envelope an untrusted session wrote: the four
+  // nulls are that session's withholding, not the account's state, and
+  // the side key it kept them in belongs to a tab that is gone. Unknown,
+  // until a pass reads the row and writes the trusted shape back.
+  if (parsed.wrapWithheld === true) {
+    return { ...cache, settings: { ...cache.settings, ...NULL_WRAP }, wrapWithheld: true };
+  }
+  return cache;
+}
+
+/**
+ * The fields this bundle keeps beside the fence on a split envelope. The
+ * envelope's own `updatedAt` and `everPulled` are written as the epoch and
+ * false, for the bundles before the split: they read the readable part,
+ * whose sealed settings are missing, as a device that never pulled, so their
+ * pass takes the server copy and never pushes the empty lists over it.
+ * Spec: docs/internal/specs/local-at-rest.md (section 3.4, the fence)
+ */
+type SplitMeta = { v: 1; updatedAt: string; everPulled: boolean };
+
+function readSplitMeta(raw: unknown): SplitMeta | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const m = raw as Partial<SplitMeta>;
+  if (m.v !== 1 || typeof m.updatedAt !== 'string' || typeof m.everPulled !== 'boolean') return null;
+  return { v: 1, updatedAt: m.updatedAt, everPulled: m.everPulled };
+}
+
+type OpenedEnvelope = {
+  /** The settings to hydrate. */
+  settings: unknown;
+  updatedAt: unknown;
+  everPulled: unknown;
+  /** The sealed part is there and no key is registered. */
+  locked: boolean;
+  /** The sealed part merged back into a readable cache, with a change. */
+  absorbed: boolean;
+  /** Write the cache back split once read. */
+  rewrite: boolean;
+};
+
+let sealedUnreadableLogged = false;
+
+/**
+ * Join the readable envelope and the sealed part. Four cases:
+ * - A split envelope and a sealed part that opens: one cache.
+ * - A split envelope and no key: the readable part, the sealed one locked.
+ * - A split envelope and a sealed part that is gone or does not open: the
+ *   readable part as a device that never pulled, so the next pass takes the
+ *   server copy. Only an unsynced sealed change is lost, and only here.
+ * - A readable envelope: from before the split, or written since by an older
+ *   bundle on this device (a downgrade, an old tab). A sealed part beside it
+ *   merges in as a second device would, so a change that waited in it
+ *   survives the older bundle.
+ */
+function openSealedPart(parsed: Partial<LocalCache> & { split?: unknown }): OpenedEnvelope {
+  const split = readSplitMeta(parsed.split);
+  const plain: OpenedEnvelope = {
+    settings: parsed.settings,
+    updatedAt: parsed.updatedAt,
+    everPulled: parsed.everPulled,
+    locked: false,
+    absorbed: false,
+    rewrite: false,
+  };
+  if (!split && !settingsSealOn()) return plain;
+  const sealed = readSealedSettings();
+  if (split) {
+    const meta = { updatedAt: split.updatedAt, everPulled: split.everPulled };
+    if (sealed.state === 'open') {
+      return { ...plain, ...meta, settings: { ...(parsed.settings as object), ...sealed.fields } };
+    }
+    if (sealed.state === 'locked') return { ...plain, ...meta, locked: true };
+    if (!sealedUnreadableLogged) {
+      sealedUnreadableLogged = true;
+      logAuthEvent('settings:sealed-unreadable', { state: sealed.state });
+    }
+    return { ...plain, updatedAt: EPOCH, everPulled: false, rewrite: true };
+  }
+  if (sealed.state === 'locked') return plain;
+  if (sealed.state !== 'open') return { ...plain, rewrite: true };
+  const plainPulled = everPulledOf(parsed.everPulled, parsed.dirty);
+  // A sealed part with nothing unsynced holds only what the server has, and
+  // the older bundle has read the server since: its copy stands whole, so a
+  // removal made there (a favorite, a template) is not undone by a union.
+  if (!sealed.dirty && plainPulled) return { ...plain, rewrite: true };
+  const settings = absorbSealedPart(parsed.settings, sealed.fields, sealed.base, sealed.dirty, plainPulled);
+  const absorbed = canonicalJson(pickSealed(hydrate(settings))) !== canonicalJson(pickSealed(hydrate(parsed.settings)));
+  return { ...plain, settings, absorbed, rewrite: true };
+}
+
+/**
+ * The readable cache an older bundle wrote, and the sealed part this bundle
+ * left beside it: two copies of one device, merged as two devices merge, so
+ * neither side's folder, template or pick is dropped. A plain sealed setting
+ * this bundle changed and never pushed stands: its value differs from the
+ * base sealed with it, or, with no base for it, the sealed part held an
+ * unpushed change. Any other follows the older bundle once it has read the
+ * server row; before that the older bundle holds the defaults it hydrated,
+ * and the sealed part's stand.
+ */
+function absorbSealedPart(
+  plainRaw: unknown,
+  sealedFields: Record<string, unknown>,
+  sealedBase: Record<string, string>,
+  sealedDirty: boolean,
+  plainPulled: boolean,
+): UserSettings {
+  const plain = hydrate(plainRaw);
+  const sealed = hydrate({ ...(plainRaw as object), ...sealedFields });
+  const merged = plainPulled ? mergeSettings(sealed, plain) : mergeSettings(plain, sealed);
+  const out = { ...plain, ...pickSealed(merged) } as Record<string, unknown>;
+  const sealedRec = sealed as unknown as Record<string, unknown>;
+  for (const k of Object.keys(sealedFields)) {
+    if (OWN_RULE_KEYS.has(k)) continue;
+    const was = sealedBase[k];
+    if (was === undefined ? sealedDirty : fingerprint(sealedRec[k]) !== was) out[k] = sealedRec[k];
+  }
+  return out as unknown as UserSettings;
+}
+
+/**
+ * Whether a save landed after `seen` was read. A pass that waited on the
+ * network must not write over it. Both fields, because every save steps the
+ * counter, and two saves in one millisecond carry the same stamp.
+ */
+function savedSince(seen: LocalCache): boolean {
+  const now = readLocal();
+  return now.updatedAt !== seen.updatedAt || now.settings.settingsRev !== seen.settings.settingsRev;
+}
+
+function writeLocal(cache: LocalCache): void {
+  // Every source of a change lands here: the toggle in Security, a blob that
+  // arrives from another device, and the recovery paths. Arming on one of
+  // them and disarming on none is the half of this that breaks in silence, so
+  // the cover follows the value from the single place the value is written.
+  // Spec: docs/internal/specs/app-switcher-privacy-screen.md
+  applyPrivacyScreen(cache.settings.appLockEnabled);
+  const { wrapWithheld, syncedRev, sealedLocked: _locked, ...stored } = cache;
+  const toDisk = diskShape(cache);
+  const trusted = isTrustedDevice();
+  // A trusted device that knows its wrap writes exactly the shape it always
+  // had. Every other write carries the four fields as null plus a marker
+  // saying so, because the trust flag can change under the same envelope: a
+  // sign-in that ticks "trust this device" after an untrusted session must
+  // not read that session's nulls as the account having no wrap. The
+  // marker outlives the flag; a pass that reads the row clears it.
+  if (trusted && !wrapWithheld) {
+    try {
+      localStorage.setItem(localKey(), JSON.stringify(toDisk(stored)));
+    } catch {
+      /* storage full / disabled - we fall back to in-memory only */
+    }
+    return;
+  }
+  try {
+    localStorage.setItem(
+      localKey(),
+      JSON.stringify(toDisk({
+        ...stored,
+        settings: { ...stored.settings, ...NULL_WRAP },
+        ...(stored.syncedKeys ? { syncedKeys: withoutPinMarker(stored.syncedKeys) } : {}),
+        syncedRev,
+        wrapWithheld: true,
+      })),
+    );
+  } catch {
+    /* storage full / disabled - we fall back to in-memory only */
+  }
+  // The side key belongs to an untrusted tab that knows the wrap. An absent
+  // side key is the record that the fields are unknown here, and writing
+  // four nulls over it would turn "not read yet" into "removed".
+  if (trusted || wrapWithheld) return;
+  try {
+    sessionStorage.setItem(wrapSideKey(), JSON.stringify(pickWrap(cache.settings)));
+    const marker = cache.syncedKeys?.[PIN_GROUP_KEY];
+    if (marker) sessionStorage.setItem(pinMarkerSideKey(), marker);
+    else sessionStorage.removeItem(pinMarkerSideKey());
+  } catch {
+    // A dropped side key reads as unknown on the next read, which is the
+    // safe side: the device then sends nothing for these fields until a
+    // pass has read them from the server.
+  }
+}
+
+/**
+ * How an envelope goes to the disk: whole, or split, with the sealed settings
+ * sealed first beside it and the fence for older bundles on the envelope
+ * (SplitMeta). Whole when the seal is off, and when no key is registered for
+ * a cache read in the clear: a sealed part already there stays as it is, and
+ * the next read with a key merges it back. A locked cache never seals: its
+ * sealed settings are placeholders, so the sealed part on the disk stands.
+ */
+function diskShape(cache: LocalCache): <T extends { settings: UserSettings; updatedAt: string; everPulled: boolean }>(env: T) => T {
+  if (!settingsSealOn() || !(cache.sealedLocked || writeSealedSettings(cache.settings, cache.syncedKeys, cache.dirty))) return (env) => env;
+  return (env) => ({
+    ...env,
+    settings: stripSealed(env.settings),
+    updatedAt: EPOCH,
+    everPulled: false,
+    split: { v: 1, updatedAt: env.updatedAt, everPulled: env.everPulled } satisfies SplitMeta,
+  });
+}
+
+/**
+ * Load the locally-cached settings. Returns defaults if nothing is
+ * cached. Does NOT hit the network - use `syncUserSettings` for that.
+ */
+export function loadLocalSettings(): UserSettings {
+  return readLocal().settings;
+}
+
+/**
+ * Whether a settings write may land. A sign-out clears this cache, and a
+ * write after it would put the account's settings back on a signed-out
+ * device, PIN wrap included when the caller hands over a whole object it
+ * read before. So the writers ask, not the paths that reach them: a caller
+ * with the stamp of a sign-in that is not live yet is refused after a
+ * sign-out since that stamp, and any other caller needs a live sign-in or a
+ * tab that has seen no sign-out (liveSignIn.ts). The demo keeps its own
+ * bucket and its own sign-out, so it is never refused.
+ */
+function settingsWriteAllowed(since?: SignInStamp): boolean {
+  if (isDemoMode()) return true;
+  return since ? !signedOutSince(since) : mayWriteUnstamped();
+}
+
+/**
+ * Write a new settings blob locally and mark it dirty. The caller
+ * should then schedule a sync (debounced in practice). Returns the
+ * updated settings so the caller can use them as the next React
+ * state value. A write after a sign-out (settingsWriteAllowed) writes
+ * nothing and returns `next` as it came.
+ */
+export function saveLocalSettings(next: UserSettings, since?: SignInStamp): UserSettings {
+  if (!settingsWriteAllowed(since)) return next;
+  // These fields are write-once-forward and must survive a stale save:
+  // callers hand us whole settings objects out of React state, and that
+  // state can predate a write another code path made in the meantime
+  // (createNote bumps the counter outside React entirely). Roll-back
+  // here would re-arm a spent milestone, so each merges rather than
+  // overwrites - exactly the rules syncUserSettings applies remotely.
+  const current = readLocal();
+  const stored = current.settings;
+  // Built from a read while the sealed part was locked: its sealed settings
+  // are placeholders, never the person's, so the ones this device holds stand.
+  if (fromLockedRead(next)) next = { ...next, ...pickSealed(stored) };
+  if (stored.notesCreated > next.notesCreated) {
+    next = { ...next, notesCreated: stored.notesCreated };
+  }
+  if (stored.milestonesSeen.some((k) => !next.milestonesSeen.includes(k))) {
+    next = {
+      ...next,
+      milestonesSeen: [...new Set([...stored.milestonesSeen, ...next.milestonesSeen])],
+    };
+  }
+  const firstSeen = olderStamp(stored.firstSeenAt, next.firstSeenAt);
+  if (firstSeen !== next.firstSeenAt) {
+    next = { ...next, firstSeenAt: firstSeen };
+  }
+  if (stored.ratingDone && !next.ratingDone) {
+    next = { ...next, ratingDone: true };
+  }
+  if (stored.importPromptDismissed && !next.importPromptDismissed) {
+    next = { ...next, importPromptDismissed: true };
+  }
+  if (stored.clipperHintDismissed && !next.clipperHintDismissed) {
+    next = { ...next, clipperHintDismissed: true };
+  }
+  // The freshness counter is derived here rather than trusted from the caller,
+  // which hands us whole settings objects out of React state that can predate
+  // another write. It only ever moves up.
+  next = { ...next, settingsRev: Math.max(stored.settingsRev, next.settingsRev) + 1 };
+  const cache: LocalCache = {
+    settings: next,
+    updatedAt: new Date().toISOString(),
+    dirty: true,
+    everPulled: current.everPulled,
+    // A save that carries a wrap can only have come from a tab that knows
+    // it. One that leaves the fields alone leaves them as unknown as they
+    // were, and clearPin's nulls over a known wrap are known absent, which
+    // is what lets the removal travel.
+    wrapWithheld: current.wrapWithheld && !hasPinWrap(next),
+    syncedRev: current.syncedRev,
+    // A save changes values, never the base they are measured against.
+    ...(current.syncedKeys ? { syncedKeys: current.syncedKeys } : {}),
+    ...(current.sealedLocked ? { sealedLocked: true } : {}),
+    ...epochField(current.keyEpoch),
+  };
+  writeLocal(cache);
+  // Asked again once written: another tab's sign-out can fall between the
+  // check and the write, and its own clear at the end takes this one too.
+  if (!settingsWriteAllowed(since)) clearLocalSettings();
+  return next;
+}
+
+/**
+ * Apply a change to the settings the cache holds right now, then save.
+ *
+ * Every settings write from the UI comes through here rather than through a
+ * whole object taken out of React state. That copy can predate the first
+ * pull: on a fresh device the state starts as defaults, the pull lands in
+ * the cache first, and a change built from the defaults would put an empty
+ * folder tree back over the account's real one, which the pulled cache then
+ * pushes as its own. The cache is the freshest local truth, so the updater
+ * runs against it and the caller's copy is never trusted for the fields it
+ * did not change. The stale-pass guard in useSyncOrchestrator stays with the
+ * caller.
+ *
+ * An updater that returns its input unchanged saves nothing: no dirty flag,
+ * no counter step, no push.
+ */
+export function updateLocalSettings(
+  updater: (prev: UserSettings) => UserSettings,
+  since?: SignInStamp,
+): UserSettings {
+  const prev = readLocal().settings;
+  const next = updater(prev);
+  return next === prev ? prev : saveLocalSettings(next, since);
+}
+
+/** Whether this device holds a settings change the server has not seen. */
+export function hasUnpushedSettings(): boolean {
+  return readLocal().dirty;
+}
+
+/**
+ * Whether this device's settings cache has ever seen the server row
+ * (see the everPulled field doc on LocalCache). useSyncOrchestrator
+ * gates the one-time firstSeenAt stamp on it, so the stamp can never
+ * be the write that arms a defaults-over-server push.
+ */
+export function hasSettingsPulled(): boolean {
+  return readLocal().everPulled;
+}
+
+/** Clear any locally cached settings. Called on sign-out, and on a
+ *  fresh demo session (where it clears only the demo bucket).
+ *
+ *  `keepUnsent`: a forced sign-out keeps a cache that holds a change the
+ *  server has not seen (folders, trackers, lists exist nowhere else). It
+ *  stays without the PIN fields: on a signed-out device the wrap is a copy
+ *  of the phrase under a short secret, and the salt and hash beside it give
+ *  that secret up to an offline search. They go in the shape an untrusted
+ *  device writes (`wrapWithheld`), which every reader takes as unknown, never
+ *  as removed, so the next pass takes them from the server row again. */
+export function clearLocalSettings(keepUnsent = false): void {
+  const kept = keepUnsent ? readLocal() : null;
+  if (kept?.dirty) {
+    // A trusted envelope records no synced counter, and the one readLocal
+    // gives it counts the unsent saves too: the withheld cache would then
+    // read every row as a rollback and never push. No counter is known, so
+    // the next pass takes the fields from the row it reads.
+    const syncedRev = isTrustedDevice() && !kept.wrapWithheld ? 0 : kept.syncedRev;
+    writeLocal({ ...kept, wrapWithheld: true, syncedRev });
+    clearTabPinWrapCopy();
+    return;
+  }
+  try {
+    localStorage.removeItem(localKey());
+  } catch {
+    /* ignore */
+  }
+  removeSealedSettings();
+  clearTabPinWrapCopy();
+}
+
+/** The PIN wrap an untrusted tab keeps beside the cache, in sessionStorage,
+ *  where a sign-out in another tab cannot reach it. */
+export function clearTabPinWrapCopy(): void {
+  try {
+    sessionStorage.removeItem(wrapSideKey());
+    sessionStorage.removeItem(pinMarkerSideKey());
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * True while this tab does not know the account's PIN wrap: the cache
+ * withholds it on an untrusted device and no pass has read it yet. The
+ * settings then carry four nulls that mean "not read", never "removed", and
+ * syncPinWrap must not act on them. Pinned by tests/pinRecovery.test.ts and
+ * tests/settingsSync.test.ts.
+ */
+export function isPinWrapWithheld(): boolean {
+  return readLocal().wrapWithheld;
+}
+
+/** The key epoch of the server row the settings cache was last read from;
+ *  1 for an account that never changed its phrase. */
+export function settingsKeyEpoch(): number {
+  return readLocal().keyEpoch ?? 1;
+}
+
+/**
+ * Save a change of the account's secret through a security surface's own
+ * settings save, and answer whether every credential field it changes landed.
+ * That save swallows a refused write (writeLocal), and an untrusted device
+ * keeps the wrap in a side key that can be refused on its own, so a surface
+ * asks before it caches the hash, strips the phrase or says the change worked.
+ * A save that did not land whole puts the cache back byte for byte, its dirty
+ * flag and stamp included, so the hash and the wrap stay on the secret they
+ * had and the undone change reaches no push, and the surface's copy follows.
+ * `replacing` is the hash the surface proved the current secret
+ * against: a cache that holds another one, a secret changed since by another
+ * device or tab, saves nothing. Pinned by tests/pinTabWrites.test.ts.
+ */
+export function saveCredential(
+  next: UserSettings,
+  base: UserSettings,
+  onSettingsChange: (next: UserSettings, base: UserSettings) => void,
+  replacing?: Pick<UserSettings, 'pinSalt' | 'pinHash'>,
+): boolean {
+  const before = readLocal().settings;
+  if (replacing && (before.pinSalt !== replacing.pinSalt || before.pinHash !== replacing.pinHash)) return false;
+  const changed = CREDENTIAL_FIELDS.filter((k) => next[k] !== base[k]);
+  const priorEnvelope = readRaw(localStorage, localKey());
+  const priorSide = readRaw(sessionStorage, wrapSideKey());
+  const priorMarker = readRaw(sessionStorage, pinMarkerSideKey());
+  onSettingsChange(next, base);
+  const saved = readLocal().settings;
+  if (changed.every((k) => saved[k] === next[k])) return true;
+  // The surface's copy takes the cache's own values from before, not its
+  // own, which can be older than a change another device made meanwhile.
+  // That save marks the cache dirty with a fresh stamp, and a dirty cache
+  // skips the pull and pushes, so the cache itself goes back to the exact
+  // envelope and side key it had. A sign-out since leaves both to its wipe.
+  onSettingsChange(before, next);
+  if (settingsWriteAllowed()) {
+    putRaw(localStorage, localKey(), priorEnvelope);
+    putRaw(sessionStorage, wrapSideKey(), priorSide);
+    putRaw(sessionStorage, pinMarkerSideKey(), priorMarker);
+  }
+  return false;
+}
+
+function readRaw(store: Storage, key: string): string | null {
+  try {
+    return store.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function putRaw(store: Storage, key: string, value: string | null): void {
+  try {
+    if (value === null) store.removeItem(key);
+    else store.setItem(key, value);
+  } catch {
+    /* the value it puts back is one this store already held */
+  }
+}
+
+// ------------------------------------------------------------------
+// Remote sync
+// ------------------------------------------------------------------
+
+type RemoteRow = {
+  user_pubkey: string;
+  ciphertext: string;
+  nonce: string;
+  updated_at: string;
+  /** The key epoch of the ciphertext; absent before the column existed (1).
+   *  Spec: packages/supabase/migrations/history/0118_key_epoch.sql */
+  key_epoch?: number;
+};
+
+/** The settings rows of this tab's passes have named only key epochs this
+ *  device holds; set once a row of another one was logged. */
+let epochUnknownLogged = false;
+
+/**
+ * Whether a settings row is under a key epoch this device holds no key for.
+ * A row of a higher epoch is the sign that the account changed its phrase
+ * (section 7), not a damaged row: no pass may log it as a decrypt failure,
+ * refuse it as a rollback, or push this device's blob over it. The pass
+ * that reads one stops before any write.
+ * Spec: docs/internal/plans/phrase-change.md (6.2, the settings row)
+ */
+function rowEpochUnknown(row: { key_epoch?: number }): boolean {
+  const epoch = epochOf(row.key_epoch);
+  if (holdsEpoch(epoch)) return false;
+  noteAccountEpoch(epoch);
+  // Above this device's own keys: the account changed its phrase after this
+  // device took them. auth.tsx asks for the new one (phraseReplaced.ts).
+  if (epoch > currentKeyEpoch()) reportPhraseReplaced('settings');
+  if (!epochUnknownLogged) {
+    epochUnknownLogged = true;
+    logAuthEvent('settings:epoch-unknown', { epoch: Number.isFinite(epoch) ? epoch : null });
+  }
+  return true;
+}
+
+/**
+ * A conditional update of the settings row, also conditional on the key epoch
+ * of the row it was built from: a phrase change that lands between the read
+ * and this write replaces the row under a new epoch, and the update must miss
+ * it. Only once the column exists (the row read carried it), so an app that
+ * ships before migration 0118 sends the update it always sent.
+ * Spec: docs/internal/plans/phrase-change.md (6.2, the settings row)
+ */
+function onSameEpoch<Q extends { eq(column: string, value: number): Q }>(update: Q, built: { key_epoch?: number } | null | undefined): Q {
+  return typeof built?.key_epoch === 'number' ? update.eq('key_epoch', built.key_epoch) : update;
+}
+
+/**
+ * A conditional update of the settings row, also conditional on the row it
+ * was built from: its nonce, which every write of the blob replaces, as the
+ * notes push guards on the generation it read (sync.ts). With no row read
+ * there is nothing to match, and the update misses as it always did.
+ */
+function onRowRead<Q extends { eq(column: string, value: string): Q }>(update: Q, read: { nonce?: string } | null | undefined): Q {
+  return typeof read?.nonce === 'string' ? update.eq('nonce', read.nonce) : update;
+}
+
+/** Open a settings row with the key of its epoch (the current one, or an
+ *  earlier one from the key ring). */
+function openSettingsRow(row: { ciphertext: string; nonce: string; key_epoch?: number }, key: Uint8Array): unknown {
+  const ct = base64ToBytes(row.ciphertext);
+  const nonce = base64ToBytes(row.nonce);
+  return openWithRing('sync', key, (k) => decryptJson(ct, nonce, k), epochOf(row.key_epoch));
+}
+
+/**
+ * The account's settings row as the server holds it, opened, for the phrase
+ * change. The change sends one whole new blob built from this, never from
+ * the local cache: the cache can hold a withheld wrap (`wrapWithheld`), and a
+ * blob built from it would drop the PIN. This device's unsynced settings go
+ * up first, and a device that still holds some after that pass refuses
+ * (`settings_unsynced`): the wizard asks again once sync caught up.
+ * `plain` is the decrypted JSON as stored, unknown fields of newer clients
+ * included; null when the account has no row yet.
+ * Spec: docs/internal/plans/phrase-change.md (section 5, request)
+ */
+export async function readSettingsRowForChange(
+  supabase: SupabaseClient,
+  pubkey: string,
+  encryptionKey: Uint8Array,
+): Promise<{ nonce: string | null; keyEpoch: number; plain: Record<string, unknown> | null; localRev: number }> {
+  if (isDemoMode()) throw new Error('settings_unavailable');
+  if (hasUnpushedSettings()) await syncUserSettings(supabase, pubkey, encryptionKey);
+  if (hasUnpushedSettings()) throw new Error('settings_unsynced');
+  const { data, error } = await supabase.from('user_settings').select('*').eq('user_pubkey', pubkey).maybeSingle();
+  if (error) throw new Error(isPhraseReplacedRefusal(error) ? 'phrase_replaced' : 'settings_unavailable');
+  const localRev = readLocal().settings.settingsRev;
+  if (!data) return { nonce: null, keyEpoch: 1, plain: null, localRev };
+  const row = data as RemoteRow;
+  if (rowEpochUnknown(row)) throw new Error('settings_epoch_unknown');
+  let plain: unknown;
+  try {
+    plain = openSettingsRow(row, encryptionKey);
+  } catch {
+    throw new Error('settings_unreadable');
+  }
+  if (!plain || typeof plain !== 'object' || Array.isArray(plain)) throw new Error('settings_unreadable');
+  return { nonce: row.nonce, keyEpoch: epochOf(row.key_epoch), plain: plain as Record<string, unknown>, localRev };
+}
+
+/**
+ * Union-merge two template arrays by ID with tombstone semantics.
+ *
+ * Rules:
+ * - Every ID present on either side appears in the result.
+ * - If both sides have the same ID: tombstoned copy wins (deletion is
+ *   permanent). If neither is tombstoned, local copy wins (intentional edit).
+ * - Result is never smaller than either input - safe for pull AND push.
+ *
+ * Medications and custom trackers share this because they share a shape:
+ * a template in settings that per-day values in the journal notes point
+ * at by id. Dropping one does not merely hide a pill, it orphans every
+ * value ever logged against it. Medications got this protection after the
+ * first round of loss reports; custom trackers were still taking the
+ * wholesale path until they were routed through here too.
+ */
+type Template = { id: string; deletedAt?: string; updatedAt?: string };
+
+/**
+ * Which side wins when both hold an ACTIVE copy of the same id and
+ * neither carries an edit stamp.
+ *
+ * This is not a preference, it is a fact about the caller. On the PULL
+ * the local cache is clean by definition (`remoteWins` requires it), so
+ * it cannot be hiding an unpushed edit and the server is simply newer.
+ * On a PUSH the local cache is dirty, so it may hold the only copy of an
+ * edit that has never left this device. Getting this backwards on the
+ * pull is what stopped a dosage corrected on one device from ever
+ * reaching the others.
+ */
+type Winner = 'local' | 'remote';
+
+function mergeTemplates<T extends Template>(
+  local: T[],
+  remote: T[],
+  unstampedWinner: Winner = 'local'
+): T[] {
+  const map = new Map<string, T>();
+  for (const m of remote) map.set(m.id, m);
+  for (const m of local) {
+    const existing = map.get(m.id);
+    if (!existing) {
+      map.set(m.id, m);
+    } else if (m.deletedAt && !existing.deletedAt) {
+      // Local has tombstone, remote doesn't - tombstone wins.
+      map.set(m.id, m);
+    } else if (!m.deletedAt && existing.deletedAt) {
+      // Remote has tombstone - keep it (already in map).
+    } else if (m.updatedAt || existing.updatedAt) {
+      // At least one side carries an edit stamp: the newer edit wins, and
+      // a stamped copy beats an unstamped one (it was written by a client
+      // that records edits, so it is the later write).
+      const localNewer = (m.updatedAt ?? '') > (existing.updatedAt ?? '');
+      if (localNewer) map.set(m.id, m);
+    } else if (unstampedWinner === 'local') {
+      map.set(m.id, m);
+    }
+  }
+  return [...map.values()];
+}
+
+/**
+ * Medication templates merge like every template, with one more rule: the
+ * dose history is a list of events, not a value, so the other side's events
+ * survive the stamp. The winning template's list stays as it is, and an event
+ * the other side holds more times than the winner (counted by dose and day,
+ * since a corrected typo repeats a dose on one day) is added in date order,
+ * before the winner's events of the same day, so the last event still
+ * matches the current dose.
+ */
+function mergeMedications(
+  local: MedicationTemplate[],
+  remote: MedicationTemplate[],
+  unstampedWinner: Winner = 'local'
+): MedicationTemplate[] {
+  const merged = mergeTemplates(local, remote, unstampedWinner);
+  const localById = new Map(local.map((m) => [m.id, m]));
+  const remoteById = new Map(remote.map((m) => [m.id, m]));
+  return merged.map((m) => {
+    const other = m === localById.get(m.id) ? remoteById.get(m.id) : localById.get(m.id);
+    if (m.deletedAt || !other || other.deletedAt) return m;
+    return mergeMedicationEvents(mergeDosageHistory(m, other), other);
+  });
+}
+
+/** The dose history union described above. */
+function mergeDosageHistory(m: MedicationTemplate, other: MedicationTemplate): MedicationTemplate {
+  const keyOf = (h: { dosage: string; changedAt: string }) => `${h.dosage}\u0000${h.changedAt}`;
+  if (!Array.isArray(other.dosageHistory)) return m;
+  const own = Array.isArray(m.dosageHistory) ? m.dosageHistory : [];
+  const counts = new Map<string, number>();
+  for (const h of own) counts.set(keyOf(h), (counts.get(keyOf(h)) ?? 0) + 1);
+  const seen = new Map<string, number>();
+  const extra = other.dosageHistory.filter((h) => {
+    const n = (seen.get(keyOf(h)) ?? 0) + 1;
+    seen.set(keyOf(h), n);
+    return n > (counts.get(keyOf(h)) ?? 0);
+  });
+  if (extra.length === 0) return m;
+  const ordered = [...extra.map((h) => ({ h, own: 0 })), ...own.map((h) => ({ h, own: 1 }))]
+    .map((e, at) => ({ ...e, at }))
+    .sort((a, b) => (a.h.changedAt < b.h.changedAt ? -1 : a.h.changedAt > b.h.changedAt ? 1 : a.own - b.own || a.at - b.at));
+  return { ...m, dosageHistory: ordered.map((e) => e.h) };
+}
+
+/**
+ * The schedule revisions and the refills are events too (section 6.7 of the
+ * tracker spec): both union by id, and the schedule fields are then set from
+ * the newest revision, so the winner of the stamp above decides the name and
+ * the strength but never brings an old schedule back. A winner with no
+ * revision at all was written by a client that predates schedules (every
+ * newer client writes one); it also keeps the form and color the other side
+ * holds, which that client could not know about.
+ */
+function mergeMedicationEvents(m: MedicationTemplate, other: MedicationTemplate): MedicationTemplate {
+  let next = m;
+  if (Array.isArray(other.refills) && other.refills.length) {
+    const own = Array.isArray(m.refills) ? m.refills : [];
+    const ids = new Set(own.map((r) => r?.id));
+    const extra = other.refills.filter((r) => r && typeof r.id === 'string' && !ids.has(r.id));
+    if (extra.length) next = { ...next, refills: [...own, ...extra].sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0)) };
+  }
+  const own = Array.isArray(m.scheduleHistory) ? m.scheduleHistory : [];
+  const theirs = Array.isArray(other.scheduleHistory) ? other.scheduleHistory : [];
+  if (own.length === 0 && theirs.length > 0) {
+    next = { ...next, ...(other.form && !m.form ? { form: other.form } : {}), ...(other.color && !m.color ? { color: other.color } : {}) };
+  }
+  const ids = new Set(own.map((h) => h?.id));
+  const extra = theirs.filter((h) => h && typeof h.id === 'string' && !ids.has(h.id));
+  if (extra.length) next = { ...next, scheduleHistory: [...own, ...extra].sort((a, b) => (a.changedAt < b.changedAt ? -1 : a.changedAt > b.changedAt ? 1 : 0)) };
+  const latest = latestRevision(next.scheduleHistory);
+  return latest ? withRevision(next, latest) : next;
+}
+
+/** Merge the whole tracker-config object: templates union, the rest
+ *  follows whichever side the caller passed as the base. */
+function mergeTrackerSettings(
+  base: TrackerSettings,
+  local: TrackerSettings,
+  remote: TrackerSettings,
+  unstampedWinner: Winner = 'local'
+): TrackerSettings {
+  return {
+    ...base,
+    customTrackers: mergeTemplates<CustomTrackerTemplate>(
+      local.customTrackers,
+      remote.customTrackers,
+      unstampedWinner
+    ),
+    archivedMedications: mergeMedications(
+      local.archivedMedications,
+      remote.archivedMedications,
+      unstampedWinner
+    ),
+  };
+}
+
+/** The fields `mergeAtEverySyncPoint` owns. */
+type EntryMerged = 'folders' | 'foldersDeleted' | 'itemStyles' | 'deviceLabels' | 'extensionKeys' | 'customThemes' | 'calendarFeeds' | 'formatBar' | 'dashboard' | 'factors' | 'customHabits';
+
+/**
+ * The folder tree, the folder and tag looks, the device labels, the custom
+ * themes and the format bar, merged together at every sync point that merges any of
+ * them. One call, so a field
+ * can never be merged at three of the four points and replaced wholesale at
+ * the fourth, which is the shape of write that cost two accounts their
+ * folders. A new per-entry field goes in here and nowhere else.
+ */
+function mergeAtEverySyncPoint(
+  local: Pick<UserSettings, EntryMerged>,
+  remote: Pick<UserSettings, EntryMerged>,
+  unstampedWinner: Winner,
+): Pick<UserSettings, EntryMerged> {
+  const tree = mergeFolderTrees(
+    { folders: local.folders, deleted: local.foldersDeleted },
+    { folders: remote.folders, deleted: remote.foldersDeleted },
+    unstampedWinner,
+  );
+  return {
+    folders: tree.folders,
+    foldersDeleted: tree.deleted,
+    itemStyles: mergeItemStyles(local.itemStyles, remote.itemStyles, deletedFolderIds(tree.deleted)),
+    deviceLabels: mergeDeviceLabels(local.deviceLabels, remote.deviceLabels),
+    extensionKeys: mergeExtensionKeys(local.extensionKeys, remote.extensionKeys),
+    customThemes: mergeCustomThemes(local.customThemes, remote.customThemes),
+    calendarFeeds: mergeCalendarFeeds(local.calendarFeeds, remote.calendarFeeds),
+    formatBar: mergeFormatBarSettings(local.formatBar, remote.formatBar),
+    dashboard: mergeDashboardSettings(local.dashboard, remote.dashboard),
+    factors: mergeTemplates<FactorDef>(local.factors, remote.factors, unstampedWinner),
+    customHabits: mergeTemplates<CustomHabitDef>(local.customHabits, remote.customHabits, unstampedWinner),
+  };
+}
+
+/**
+ * Merge local and remote settings when a push conflict is detected.
+ *
+ * General strategy: server wins for scalar prefs (it's newer). For
+ * medications: tombstone-aware union by ID so neither side can silently
+ * wipe the other's templates, and deletions propagate correctly.
+ */
+function mergeSettings(
+  local: UserSettings,
+  remote: UserSettings,
+  foldersUnstampedWinner: Winner = 'local',
+): UserSettings {
+  // Start from remote (newer) as the base for all scalar fields.
+  const merged = { ...remote };
+
+  // Folders are not a scalar and must not follow the base. Whichever side is
+  // newer, the other one can hold a folder it has never seen, and taking the
+  // base wholesale is what let one device's copy stand in for the account's.
+  // The looks ride along for the same reason.
+  Object.assign(merged, mergeAtEverySyncPoint(local, remote, foldersUnstampedWinner));
+
+  // Medications: tombstone-aware union merge.
+  merged.medications = mergeMedications(local.medications, remote.medications);
+
+  // Tracker config: scalars follow remote (the base), templates union so
+  // neither side can wipe the other's.
+  merged.trackerSettings = mergeTrackerSettings(
+    remote.trackerSettings,
+    local.trackerSettings,
+    remote.trackerSettings
+  );
+
+  // Favorite tags: union (order doesn't matter much, dedupe).
+  const tagSet = new Set([...remote.favoriteTags, ...local.favoriteTags]);
+  merged.favoriteTags = [...tagSet];
+
+  // Dismissed announcements: union. A dismiss on either device is spent.
+  merged.dismissedAnnouncements = [
+    ...new Set([...remote.dismissedAnnouncements, ...local.dismissedAnnouncements]),
+  ];
+
+  // "Not related" pairs: the highest version of each pair wins, so a hide
+  // and a later restore both hold on every device (dismissedSuggestions.ts).
+  merged.dismissedSuggestions = mergeDismissedSuggestions(remote.dismissedSuggestions, local.dismissedSuggestions);
+
+  // Boolean flags that should never regress from true → false.
+  if (local.welcomeNoteSeeded) merged.welcomeNoteSeeded = true;
+  if (local.importHintDismissed) merged.importHintDismissed = true;
+
+  // Monotonic counter: the larger side has seen more creates.
+  merged.notesCreated = Math.max(local.notesCreated, remote.notesCreated);
+
+  // Milestones: union. A celebration shown on either device is spent.
+  merged.milestonesSeen = [...new Set([...remote.milestonesSeen, ...local.milestonesSeen])];
+
+  // First seen: the OLDER stamp wins - the account is as old as its
+  // earliest sighting, whichever device recorded it.
+  merged.firstSeenAt = olderStamp(local.firstSeenAt, remote.firstSeenAt);
+
+  if (local.ratingDone) merged.ratingDone = true;
+  if (local.importPromptDismissed) merged.importPromptDismissed = true;
+  if (local.clipperHintDismissed) merged.clipperHintDismissed = true;
+
+  // Monotonic, like notesCreated: a merged blob must never push a number
+  // lower than one either side has already seen, or its own push reads as a
+  // rollback on the next device to pull it.
+  merged.settingsRev = Math.max(local.settingsRev, remote.settingsRev);
+
+  return merged;
+}
+
+/**
+ * A pulled blob carrying a freshness counter lower than the one this device
+ * already holds. Thrown rather than returned so it lands in the same place
+ * the decrypt failure does, where the local copy is what stands.
+ */
+class SettingsRollbackError extends Error {
+  constructor() {
+    super('settings rollback refused');
+    this.name = 'SettingsRollbackError';
+  }
+}
+
+/** Logged once per run of skipped passes, like the notes gate in sync.ts. */
+let claimGateLogged = false;
+
+/**
+ * Pull-then-push sync for the settings blob.
+ *
+ * Return value: the post-sync settings (either the remote copy if it
+ * won, the local copy if it won, or the default if both were empty).
+ * Callers should feed this back into their React state so the UI
+ * reflects any remote changes.
+ *
+ * `report.readServer` comes back true only when this call read the
+ * account's row (or proved there is none), decrypted every copy of it it
+ * met, and left a cache with nothing unpushed: the cache then holds what
+ * this pass read from the server. Callers pass a fresh `false` and only the
+ * line before the final return sets it, so a failed request, an
+ * undecryptable row, a deferred push or any early return leaves it false.
+ * hasSettingsPulled() cannot say this, because it stays true once any pass
+ * has ever pulled.
+ */
+export async function syncUserSettings(
+  supabase: SupabaseClient,
+  pubkey: string,
+  encryptionKey: Uint8Array,
+  report?: { readServer: boolean },
+  /** The stamp of the sync pass this runs inside, taken before its notes
+   *  pull, so a sign-out during that pull counts too. */
+  startedAt?: SignInStamp,
+): Promise<UserSettings> {
+  // Demo mode never syncs settings to the server - return local only.
+  if (isDemoMode()) return readLocal().settings;
+  // A sign-out clears this cache, and a pass that began before it can
+  // answer after it. On a first pull the cleared cache carries the same
+  // stamp the pass read, so savedSince below cannot tell, and the write
+  // would put the account's settings back, PIN wrap included. So every
+  // write of this pass asks first (liveSignIn.ts).
+  const signedInAt = startedAt ?? signInStamp();
+  const commit = (cache: LocalCache): void => {
+    if (signedOutSince(signedInAt)) return;
+    writeLocal(cache);
+    // Asked again once written: another tab's sign-out can fall between the
+    // check and the write, and the sign-out clears this cache again at its
+    // end, so clearing it here takes nothing anyone keeps.
+    if (signedOutSince(signedInAt)) clearLocalSettings();
+  };
+  // Below the release floor server writes pause (see sync.ts). Local settings
+  // keep working; the dirty flag survives, so they push after the update.
+  dropForeignDmsHold(pubkey);
+  if (isServerWriteBlocked()) return readLocal().settings;
+  // The session must carry THIS vault's pubkey claim before any read. Under
+  // a missing or foreign claim the row policies raise nothing: they filter
+  // the select to no rows, which is exactly what "no row exists" looks like
+  // from here, and that reading marks the device as pulled and lets its next
+  // push carry its default blob over the account's real settings. The notes
+  // pass has the same gate for the same reason (sync.ts). A skipped pass
+  // reads and writes nothing; the dirty flag waits for one that runs.
+  const { data: sessionData } = await supabase.auth.getSession();
+  const claim = sessionData?.session?.user?.app_metadata?.pubkey as string | undefined;
+  if (claim !== pubkey) {
+    if (!claimGateLogged) {
+      claimGateLogged = true;
+      logAuthEvent('settings:claim-gate-skipped', {
+        hasSession: sessionData?.session != null,
+        sessionPk: claim?.slice(0, 8) ?? null,
+        expectedPk: pubkey.slice(0, 8),
+      });
+    }
+    return readLocal().settings;
+  }
+  claimGateLogged = false;
+  // The dead man's switch gate the notes pass awaits too: no settings read or
+  // write before this device knows whether the account was wiped since it
+  // last looked. A pass that slipped in before the hold would find the row
+  // gone and write this cache back. Spec: docs/internal/specs/dead-mans-switch.md (6)
+  if ((await dmsGate(supabase, pubkey)) !== 'run') return readLocal().settings;
+  // No separate 2FA check: the table gate raises mfa_required on the row
+  // itself, so a missing row is never a refused one, and every read and
+  // write below turns that refusal into MfaRequiredError.
+  // Private copy of the key for this pass: signOut zeroes the caller's
+  // Uint8Array in place once sign-out begins, and a pass still in flight
+  // at that moment used to encrypt/decrypt with the zeroed buffer -
+  // pushing permanently undecryptable ciphertext over a good server row,
+  // then clearing the dirty flag. Same pattern as sync.ts.
+  const passKey = new Uint8Array(encryptionKey);
+  if (passKey.every((b) => b === 0)) {
+    passKey.fill(0);
+    console.warn('[settings] sign-out in progress - sync deferred');
+    return readLocal().settings;
+  }
+  // The key epoch of passKey: every blob this pass writes carries it, and a
+  // cache it commits after a write records it.
+  const epochColumn = keyEpochColumn();
+  const passEpoch = epochColumn.key_epoch ?? 1;
+  let local = readLocal();
+  // The sealed settings are placeholders until the phrase opens: a pass now
+  // would push them, or merge the server row over them. The next one runs.
+  if (local.sealedLocked) return local.settings;
+  // A clean cache holds what it last synced, or the defaults where no row
+  // exists yet, so it is its own base. This gives one to a cache written
+  // before the base shipped, and to a device that has only ever seen no row.
+  if (!local.dirty && !local.syncedKeys) {
+    local = { ...local, syncedKeys: syncedKeysOf(local.settings, !local.wrapWithheld) };
+    commit(local);
+  }
+  // This device took the keys of a later epoch than the row its cache was
+  // built from: it adopted a new phrase. Its PIN wrap and its browser keys
+  // belong to the replaced phrase, so this pass takes the account's from the
+  // row, as a device that does not know the wrap does, and never merges its
+  // own back. Its other unsynced settings go over the row as a normal edit.
+  // In memory, on every read of the cache in this pass (a save during the
+  // pull, a refused rollback): the first cache the pass commits from the row
+  // records the new epoch, and the pass after it is an ordinary one.
+  // Spec: docs/internal/plans/phrase-change.md (6.5 settings epoch, section 7)
+  const adopting = (c: LocalCache) => (c.keyEpoch ?? 1) < passEpoch;
+  const asRead = (c: LocalCache): LocalCache =>
+    adopting(c) ? { ...c, settings: { ...c.settings, extensionKeys: {} }, wrapWithheld: true } : c;
+  local = asRead(local);
+
+  try {
+  // ── 1. PULL ────────────────────────────────────────────────────
+  const { data: remoteRow, error: pullErr, status: pullStatus } = await supabase
+    .from('user_settings')
+    .select('*')
+    .eq('user_pubkey', pubkey)
+    .maybeSingle();
+
+  let effective: LocalCache = local;
+  let decryptFailed = false;
+  // Set when the only reason this pass pushes is a repair the pull made: a
+  // folder or a look the row lost, or a newer setting an older client
+  // dropped. Such a push carries none of this device's own edits, so it
+  // must not carry its scalars either (see the push below).
+  let pushIsRepair = false;
+
+  if (pullErr) recordSyncFault({ step: 'settings', status: pullStatus, code: pullErr.code || undefined });
+  if (isMfaRefusal(pullErr)) throw new MfaRequiredError();
+  if (pullErr) {
+    console.error('[settings] pull failed:', pullErr);
+  } else if (remoteRow && rowEpochUnknown(remoteRow as RemoteRow)) {
+    if (report) report.readServer = false;
+    return local.settings;
+  } else if (remoteRow) {
+    const row = remoteRow as RemoteRow;
+    // Remote wins iff it is strictly newer than our local copy AND we
+    // don't have a pending local edit (mirrors notes sync behavior:
+    // never clobber dirty local edits).
+    // A cache that does not know the account's wrap is not as fresh as the
+    // row whatever its stamp says: adopting the row is what puts the wrap
+    // back into memory for this tab.
+    // A clean cache holds the stamp of the row it last synced, so any other
+    // stamp is a row written since, read as instants. "Strictly newer" let a
+    // device whose clock runs ahead skip every other device's settings for
+    // as long as its own stamps stayed ahead. An older row is
+    // still refused by the counter check below.
+    const remoteWins =
+      !local.dirty && (Date.parse(row.updated_at) !== Date.parse(local.updatedAt) || local.wrapWithheld);
+    if (remoteWins) {
+      try {
+        const remoteRaw = openSettingsRow(row, passKey);
+        // A device that has pulled keeps its own lock settings.
+        const remoteSettings = local.everPulled
+          ? withDeviceSettings(hydrateOver(local.settings, remoteRaw), local.settings)
+          : hydrateOver(local.settings, remoteRaw);
+        const scalarsKept = keptNewerScalar(local.settings, remoteRaw);
+        // Rollback refusal. `updated_at` is a column the server writes, so a
+        // server that serves an OLD ciphertext with a NEW stamp passes the
+        // freshness test above and this device adopts a settings blob it has
+        // already moved past. That is how a credential can be deleted by a
+        // genuine old copy: the wrap fields are settings like any other. The
+        // counter inside the blob is the answer, because raising it means
+        // encrypting and the server holds no key.
+        //
+        // Strictly lower only. See the settingsRev field doc for why equality
+        // is accepted, and for what that leaves uncovered.
+        // While it adopts, this device's counters belong to the earlier epoch,
+        // and only a holder of the new phrase writes a row of the new one.
+        if (remoteSettings.settingsRev < local.settings.settingsRev && !adopting(local)) {
+          logAuthEvent('settings:rollback-refused');
+          console.warn('[settings] refused a remote blob older than this device holds');
+          throw new SettingsRollbackError();
+        }
+        // Remote is authoritative for scalars, but medications use
+        // tombstone-based union-merge so no device can ever silently
+        // wipe another's templates. Deletions are represented as
+        // { ...med, deletedAt: timestamp } - not absence from array.
+        // 'remote': this branch runs only when the local cache is CLEAN
+        // and the server row is strictly newer, so a template both sides
+        // hold cannot be carrying a local edit the server has not seen.
+        const pulledTemplates = templatesOf(remoteSettings);
+        remoteSettings.medications = mergeMedications(
+          local.settings.medications,
+          remoteSettings.medications,
+          'remote'
+        );
+        remoteSettings.trackerSettings = mergeTrackerSettings(
+          remoteSettings.trackerSettings,
+          local.settings.trackerSettings,
+          remoteSettings.trackerSettings,
+          'remote'
+        );
+
+        // Boolean flags that must never regress true -> false.
+        if (local.settings.welcomeNoteSeeded) {
+          remoteSettings.welcomeNoteSeeded = true;
+        }
+        if (local.settings.importHintDismissed) {
+          remoteSettings.importHintDismissed = true;
+        }
+        if (local.settings.notesCreated > remoteSettings.notesCreated) {
+          remoteSettings.notesCreated = local.settings.notesCreated;
+        }
+        remoteSettings.milestonesSeen = [
+          ...new Set([...remoteSettings.milestonesSeen, ...local.settings.milestonesSeen]),
+        ];
+        remoteSettings.firstSeenAt = olderStamp(
+          local.settings.firstSeenAt,
+          remoteSettings.firstSeenAt
+        );
+        if (local.settings.ratingDone) remoteSettings.ratingDone = true;
+        if (local.settings.importPromptDismissed) remoteSettings.importPromptDismissed = true;
+        if (local.settings.clipperHintDismissed) remoteSettings.clipperHintDismissed = true;
+        // Folders and their looks merge on the way in as well as on the way
+        // out. The server copy is newer, but newer is not the same as
+        // complete: it can have been written by a device that never knew
+        // about a folder this one holds, or by a client too old to merge at
+        // all. Whatever the merge adds back has to be pushed, or this device
+        // alone would hold the repair, so a merge that changed anything
+        // re-arms the dirty flag. 'remote' settles a tie because a clean local cache cannot be
+        // hiding an edit that never left the device.
+        const pulled = mergeAtEverySyncPoint(local.settings, remoteSettings, 'remote');
+        const treeRepaired = !folderTreesEqual(
+          { folders: pulled.folders, deleted: pulled.foldersDeleted },
+          { folders: remoteSettings.folders, deleted: remoteSettings.foldersDeleted },
+        );
+        const looksRepaired =
+          !itemStylesEqual(pulled.itemStyles, remoteSettings.itemStyles) ||
+          !deviceLabelsEqual(pulled.deviceLabels, remoteSettings.deviceLabels) ||
+          !extensionKeysEqual(pulled.extensionKeys, remoteSettings.extensionKeys) ||
+          !customThemesEqual(pulled.customThemes, remoteSettings.customThemes) ||
+          !calendarFeedsEqual(pulled.calendarFeeds, remoteSettings.calendarFeeds) ||
+          !formatBarSettingsEqual(pulled.formatBar, remoteSettings.formatBar) ||
+          !dashboardSettingsEqual(pulled.dashboard, remoteSettings.dashboard) ||
+          JSON.stringify(pulled.factors) !== JSON.stringify(remoteSettings.factors) ||
+          JSON.stringify(pulled.customHabits) !== JSON.stringify(remoteSettings.customHabits);
+        Object.assign(remoteSettings, pulled);
+        if (treeRepaired) {
+          logAuthEvent('settings:folders-repaired', {
+            folders: pulled.folders.length,
+          });
+        }
+        // A repair has to carry a NEW stamp, whether it repaired the tree,
+        // the looks or a kept newer setting. Keeping the server row's own
+        // would push the repaired tree back under the timestamp it already
+        // has, so every other device's freshness test would say it had
+        // already seen this row and none of them would ever pull the repair.
+        // A template the row lost, or a dose event it never heard of, is kept
+        // here by the union above and has to go back up like a lost folder.
+        const templatesRepaired = templatesOf(remoteSettings) !== pulledTemplates;
+        const repaired = treeRepaired || looksRepaired || scalarsKept || templatesRepaired;
+        effective = {
+          settings: remoteSettings,
+          updatedAt: repaired ? new Date().toISOString() : row.updated_at,
+          dirty: repaired,
+          everPulled: true,
+          // The row is the account's, wrap fields included.
+          wrapWithheld: false,
+          syncedRev: remoteSettings.settingsRev,
+          syncedKeys: syncedKeysOf(remoteSettings, true),
+          ...epochField(epochOf(row.key_epoch)),
+        };
+        // A settings write that landed while the pull was in flight is newer
+        // than anything this pass read, so it stands and the pass leaves the
+        // cache alone. Without the check the pull silently erased it, dirty
+        // flag included, and the change never reached the server.
+        // Any save counts, whatever its stamp says: the cache can hold the
+        // stamp of a device whose clock runs ahead, and a save here carries
+        // this device's clock.
+        const current = readLocal();
+        if (savedSince(local)) {
+          // The cache is what stands, so it is also what this pass carries
+          // forward: the push below reads `effective`, and the caller sets
+          // React state from what is returned. Handing back the discarded
+          // remote blob here would push its scalars over the write that just
+          // landed and show the user the settings they had just changed away.
+          console.warn('[settings] local write landed mid-pull - keeping it');
+          effective = asRead(current);
+        } else {
+          commit(effective);
+          pushIsRepair = effective.dirty;
+        }
+      } catch (err) {
+        // A refused rollback is not a decrypt failure and must not read as
+        // one: the local copy stands and the pass continues to the push,
+        // which is what puts this device's newer blob back on the server.
+        if (err instanceof SettingsRollbackError) {
+          // The cache as it is now: a save that landed during the pull is
+          // newer than `local`, and the push below has to carry it.
+          effective = { ...asRead(readLocal()), dirty: true };
+          commit(effective);
+        } else {
+          decryptFailed = true;
+          console.error('[settings] decrypt failed:', err);
+          recordSyncFault({ step: 'settings', code: 'decrypt' });
+        }
+      }
+    }
+  } else {
+    // Pull succeeded and no row exists: the server holds nothing this
+    // device could destroy, so its first push may safely proceed as an
+    // insert. Recording that also unlocks the firstSeenAt stamp (see
+    // hasSettingsPulled).
+    if (!local.everPulled) {
+      // No row means the account holds no wrap either, so four nulls are
+      // the truth here rather than an unknown.
+      // From the cache as it is now, so a save during the pull is pushed.
+      effective = { ...readLocal(), everPulled: true, wrapWithheld: false, syncedRev: 0 };
+      commit(effective);
+    }
+  }
+
+  // ── 2. PUSH (conflict-aware) ────────────────────────────────────
+  if (effective.dirty) {
+    const snapshot = effective;
+
+    // Medications (and archived medications) must never be blind-overwritten
+    // by the fast update path below. When local is dirty the PULL above is
+    // skipped, so this device can hold stale templates - e.g. a freshly-
+    // signed-in device that edited settings before its first pull landed.
+    // The fast path's conditional update succeeds whenever this device's
+    // timestamp is newer, which would silently wipe another device's meds.
+    // Re-read the server row and union-merge the array fields first so the
+    // outgoing blob can only ever grow the medication set, never shrink it.
+    // Scalar prefs follow local ONLY on a device that has pulled at least
+    // once (this device is the newest writer of choices it actually made);
+    // a never-pulled device takes the server row as its base instead - see
+    // the everPulled branch below and the field doc on LocalCache.
+    let outgoing = effective.settings;
+    // The row's lock settings, which the push carries instead of this
+    // device's (DEVICE_SETTINGS). Null where no row was read.
+    let account: UserSettings | null = null;
+    // Every column, so the row's key epoch comes with it once the column
+    // exists, and the read works the same before it does.
+    const { data: preRow, error: preErr, status: preStatus } = await supabase
+      .from('user_settings')
+      .select('*')
+      .eq('user_pubkey', pubkey)
+      .maybeSingle();
+    // A never-pulled device may only push over a row it has actually
+    // READ. On a failed read, preRow is null exactly like "no row
+    // exists", and proceeding would push the near-default blob over the
+    // account's real row - the wipe, back through the error path. Defer:
+    // dirty stays set, everPulled stays false, the next pass retries.
+    // A device that HAS pulled keeps the old behavior (its local-wins
+    // push is legitimate; the med union just misses one pass).
+    // Deferred for EVERY device, not only a never-pulled one. The folder tree
+    // and the template lists are merged against the server row on the way
+    // out, so a push that could not read that row is a push that would write
+    // this device's copy of them wholesale - which is the shape of write that
+    // cost two accounts their folders. Deferring costs one pass; the dirty
+    // flag stays set and the next pass does the whole thing.
+    if (preErr) recordSyncFault({ step: 'settings', status: preStatus, code: preErr.code || undefined });
+    if (isMfaRefusal(preErr)) throw new MfaRequiredError();
+    if (preErr) {
+      console.error('[settings] pre-push read failed - push deferred:', preErr);
+      return effective.settings;
+    }
+    // A device that adopts a new epoch writes over the row of that epoch and
+    // nothing else: with no row read, its push would be an insert built from
+    // this device's own copy, which can still hold the replaced phrase's wrap.
+    if (!preRow && adopting(effective)) {
+      if (report) report.readServer = false;
+      return effective.settings;
+    }
+    // The account changed its phrase after the pull: no push over that row.
+    if (preRow && rowEpochUnknown(preRow as RemoteRow)) {
+      if (report) report.readServer = false;
+      return effective.settings;
+    }
+    if (preRow) {
+      try {
+        const serverSettings = hydrateOver(
+          effective.settings,
+          openSettingsRow(preRow as RemoteRow, passKey),
+        );
+        account = serverSettings;
+        if (!effective.everPulled) {
+          // This device has NEVER seen the server blob, and the row it is
+          // about to overwrite is the account's real settings (folders,
+          // favorite tags, PIN, theme, prefs). Server wins via the full
+          // conflict merge; the union fields keep their rules. Deliberate
+          // cost: scalar edits made on this device BEFORE its first pull
+          // (usually seconds of history; hours if it signed in offline)
+          // revert to the account's values, including a locally set PIN.
+          // That is the right bias - the alternative was this device
+          // wiping every other one.
+          // Folders are the exception to that bias, because they are not a
+          // preference: a folder this device made before its first pull is
+          // real work, and the server's tree is the account's. The merge
+          // keeps both, and 'remote' settles a shared id, which matters for
+          // the starter folders, whose ids are fixed rather than fresh.
+          outgoing = mergeSettings(effective.settings, serverSettings, 'remote');
+        } else if (pushIsRepair) {
+          // A push made only to carry a repair takes the row it just re-read
+          // as its base. This device made no edit, so its scalars are only
+          // what it pulled, and another device can have changed one since,
+          // the PIN and its wrap included: writing this device's copy would
+          // put the old one back under the newer counter. The repairs ride on
+          // the merge, and `hydrateOver` keeps the newer settings the row lacks.
+          outgoing = mergeSettings(effective.settings, serverSettings, 'remote');
+        } else {
+          // Same rule as the medication templates below, and the one that
+          // matters most: this device's tree and looks can be stale, and
+          // writing them whole removes every folder and every pick another
+          // device made in the meantime.
+          outgoing = {
+            ...effective.settings,
+            ...mergeAtEverySyncPoint(effective.settings, serverSettings, 'local'),
+            medications: mergeMedications(
+              effective.settings.medications,
+              serverSettings.medications
+            ),
+            // Same reason as medications: this device can hold a stale
+            // template list, and a blind overwrite deletes a custom
+            // tracker another device just created - orphaning every value
+            // already logged against it.
+            trackerSettings: mergeTrackerSettings(
+              effective.settings.trackerSettings,
+              effective.settings.trackerSettings,
+              serverSettings.trackerSettings
+            ),
+            notesCreated: Math.max(
+              effective.settings.notesCreated,
+              serverSettings.notesCreated
+            ),
+            milestonesSeen: [
+              ...new Set([
+                ...effective.settings.milestonesSeen,
+                ...serverSettings.milestonesSeen,
+              ]),
+            ],
+            firstSeenAt: olderStamp(
+              effective.settings.firstSeenAt,
+              serverSettings.firstSeenAt
+            ),
+            ratingDone: effective.settings.ratingDone || serverSettings.ratingDone,
+            importPromptDismissed:
+              effective.settings.importPromptDismissed || serverSettings.importPromptDismissed,
+            clipperHintDismissed:
+              effective.settings.clipperHintDismissed || serverSettings.clipperHintDismissed,
+            // Never lower, as in mergeSettings: a count below the row's reads
+            // as a rollback to the device that wrote it, and that device then
+            // pushes its own settings back over this change.
+            settingsRev: Math.max(effective.settings.settingsRev, serverSettings.settingsRev),
+          };
+          // The cache withheld the PIN fields and no pass has read them in
+          // this tab, so the nulls in `effective.settings` mean "unknown", and
+          // pushing them would clear the account's PIN and wrap from a device
+          // that never held them. The row this pass just read is the source, under
+          // the same rollback rule as the pull: an older row is not one, and
+          // the push waits for a pass that reads a current row.
+          if (effective.wrapWithheld) {
+            if (serverSettings.settingsRev < effective.syncedRev && !adopting(effective)) {
+              console.warn('[settings] wrap unknown here and the server row is older - push deferred');
+              return effective.settings;
+            }
+            outgoing = { ...outgoing, ...pickWrap(serverSettings) };
+          }
+          // A row older than the one this device last synced is a rollback, not
+          // a change made elsewhere: its values must not stand in for the
+          // settings this device left alone, and the push puts ours back.
+          if (serverSettings.settingsRev >= effective.syncedRev) {
+            outgoing = perKeyMerge(effective.settings, outgoing, serverSettings, effective.syncedKeys, effective.wrapWithheld);
+          }
+        }
+      } catch (err) {
+        decryptFailed = true;
+        console.error('[settings] pre-push merge decrypt failed:', err);
+        recordSyncFault({ step: 'settings', code: 'decrypt' });
+        // Same rule as the failed read above: a never-pulled device must
+        // not blind-overwrite a row it could not merge with, and neither
+        // may a device whose wrap fields are unknown, because its push
+        // would carry four nulls over a row it could not read. (For a
+        // pulled device that knows its wrap this stays a warning: same key
+        // means same phrase, so an undecryptable row is corrupt and
+        // overwriting it is the recovery.)
+        if (!effective.everPulled || effective.wrapWithheld) {
+          return effective.settings;
+        }
+      }
+    }
+
+    // The merges above take the row's lock settings; this device keeps its
+    // own, and a never-pulled device takes the row's as its first copy.
+    if (effective.everPulled) outgoing = withDeviceSettings(outgoing, effective.settings);
+    const { ciphertext, nonce } = encryptJson(account ? withDeviceSettings(outgoing, account) : outgoing, passKey);
+    const payload = {
+      user_pubkey: pubkey,
+      ciphertext: bytesToBase64(ciphertext),
+      nonce: bytesToBase64(nonce),
+      updated_at: effective.updatedAt,
+      ...epochColumn,
+    };
+
+    // Try a conditional update: only succeed if server row isn't newer, and
+    // is still the row this push was built from. A row another device wrote
+    // after the read above can carry an older stamp than ours, and the stamp
+    // guard alone let this blob, which never saw it, replace it. A miss takes
+    // the conflict branch below, which merges with that row.
+    const { data: updated, error: updateErr, status: updateStatus } = await onSameEpoch(
+      onRowRead(supabase
+        .from('user_settings')
+        .update({
+          ciphertext: payload.ciphertext,
+          nonce: payload.nonce,
+          updated_at: payload.updated_at,
+          ...epochColumn,
+        })
+        .eq('user_pubkey', pubkey)
+        .lte('updated_at', effective.updatedAt), preRow as RemoteRow | null),
+      preRow as RemoteRow | null,
+    ).select('user_pubkey');
+
+    if (updateErr) recordSyncFault({ step: 'settings', status: updateStatus, code: updateErr.code || undefined });
+    if (isMfaRefusal(updateErr)) throw new MfaRequiredError();
+    if (isPhraseReplacedRefusal(updateErr)) throw phraseReplacedStop('write');
+    if (updateErr) {
+      console.error('[settings] push failed:', updateErr);
+    } else if (!updated || updated.length === 0) {
+      // Two possibilities: server has a newer row (conflict), or no
+      // row exists yet (first-time user). Check which.
+      const { data: existing, error: existingErr, status: existingStatus } = await supabase
+        .from('user_settings')
+        .select('*')
+        .eq('user_pubkey', pubkey)
+        .maybeSingle();
+      if (existingErr) recordSyncFault({ step: 'settings', status: existingStatus, code: existingErr.code || undefined });
+      if (isMfaRefusal(existingErr)) throw new MfaRequiredError();
+
+      if (existing && rowEpochUnknown(existing as RemoteRow)) {
+        // The account changed its phrase during this pass: no merge over it.
+        if (report) report.readServer = false;
+        return effective.settings;
+      }
+      if (!existing && adopting(effective)) {
+        // The row went between the reads: an adopting device inserts nothing.
+        if (report) report.readServer = false;
+        return effective.settings;
+      }
+      if (!existing) {
+        // No row - first-time insert.
+        const { error: insertErr, status: insertStatus } = await supabase
+          .from('user_settings')
+          .insert(payload);
+        if (insertErr) recordSyncFault({ step: 'settings', status: insertStatus, code: insertErr.code || undefined });
+        if (isMfaRefusal(insertErr)) throw new MfaRequiredError();
+        if (isPhraseReplacedRefusal(insertErr)) throw phraseReplacedStop('write');
+        if (insertErr) {
+          console.error('[settings] insert failed:', insertErr);
+        } else {
+          const current = readLocal();
+          if (!savedSince(snapshot)) {
+            // The insert proves the server held no row - nothing existed
+            // for this device to have missed.
+            const cleaned: LocalCache = { ...current, dirty: false, everPulled: true, wrapWithheld: false, syncedRev: current.settings.settingsRev, syncedKeys: syncedKeysOf(current.settings, true), ...epochField(passEpoch) };
+            commit(cleaned);
+            effective = cleaned;
+          }
+        }
+      } else {
+        // Conflict: server is newer. Merge and re-push. The local side is
+        // `outgoing`, not the raw cache: outgoing already carries the unions
+        // this pass took against the row it read - the folder tree, the
+        // medications and the tracker templates - and re-merging from the
+        // raw cache would throw all of that away and start again from a copy
+        // that has seen less.
+        console.warn('[settings] conflict detected - merging');
+        try {
+          const serverSettings = hydrateOver(
+            outgoing,
+            openSettingsRow(existing as RemoteRow, passKey),
+          );
+          // The rollback rule belongs here as well as on the pull, and this is
+          // the door the plan for it did not name. This branch adopts the
+          // server's scalars, so a stale row that beat the conditional update
+          // would come straight back in through the merge - including the
+          // credential fields - after the pull had just refused it. A device
+          // that has never pulled is exempt: it holds no history to be rolled
+          // back to, and taking the server as its base is what stops it wiping
+          // every other device.
+          const rolledBack =
+            effective.everPulled && serverSettings.settingsRev < outgoing.settingsRev && !adopting(effective);
+          if (rolledBack) {
+            logAuthEvent('settings:rollback-refused');
+            console.warn('[settings] conflict row is older than this device holds - keeping ours');
+          }
+          // A refused rollback keeps this device's blob, and even then the
+          // folders and their looks merge: refusing the server's SCALARS is
+          // not a reason to drop a folder or a pick the server holds and this
+          // device has not seen.
+          // A device that has pulled keeps the settings it changed since its
+          // last sync and takes the server's for the rest; mergeSettings
+          // alone took every plain setting from the server, this device's
+          // own edits included.
+          // The wrap a device does not know (withheld, or the replaced
+          // phrase's) is the row's, even when the row's scalars are refused.
+          const merged = rolledBack
+            ? { ...outgoing, ...mergeAtEverySyncPoint(outgoing, serverSettings, 'local'), ...(effective.wrapWithheld ? pickWrap(serverSettings) : {}) }
+            : effective.everPulled
+              ? perKeyMerge(effective.settings, mergeSettings(outgoing, serverSettings, 'local'), serverSettings, effective.syncedKeys, effective.wrapWithheld)
+              : mergeSettings(outgoing, serverSettings, 'remote');
+          const mergedAt = new Date().toISOString();
+          const enc = encryptJson(withDeviceSettings(merged, serverSettings), passKey);
+          const kept = effective.everPulled ? withDeviceSettings(merged, outgoing) : merged;
+          // Guarded on the row this merge was built from, like the notes
+          // merge in sync.ts: a device that wrote after the conflict read
+          // would otherwise lose that write to a merge that never saw it.
+          // No match leaves the cache dirty, and the next pass merges again.
+          const { data: mergedRows, error: mergeErr, status: mergeStatus } = await onSameEpoch(
+            onRowRead(supabase
+              .from('user_settings')
+              .update({
+                ciphertext: bytesToBase64(enc.ciphertext),
+                nonce: bytesToBase64(enc.nonce),
+                updated_at: mergedAt,
+                ...epochColumn,
+              })
+              .eq('user_pubkey', pubkey)
+              .lte('updated_at', existing.updated_at), existing as RemoteRow),
+            existing as RemoteRow,
+          ).select('user_pubkey');
+          if (mergeErr) recordSyncFault({ step: 'settings', status: mergeStatus, code: mergeErr.code || undefined });
+          if (isMfaRefusal(mergeErr)) throw new MfaRequiredError();
+          if (isPhraseReplacedRefusal(mergeErr)) throw phraseReplacedStop('write');
+          if (mergeErr) {
+            console.error('[settings] merge push failed:', mergeErr);
+          } else if (!mergedRows || mergedRows.length === 0) {
+            console.warn('[settings] the row changed again during the merge - the next pass retries');
+          } else if (!savedSince(snapshot)) {
+            // A save that landed during the merge stays in the cache, dirty.
+            effective = { settings: kept, updatedAt: mergedAt, dirty: false, everPulled: true, wrapWithheld: false, syncedRev: kept.settingsRev, syncedKeys: syncedKeysOf(kept, true), ...epochField(passEpoch) };
+            commit(effective);
+          }
+        } catch (err) {
+          if (err instanceof MfaRequiredError || err instanceof PhraseReplacedError) throw err;
+          decryptFailed = true;
+          console.error('[settings] merge decrypt failed:', err);
+          recordSyncFault({ step: 'settings', code: 'decrypt' });
+        }
+      }
+    } else {
+      // Update succeeded - clear dirty and persist the merged blob so this
+      // device's local cache reflects the union (it won't pull again until
+      // the server row is strictly newer). Guarded so a local mutation that
+      // landed mid-push is not clobbered.
+      const current = readLocal();
+      if (!savedSince(snapshot)) {
+        // Either the pre-push merge above decrypted the server row, or no
+        // row existed - both count as having seen the server.
+        const cleaned: LocalCache = { settings: outgoing, updatedAt: current.updatedAt, dirty: false, everPulled: true, wrapWithheld: false, syncedRev: outgoing.settingsRev, syncedKeys: syncedKeysOf(outgoing, true), ...epochField(passEpoch) };
+        commit(cleaned);
+        effective = cleaned;
+      }
+    }
+  }
+
+  if (report) report.readServer = !pullErr && !decryptFailed && !readLocal().dirty;
+  return effective.settings;
+  } finally {
+    passKey.fill(0);
+  }
+}

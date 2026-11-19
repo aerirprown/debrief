@@ -1,0 +1,378 @@
+/**
+ * Settings > Extension: the browser extension in three steps (install it,
+ * choose what it can do, connect it with a one-time code), then the browsers
+ * that are connected, each with Remove. The code works once, for 10 minutes;
+ * a switch changed after it was shown asks for a new one. While a code shows,
+ * the pane checks for the browser that used it and then names it in place of
+ * the code, so a browser the owner did not connect is seen at once (beta
+ * issue 15); a browser connected in the last day carries a New badge. The demo has no
+ * account to connect, so it says how to get one instead.
+ * Spec: docs/internal/plans/browser-extension-build.md (sections 3.2 and 6)
+ */
+import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { SupabaseClient } from '@notes/shared';
+import { ArrowsClockwise, Check, Copy, DownloadSimple, Link, Password, PuzzlePiece, Scissors, SlidersHorizontal, UserPlus } from './icons';
+import { useCopyToClipboard } from './clipboard';
+import { Badge, Button, Callout, DeleteButton, FIELD_CLASS, FieldLabel, SETTINGS_BTN_PRIMARY, SETTINGS_HELP, Spinner, Switch } from './ui';
+import { ROW_TITLE, SectionEyebrow, SETTINGS_CARD, SETTINGS_CARD_ON, SETTINGS_CARD_REST, SETTINGS_GROUP, SettingsCardIcon } from './settingsUI';
+import { useAuth } from './auth';
+import { marketingHomeHref } from './siteLinks';
+import { isTouchOnly } from './touchOnly';
+import { isDemoMode, DEMO_APP_URL, proUnlocked } from './demo';
+import { ExtensionCallError, loadExtensionState, removeExtension, type ExtensionRow } from './extensionApi';
+import { installLinks, type InstallBrowser } from './extensionStores';
+import { hasUnpushedSettings, syncUserSettings } from './userSettings';
+import type { ExtensionKeys } from './extensionKeys';
+import type { DeviceRow } from './devices';
+import { DeviceRowLabel } from './SyncOptionsModal';
+import { formatRelative } from './intlFormat';
+
+/** What the pane needs from the signed-in app. */
+export interface ExtensionAccess {
+  supabase: SupabaseClient;
+  pubkey: string;
+  phrase: string;
+  contentKey: Uint8Array;
+  readKeys: () => ExtensionKeys;
+  saveKeys: (update: (keys: ExtensionKeys) => ExtensionKeys) => void;
+}
+
+/** Push the synced settings now; true once the server holds every local
+ *  change, the extension's key entries included. */
+async function pushSettingsNow(access: ExtensionAccess): Promise<boolean> {
+  if (isDemoMode()) return false;
+  try {
+    await syncUserSettings(access.supabase, access.pubkey, access.contentKey);
+  } catch {
+    return false;
+  }
+  return !hasUnpushedSettings();
+}
+
+const ERROR_KEY: Record<string, string> = {
+  too_many_codes: 'extensionConnect.tooManyCodes',
+  too_many_extensions: 'extensionConnect.tooManyExtensions',
+  key_elsewhere: 'extensionConnect.keyElsewhere',
+  key_conflict: 'extensionConnect.keyElsewhere',
+  // A free account's second browser (migration 0117): a race with the door below.
+  not_pro: 'apps.secondBrowserPro',
+};
+
+/** How often the pane checks for the browser that used the shown code, and
+ *  for how long: the code's own life. */
+const WATCH_MS = 4000;
+const CODE_LIFE_MS = 10 * 60 * 1000;
+/** A connected browser counts as new for one day. */
+const NEW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The one-time code on screen, and the connection that used it. While a code
+ * shows, the list reloads every few seconds; the first row that was not there
+ * when the code was made is the one that used it, and its name replaces the
+ * code. Shared with Settings > Command line (agent-cli.md section 3.2).
+ */
+export function useCodeWatch(rows: ExtensionRow[], reload: () => void) {
+  const [code, setCode] = useState<string | null>(null);
+  // The connections when the code was made; one more is the one that used it.
+  const [known, setKnown] = useState<Set<string> | null>(null);
+  const [usedBy, setUsedBy] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!code) return;
+    const until = Date.now() + CODE_LIFE_MS;
+    const id = window.setInterval(() => {
+      if (Date.now() > until) window.clearInterval(id);
+      else if (!document.hidden) reload();
+    }, WATCH_MS);
+    return () => window.clearInterval(id);
+  }, [code, reload]);
+
+  useEffect(() => {
+    if (!code || !known) return;
+    const added = rows.find((r) => !known.has(r.id));
+    if (!added) return;
+    setCode(null);
+    setKnown(null);
+    setUsedBy(added.label);
+  }, [code, known, rows]);
+
+  const show = (next: string) => {
+    setCode(next);
+    setKnown(new Set(rows.map((r) => r.id)));
+  };
+  return { code, usedBy, show, clear: () => setCode(null), forget: () => setUsedBy(null) };
+}
+
+/** The code, its one-use line, then New code and Copy side by side: Copy is
+ *  the step the person takes next, so it is a full button, not an icon. */
+export function PairingCodeBox({ code, label, busy, onNew }: { code: string; label: string; busy: boolean; onNew: () => void }) {
+  const { t } = useTranslation('shell');
+  const { copy, copied } = useCopyToClipboard();
+  return (
+    <div className="space-y-1.5">
+      <FieldLabel>{label}</FieldLabel>
+      <textarea
+        readOnly
+        value={code}
+        rows={4}
+        dir="ltr"
+        aria-label={label}
+        onFocus={(e) => e.currentTarget.select()}
+        className={`${FIELD_CLASS} font-mono resize-none`}
+      />
+      <p className={SETTINGS_HELP}>{t('extensionConnect.oneUse')}</p>
+      <div className="flex flex-wrap gap-2 pt-1">
+        <Button icon={busy ? <Spinner size={15} /> : <ArrowsClockwise aria-hidden="true" />} onClick={onNew} disabled={busy}>
+          {t('extensionConnect.newCode')}
+        </Button>
+        <Button
+          icon={copied ? <Check weight="bold" aria-hidden="true" className="text-success" /> : <Copy aria-hidden="true" />}
+          onClick={() => copy(code, 'code')}
+        >
+          {copied ? t('security:twoFactor.copied') : t('common:actions.copy')}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** Steps 2 and 3: the two switches, then the one-time code with Copy. */
+function ConnectSteps({ access, rows, reload, gated, onUpgrade }: {
+  access: ExtensionAccess;
+  rows: ExtensionRow[];
+  reload: () => void;
+  /** One browser is connected and the account has no Pro: Make a code is the Pro door. */
+  gated: boolean;
+  onUpgrade: () => void;
+}) {
+  const { t } = useTranslation('shell');
+  const [clips, setClips] = useState(true);
+  const [logins, setLogins] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { code, usedBy, show, clear, forget } = useCodeWatch(rows, reload);
+
+  // Load the code builder and its crypto while the reader picks the switches.
+  useEffect(() => {
+    void import('./extensionPairing');
+  }, []);
+
+  const change = (set: (on: boolean) => void) => (on: boolean) => {
+    set(on);
+    clear();
+    setError(null);
+  };
+
+  const make = async () => {
+    if (!clips && !logins) {
+      setError(t('extensionConnect.pickOne'));
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    forget();
+    try {
+      const { makePairingCode } = await import('./extensionPairing');
+      const pushKeys = () => pushSettingsNow(access);
+      show(await makePairingCode({ ...access, clips, logins, pushKeys }));
+    } catch (err) {
+      const reason = err instanceof ExtensionCallError ? ERROR_KEY[err.code] : undefined;
+      setError(t(reason ?? 'extensionConnect.failed'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <section className="min-w-0 space-y-3">
+        <SectionEyebrow icon={SlidersHorizontal} setting="browser.features">{t('apps.stepFeatures')}</SectionEyebrow>
+        <div className={SETTINGS_GROUP}>
+          <div className="px-3 py-2.5">
+            <Switch labelClassName={ROW_TITLE} icon={<Scissors className="text-accent" />} label={t('extensionConnect.clips')} description={t('extensionConnect.clipsHint')} checked={clips} onChange={change(setClips)} />
+          </div>
+          <div className="px-3 py-2.5">
+            <Switch labelClassName={ROW_TITLE} icon={<Password className="text-accent" />} label={t('tagsRail.vault')} description={t('extensionConnect.loginsHint')} checked={logins} onChange={change(setLogins)} />
+          </div>
+        </div>
+      </section>
+      <section className="min-w-0 space-y-3">
+        <SectionEyebrow icon={Link} setting="browser.connect">{t('apps.stepConnect')}</SectionEyebrow>
+        {code ? (
+          <PairingCodeBox code={code} label={t('extensionConnect.codeLabel')} busy={busy} onNew={make} />
+        ) : (
+          <>
+            {usedBy ? <Callout tone="success">{t('extensionConnect.usedBy', { name: usedBy })}</Callout> : <p className={SETTINGS_HELP}>{gated ? t('apps.secondBrowserPro') : t('apps.connectHint')}</p>}
+            {/* Pro stays clickable: a free account's second code opens the upgrade window. */}
+            <Button variant="primary" pro={gated} icon={busy ? <Spinner size={15} /> : <Link aria-hidden="true" />} onClick={gated ? onUpgrade : make} disabled={busy}>
+              {t('apps.makeCode')}
+            </Button>
+          </>
+        )}
+        {error && <Callout tone="danger">{error}</Callout>}
+      </section>
+    </>
+  );
+}
+
+/**
+ * The connected browsers: the device row, the scopes and the last clip under
+ * the name, Remove in place. An extension takes no device slot. Remove
+ * deletes its token, its PIN checker and its half of the logins key at once.
+ */
+function ConnectedBrowsers({ rows, onRemoved, heading, help, icon = PuzzlePiece }: {
+  rows: ExtensionRow[];
+  onRemoved: (id: string) => void;
+  /** Settings > Command line names its own list (agent-cli.md section 3.6). */
+  heading?: string;
+  help?: string;
+  icon?: typeof PuzzlePiece;
+}) {
+  const { t } = useTranslation('settings');
+  const { supabase, auth } = useAuth();
+  const pubkey = auth.status === 'authenticated' ? auth.pubkey : '';
+  const [failed, setFailed] = useState(false);
+  const remove = async (id: string) => {
+    setFailed(false);
+    try {
+      await removeExtension(supabase, pubkey, id);
+      onRemoved(id);
+    } catch {
+      setFailed(true);
+    }
+  };
+  return (
+    <section className="space-y-2">
+      <SectionEyebrow icon={icon}>{heading ?? t('devices.extensionsHeading')}</SectionEyebrow>
+      <p className={SETTINGS_HELP}>{help ?? t('devices.extensionsNoSlot')}</p>
+      <ul className="space-y-2">
+        {rows.map((r) => {
+          const fresh = Date.now() - Date.parse(r.created_at) < NEW_MS;
+          const scopes = r.client === 'cli' ? '' : [r.clips && t('devices.extensionClips'), r.logins && t('notes:vaultFilter.logins')].filter(Boolean).join(', ');
+          const row: DeviceRow = {
+            device_id: r.id, device_name: r.label, platform: 'web', created_at: r.created_at,
+            last_seen_at: r.last_used_at ?? r.created_at, revoked_at: null, device_group: null, app_version: r.version,
+          };
+          return (
+            <li key={r.id} className="flex items-center justify-between gap-3 rounded-md border border-divider px-3 py-2">
+              <DeviceRowLabel
+                row={row}
+                isSelf={false}
+                label={null}
+                badge={fresh && <Badge tone="info">{t('devices.extensionNew')}</Badge>}
+                meta={
+                  <>
+                    {scopes}
+                    {`${scopes ? ' · ' : ''}${t('devices.added', { time: formatRelative(r.created_at) })}`}
+                    {r.last_clip_at && ` · ${t('devices.lastClip', { time: formatRelative(r.last_clip_at) })}`}
+                  </>
+                }
+              />
+              <DeleteButton kind="remove" label={`${t('common:actions.remove')} ${r.label}`} onConfirm={() => void remove(r.id)} />
+            </li>
+          );
+        })}
+      </ul>
+      {failed && <Callout tone="danger">{t('devices.removeFailed')}</Callout>}
+    </section>
+  );
+}
+
+export function BrowserPane({ extensionKeys, isPro, onUpgrade }: {
+  extensionKeys: Pick<ExtensionAccess, 'readKeys' | 'saveKeys'>;
+  isPro: boolean | null | undefined;
+  /** The upgrade window, with the browsers reason. */
+  onUpgrade: () => void;
+}) {
+  const { t } = useTranslation('shell');
+  const { auth, supabase } = useAuth();
+  const access: ExtensionAccess | null = isDemoMode() || auth.status !== 'authenticated'
+    ? null
+    : { supabase, pubkey: auth.pubkey, phrase: auth.phrase, contentKey: auth.encryptionKey, ...extensionKeys };
+  const pubkey = access?.pubkey ?? '';
+  const [rows, setRows] = useState<ExtensionRow[]>([]);
+  const load = useCallback(() => {
+    if (!pubkey) return;
+    // A command line connection lives in Settings > Command line; here it
+    // is neither listed nor taken for the browser that used the code.
+    loadExtensionState(supabase, pubkey).then((s) => setRows(s.extensions.filter((r) => r.client !== 'cli'))).catch(() => {});
+  }, [supabase, pubkey]);
+  useEffect(load, [load]);
+  // The code is redeemed in the extension, so the list catches up when the
+  // reader comes back to this window.
+  useEffect(() => {
+    window.addEventListener('focus', load);
+    return () => window.removeEventListener('focus', load);
+  }, [load]);
+  const mine = currentBrowser();
+
+  return (
+    <div className="@container flex-1 min-h-0 overflow-y-auto p-6 space-y-6 text-pn">
+      <p className={SETTINGS_HELP}>{t('apps.subtitle')}</p>
+      {isTouchOnly() && <Callout>{t('apps.extensionComputersOnly')}</Callout>}
+
+      <section className="space-y-3">
+        <SectionEyebrow icon={DownloadSimple} setting="browser.install">{t('apps.stepInstall')}</SectionEyebrow>
+        {/* Five cards, three to a row on a wide pane (the three stores,
+            then Brave and Vivaldi on the Chrome Web Store); one column on
+            a phone. */}
+        <div className="grid gap-1.5 @md:grid-cols-3">
+          {installLinks().map(({ browser, url, store }) => {
+            const body = (
+              <>
+                <SettingsCardIcon src={`/help/icons/${browser.toLowerCase()}.svg`} />
+                <span className="min-w-0">
+                  <span className="flex items-center gap-1.5 text-body font-medium">
+                    {browser}
+                    {browser === mine && <Badge tone="info">{t('apps.thisBrowser')}</Badge>}
+                  </span>
+                  <span className="block truncate text-small text-pn-soft">{url ? store : t('noteOptionsMenu.comingSoon')}</span>
+                </span>
+              </>
+            );
+            const look = `${SETTINGS_CARD} ${browser === mine ? SETTINGS_CARD_ON : url ? SETTINGS_CARD_REST : 'border-divider'}`;
+            return url ? (
+              <a key={browser} href={url} target="_blank" rel="noopener noreferrer" className={look}>{body}</a>
+            ) : (
+              <div key={browser} className={look}>{body}</div>
+            );
+          })}
+        </div>
+      </section>
+
+      {access ? (
+        <div className="grid gap-6 @2xl:grid-cols-2">
+          {/* One browser free, more with Pro. Spec: docs/internal/plans/extension-pro-gate.md (section 5) */}
+          <ConnectSteps access={access} rows={rows} reload={load} gated={rows.length > 0 && !proUnlocked(isPro)} onUpgrade={onUpgrade} />
+        </div>
+      ) : (
+        <a href={DEMO_APP_URL} className={`${SETTINGS_BTN_PRIMARY} inline-flex`}>
+          <UserPlus aria-hidden="true" />
+          {t('apps.demoSignUp')}
+        </a>
+      )}
+
+      {rows.length > 0 && <ConnectedBrowsers rows={rows} onRemoved={(id) => setRows((all) => all.filter((r) => r.id !== id))} />}
+
+      <p className={SETTINGS_HELP}>
+        {t('apps.otherApps')}{' '}
+        <a href={`${marketingHomeHref()}#downloads`} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+          {t('apps.desktopAll')}
+        </a>
+      </p>
+    </div>
+  );
+}
+
+/** The browser this page runs in, when it is one the extension supports. */
+function currentBrowser(): InstallBrowser | null {
+  const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent;
+  // Brave hides its name from the user agent but adds navigator.brave.
+  if (typeof navigator !== 'undefined' && 'brave' in navigator) return 'Brave';
+  if (/Vivaldi\//.test(ua)) return 'Vivaldi';
+  if (/Edg\//.test(ua)) return 'Edge';
+  if (/Firefox\//.test(ua)) return 'Firefox';
+  if (/Chrome\//.test(ua)) return 'Chrome';
+  return null;
+}

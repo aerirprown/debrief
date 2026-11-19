@@ -1,0 +1,430 @@
+{
+  "noteRow": {
+    "created": "Erstellt",
+    "modified": "Geändert",
+    "select": "Notiz auswählen",
+    "deselect": "Notiz abwählen",
+    "pinProtected": "PIN-geschützt",
+    "readOnly": "Schreibgeschützt",
+    "empty": "Leer",
+    "noContent": "Kein Inhalt",
+    "notBackedUp": "Nicht gesichert",
+    "archived": "Archiviert",
+    "date": "Datum",
+    "dayOf": "Tag {{n}} von {{total}}",
+    "reminders_one": "{{count}} Erinnerung",
+    "reminders_other": "{{count}} Erinnerungen"
+  },
+  "header": {
+    "new": "Neu",
+    "newNote": "Neue Notiz",
+    "newEvent": "Neuer Termin"
+  },
+  "folderChip": {
+    "clear": "Ordnerfilter aufheben: {{folder}}",
+    "subfolders": "Unterordner",
+    "subfoldersLabel": "Unterordner einbeziehen"
+  },
+  "tagChip": {
+    "clear": "Tagfilter aufheben: {{tag}}"
+  },
+  "vaultNew": {
+    "ariaLabel": "Neuer Tresor-Eintrag",
+    "card": "Kreditkarte",
+    "sshKey": "SSH-Schlüssel",
+    "generator": "Passwort"
+  },
+  "newMenu": {
+    "note": "Notiz",
+    "task": "Aufgabe",
+    "kanban": "Kanban",
+    "drawing": "Zeichnung",
+    "journal": "Tagebuch",
+    "login": "Login",
+    "bookmark": "Lesezeichen",
+    "clipPage": "Seite clippen",
+    "contact": "Kontakt",
+    "event": "Termin"
+  },
+  "vaultFilter": {
+    "all": "Alle",
+    "logins": "Logins",
+    "cards": "Kreditkarten",
+    "keys": "Schlüssel"
+  },
+  "journal": {
+    "newEntry": "Neuer Tagebucheintrag"
+  },
+  "tasks": {
+    "newTitle": "Aufgaben für {{date}}"
+  },
+  "trash": {
+    "empty": "Leeren",
+    "emptyHover": "Alle Notizen im Papierkorb löschen",
+    "autoDelete": "Nach 30 Tagen automatisch löschen"
+  },
+  "search": {
+    "sortOptions": "Sortier- und Ansichtsoptionen",
+    "placeholderVault": "Tresor durchsuchen…",
+    "placeholderNotes": "Notizen durchsuchen…",
+    "placeholderEvents": "Termine durchsuchen…",
+    "placeholderDrawings": "Zeichnungen durchsuchen…"
+  },
+  "selection": {
+    "countOf": "{{selected}} von {{total}} ausgewählt",
+    "selectAll": "Alle auswählen",
+    "deselectAll": "Auswahl aufheben"
+  },
+  "empty": {
+    "noMatches": "Keine Treffer.",
+    "vault": "Der Tresor ist leer.",
+    "notes": "Noch keine Notizen.",
+    "journal": "Noch keine Tagebucheinträge.",
+    "drawings": "Noch keine Zeichnungen.",
+    "drawingsLine": "Skizziere, plane oder entwirf eine Idee. Zeichnungen können auf deine Notizen verlinken, zeigen aber nicht, was darin steht.",
+    "archive": "Nichts archiviert.",
+    "trash": "Der Papierkorb ist leer.",
+    "filtered": "Keine Einträge passen zu deinen Filtern.",
+    "filteredAfter": "damit sie wieder erscheinen.",
+    "hiddenInAll_other": "{{count}} Einträge sind durch den Filter In „Alle“ anzeigen ausgeblendet. Öffne den Filter neben Alle, um sie anzuzeigen.",
+    "inOtherSpace_other": "{{count}} Einträge sind in deinem Bereich {{space}}. Wechsle in der Seitenleiste zu {{space}}, um sie zu sehen.",
+    "inOtherSpace_one": "{{count}} Eintrag ist in deinem Bereich {{space}}. Wechsle in der Seitenleiste zu {{space}}, um ihn zu sehen.",
+    "hiddenInAll_one": "{{count}} Eintrag ist durch den Filter In „Alle“ anzeigen ausgeblendet. Öffne den Filter neben Alle, um ihn anzuzeigen."
+  },
+  "listGroups": {
+    "previous7Days": "Letzte 7 Tage",
+    "previous30Days": "Letzte 30 Tage",
+    "other": "Sonstige",
+    "collapseAll": "Alle Gruppen einklappen",
+    "expandAll": "Alle Gruppen ausklappen"
+  },
+  "footerStats": {
+    "journals_other": "Einträge",
+    "journals_one": "Eintrag",
+    "items_other": "Einträge",
+    "items_one": "Eintrag",
+    "trashed_other": "im Papierkorb",
+    "trashed_one": "im Papierkorb",
+    "notes_other": "Notizen",
+    "notes_one": "Notiz",
+    "bookmarks_other": "Lesezeichen",
+    "bookmarks_one": "Lesezeichen",
+    "contacts_other": "Kontakte",
+    "drawings_one": "Zeichnung",
+    "drawings_other": "Zeichnungen",
+    "files_other": "Dateien",
+    "lists_other": "Listen",
+    "tasks_other": "Aufgaben",
+    "today": "Heute",
+    "tasks_one": "Aufgabe",
+    "lists_one": "Liste",
+    "files_one": "Datei",
+    "contacts_one": "Kontakt"
+  },
+  "toast": {
+    "imageUploadFailed": "Bild-Upload fehlgeschlagen: {{error}}",
+    "imageError": "Bildfehler: {{error}}",
+    "uploadFailedFor": "Upload fehlgeschlagen für „{{filename}}“: {{error}}",
+    "importedSyncing_one": "{{count}} Notiz importiert. Wird synchronisiert…",
+    "importedSyncing_other": "{{count}} Notizen importiert. Wird synchronisiert…",
+    "addedTag_one": "#{{tag}} zu {{count}} Eintrag hinzugefügt",
+    "addedTag_other": "#{{tag}} zu {{count}} Einträgen hinzugefügt",
+    "restoreSummary": "Wiederhergestellt. {{added}} hinzugefügt, {{updated}} aktualisiert, {{unchanged}} bereits aktuell."
+  },
+  "burn": {
+    "mediaOnly": "Diese Notiz enthält nur Medien und kann nicht per Burn-Link geteilt werden.",
+    "shareTitle": "Verschlüsselte Notiz"
+  },
+  "loadError": {
+    "message": "Deine Notizen konnten nicht geladen werden. Die Verbindung zur lokalen Datenbank wurde unterbrochen. Das kann passieren, wenn die App eine Weile im Hintergrund war.",
+    "reload": "Neu laden"
+  },
+  "banner": {
+    "proActivationPending": "Zahlung erhalten, aber die Pro-Aktivierung dauert länger als üblich. Lade in einer Minute neu oder kontaktiere den Support, falls Pro nicht aktiviert wird.",
+    "crypto": {
+      "waiting": "Warten auf deine Krypto-Zahlung. Pro wird aktiv, sobald sie bestätigt ist.",
+      "seen": "Krypto-Zahlung erkannt. Pro wird aktiv, sobald das Netzwerk sie bestätigt, bei Bitcoin meist innerhalb einer Stunde.",
+      "partial": "Ein Teil deiner Krypto-Zahlung ist angekommen. Sende den Rest auf der Zahlungsseite, bevor der Link abläuft.",
+      "ended": "Dein Krypto-Zahlungslink ist abgelaufen, bevor eine vollständige Zahlung angekommen ist.",
+      "paid": "Deine Krypto-Zahlung ist bestätigt. Pro ist aktiv.",
+      "openPayment": "Zahlungsseite"
+    },
+    "snapshotPaused": "Der Notizverlauf ist pausiert. Dein Pro-Tarif scheint inaktiv. Neue Änderungen werden nicht versioniert, bis Pro wiederhergestellt ist.",
+    "restorePro": "Pro wiederherstellen",
+    "storagePastDue": "Die Zahlung für dein Speicher-Abo ist fehlgeschlagen. Aktualisiere deine Karte in Paddle, um zusätzlichen Speicher nicht zu verlieren.",
+    "updateCard": "Karte aktualisieren"
+  },
+  "sidebar": {
+    "collapse": "Seitenleiste einklappen"
+  },
+  "notesList": {
+    "collapse": "Notizliste einklappen",
+    "expand": "Notizliste ausklappen"
+  },
+  "split": {
+    "action": "Notiz aufteilen",
+    "done": "Aufgeteilt in „{{title}}“",
+    "overLimit": "„{{title}}“ ist größer als 1 MB und bleibt auf diesem Gerät",
+    "cannot": "Diese Notiz kann hier nicht aufgeteilt werden. Setz den Cursor dorthin, wo die neue Notiz beginnen soll.",
+    "continuedTitle": "{{title}} (Fortsetzung)",
+    "continuedIn": "Fortsetzung in {{link}}"
+  },
+  "paneResize": {
+    "hintCollapse": "Zum Einklappen klicken · Zum Anpassen ziehen",
+    "hintExpand": "Zum Ausklappen klicken · Zum Anpassen ziehen"
+  },
+  "emptyEditor": {
+    "selectFile": "Wähle eine Datei zur Vorschau",
+    "uploadFiles": "Oder lade neue Dateien in deinen verschlüsselten Tresor.",
+    "selectNote": "Wähle eine Notiz oder erstelle eine neue.",
+    "selectMarkdown": "Öffne eine Markdown-Datei, um sie hier zu lesen."
+  },
+  "zen": {
+    "exit": "Zen verlassen",
+    "exitHover": "Zen-Modus verlassen",
+    "enterHover": "Zen-Modus starten",
+    "proHover": "Zen-Modus (Pro)",
+    "enterAriaShortcut": "Zen-Modus starten ({{keys}})"
+  },
+  "editor": {
+    "backToList": "Zurück zur Notizliste",
+    "backToGrid": "Zurück zum Raster",
+    "titlePlaceholder": "Ohne Titel (zum Bearbeiten klicken oder automatisch erstellen lassen)",
+    "titlePlaceholderLogin": "z. B. GitHub",
+    "titlePlaceholderCard": "z. B. Visa endend auf 4242",
+    "unlocked": "Entsperrt",
+    "lock": "Sperren",
+    "lockNow": "Jetzt sperren",
+    "lockNowHint": "Inhalt jetzt verbergen",
+    "turnOffHint": "Änderungen wieder erlauben",
+    "unarchiveHint": "Wieder in deinen Listen anzeigen",
+    "showFormatted": "Formatiert anzeigen",
+    "invisiblesShow": "Unsichtbare Zeichen anzeigen",
+    "invisiblesHide": "Unsichtbare Zeichen ausblenden",
+    "undo": "Rückgängig",
+    "redo": "Wiederholen",
+    "hide": "Verbergen",
+    "show": "Anzeigen",
+    "hideToolbar": "Formatierungsleiste ausblenden",
+    "showToolbar": "Formatierungsleiste anzeigen",
+    "widthDefault": "Standardbreite",
+    "widthWide": "Breiter",
+    "widthFull": "Volle Breite",
+    "titlePlaceholderLink": "Name des Lesezeichens",
+    "notBackedUpTooLarge": "Über dem 1-MB-Limit, daher nicht gesichert. Verschiebe Bilder in Anhänge oder teile die Notiz auf.",
+    "notBackedUpFailed": "Nicht gesichert. Letzter Fehler: {{message}}. Neuer Versuch läuft.",
+    "unknownType": "Dieses Element wurde mit einer neueren Version von PrivacyNotes erstellt. Aktualisiere die App, um es zu öffnen."
+  },
+  "share": {
+    "hover": "Teilen / Exportieren",
+    "ariaLabel": "Teilen oder exportieren",
+    "currentMdTitle": "Aktuelle Notiz (.md)",
+    "currentMdDesc": "Rohes Markdown mit Front-Matter.",
+    "currentHtmlTitle": "Aktuelle Notiz (.html)",
+    "currentHtmlDesc": "Druckfreundlich, Markdown auf weißer Seite gerendert.",
+    "printTitle": "Drucken / Als PDF speichern",
+    "printDesc": "Öffnet den Druckdialog. Als PDF speichern oder an einen Drucker senden.",
+    "printTextTitle": "Nur Text drucken",
+    "printTextDesc": "Behält den Titel. Lässt Datum, Ordner und Tags weg.",
+    "burnTitle": "Teilen & nach dem Lesen vernichten",
+    "burnDesc": "Veröffentliche diese Notiz als Link zum einmaligen Ansehen. Der Link zerstört sich nach dem Lesen selbst. Deine Notiz bleibt sicher in deinem Konto.",
+    "drawingFileTitle": "Zeichnung (.excalidraw)",
+    "drawingFileDesc": "Lässt sich mit ihren Bildern in Excalidraw und Obsidian öffnen.",
+    "drawingPngTitle": "Bild (.png)",
+    "drawingPngDesc": "Die ganze Zeichnung als ein Bild."
+  },
+  "weekReview": {
+    "title": "Wochenrückblick",
+    "daysLogged": "{{count}}/7 erfasst",
+    "mood": "Stimmung",
+    "meds": "Medikamente"
+  },
+  "footer": {
+    "settings": "Einstellungen",
+    "viewShortcuts": "Alle Tastenkürzel anzeigen",
+    "newNote": "Neu",
+    "newNoteHintMac": "Option + Umschalt + N",
+    "newNoteHintOther": "Alt + Umschalt + N",
+    "newNoteHintMacDesktop": "Befehlstaste + N",
+    "newNoteHintOtherDesktop": "Strg + N",
+    "openStats": "Statistiken öffnen",
+    "journalCalendar": "Tagebuchkalender",
+    "words_other": "Wörter",
+    "words_one": "Wort",
+    "zen": "Zen-Modus",
+    "lockApp": "App sperren",
+    "lockAppSetUp": "Lege zuerst unter Sicherheit eine PIN fest",
+    "goToTop": "Zum Anfang",
+    "goToEnd": "Zum Ende",
+    "signingOut": "Wird abgemeldet…",
+    "switchToLight": "Zum hellen Modus wechseln",
+    "switchToDark": "Zum dunklen Modus wechseln"
+  },
+  "settings": {
+    "groupYourNotes": "Deine Daten",
+    "groupPreferences": "Präferenzen",
+    "groupBrand": "PrivacyNotes",
+    "statsLabel": "Statistiken",
+    "importLabel": "Transfer",
+    "backupLabel": "Backup",
+    "planLabel": "Konto",
+    "storageLabel": "Speicher",
+    "imagesLabel": "Bilder",
+    "securityLabel": "Sicherheit",
+    "accountLabel": "ID & Sync",
+    "appearanceLabel": "Design",
+    "editorLabel": "Editor",
+    "formatBarLabel": "Formatleiste",
+    "listsLabel": "Listen",
+    "trackersLabel": "Tracker",
+    "helpLabel": "Hilfe",
+    "aboutLabel": "Über",
+    "languageLabel": "Sprache",
+    "dateLabel": "Datum & Uhrzeit",
+    "dateTabFormat": "Format",
+    "languageDesc": "Wähle die Sprache, in der PrivacyNotes angezeigt wird.",
+    "calendarLabel": "Kalender"
+  },
+  "importStore": {
+    "title": "Importieren oder speichern?",
+    "confirm": "Als Notizen importieren",
+    "cancel": "Als Dateien speichern",
+    "bodySingle": "<strong>{{filename}}</strong> sieht nach einer Markdown-Datei aus. Als Notiz importieren, damit du sie lesen und bearbeiten kannst, oder als verschlüsselten Dateianhang speichern?",
+    "bodyMulti": "Diese {{count}} Dateien sehen nach Markdown aus. Als Notizen importieren, damit du sie lesen und bearbeiten kannst, oder als verschlüsselte Dateianhänge speichern?"
+  },
+  "archiveConfirm": {
+    "body_one": "<highlight>{{count}} Eintrag</highlight> archivieren? Er verschwindet aus deinen Listen und wartet in der Ansicht Archiv. Mit „Archivierung aufheben“ holst du ihn zurück.",
+    "body_other": "<highlight>{{count}} Einträge</highlight> archivieren? Sie verschwinden aus deinen Listen und warten in der Ansicht Archiv. Mit „Archivierung aufheben“ holst du sie zurück."
+  },
+  "bulkTrash": {
+    "body_one": "<highlight>{{count}} Eintrag</highlight> löschen? Verschiebe ihn in den Papierkorb, um ihn später wiederherzustellen, oder lösche ihn endgültig.",
+    "body_other": "<highlight>{{count}} Einträge</highlight> löschen? Verschiebe sie in den Papierkorb, um sie später wiederherzustellen, oder lösche sie endgültig.",
+    "confirm": "In den Papierkorb verschieben",
+    "keys": "Außerhalb dieses Fensters verschiebt <kbd>{{trash}}</kbd> einen Eintrag sofort in den Papierkorb, und <kbd>{{ask}}</kbd> öffnet dieses Fenster auch nach „Nicht mehr fragen“.",
+    "dontAskAgain": "Nicht mehr fragen",
+    "readOnlyAcknowledge": "Verstanden",
+    "readOnlyBlocked_one": "Dieser Eintrag ist <highlight>schreibgeschützt</highlight> und kann nicht in den Papierkorb. Schalte den Schreibschutz zuerst in den Notizoptionen aus.",
+    "readOnlyBlocked_other": "Alle <highlight>{{count}} Einträge</highlight> sind schreibgeschützt, also kann keiner in den Papierkorb. Schalte den Schreibschutz zuerst in den Notizoptionen aus.",
+    "readOnlySkipped_one": "<highlight>{{count}} Eintrag</highlight> ist schreibgeschützt und bleibt, wo er ist.",
+    "readOnlySkipped_other": "<highlight>{{count}} Einträge</highlight> sind schreibgeschützt und bleiben, wo sie sind."
+  },
+  "deleteCheckedTasks": {
+    "title": "Abgehakte Einträge löschen?",
+    "body_one": "<highlight>{{count}} Eintrag</highlight> wird aus dieser Notiz gelöscht. Das kann nicht rückgängig gemacht werden.",
+    "body_other": "<highlight>{{count}} Einträge</highlight> werden aus dieser Notiz gelöscht, verschachtelte Einträge eingeschlossen. Das kann nicht rückgängig gemacht werden."
+  },
+  "tagConfirm": {
+    "mergeTitle": "Tags zusammenführen",
+    "mergeConfirm": "Zusammenführen",
+    "mergeBody_one": "Tag <highlight>„{{targetTag}}“</highlight> existiert bereits. <highlight>{{count}} Notiz</highlight>, die aktuell mit „{{tag}}“ getaggt ist, dorthin überführen?",
+    "mergeBody_other": "Tag <highlight>„{{targetTag}}“</highlight> existiert bereits. <highlight>{{count}} Notizen</highlight>, die aktuell mit „{{tag}}“ getaggt sind, dorthin überführen?",
+    "deleteBody_one": "Tag <highlight>„{{tag}}“</highlight> von <highlight>{{count}} Notiz</highlight> entfernen? Die Notiz selbst wird nicht gelöscht.",
+    "deleteBody_other": "Tag <highlight>„{{tag}}“</highlight> von <highlight>{{count}} Notizen</highlight> entfernen? Die Notizen selbst werden nicht gelöscht.",
+    "deleteWithNotesBody_one": "Tag <highlight>„{{tag}}“</highlight> löschen und <highlight>{{count}} Notiz</highlight> in den Papierkorb verschieben? Du kannst sie von dort wiederherstellen.",
+    "deleteWithNotesBody_other": "Tag <highlight>„{{tag}}“</highlight> löschen und <highlight>{{count}} Notizen</highlight> in den Papierkorb verschieben? Du kannst sie von dort wiederherstellen."
+  },
+  "createNote": {
+    "title": "Notiz erstellen?",
+    "confirm": "Notiz erstellen",
+    "body": "Es existiert keine Notiz mit dem Titel <highlight>„{{title}}“</highlight>. Das kann passieren, wenn die verlinkte Notiz umbenannt wurde. Eine neue Notiz mit diesem Titel erstellen?"
+  },
+  "freshVault": {
+    "title": "Neuer Tresor erstellt",
+    "confirm": "Verstanden",
+    "body": "Kein vorhandener Tresor passte zu der eingegebenen Phrase, daher wurde ein neuer, leerer erstellt. Falls du deine Notizen erwartet hast, melde dich ab und gib deine Phrase sorgfältig erneut ein - ein einziges anderes Wort öffnet einen anderen Tresor."
+  },
+  "ambiguousLink": {
+    "title": "Zwei Notizen tragen diesen Titel",
+    "body": "Mehr als eine Notiz heißt <highlight>„{{title}}“</highlight>, deshalb sagt dieser Link nicht, welche gemeint ist. Benenne eine davon um, dann zeigt der Link auf die andere."
+  },
+  "connections": {
+    "title": "Verknüpfungen",
+    "hide": "Verknüpfungen ausblenden",
+    "linkedFrom": "Verlinkt von",
+    "linksTo": "Verlinkt auf",
+    "missing": "Noch nicht erstellt",
+    "protectedHidden_one": "{{count}} PIN-geschütztes Element wird nicht angezeigt",
+    "protectedHidden_other": "{{count}} PIN-geschützte Elemente werden nicht angezeigt",
+    "related": "Vorgeschlagene Verknüpfungen",
+    "relatedWords": "Beide erwähnen {{words}}",
+    "relatedLinksTo": "Beide verlinken auf {{title}}",
+    "relatedLinkedFrom": "Beide verlinkt von {{title}}",
+    "relatedTag": "Beide mit Tag {{tag}}",
+    "relatedMeaning": "Dieselbe Bedeutung",
+    "meaningDoor": "Intelligente Verknüpfungen: Notizen mit derselben Bedeutung finden, mit Offline-KI",
+    "meaningDoorNo": "Nicht mehr anzeigen",
+    "meaningDoorHidden": "In allen Notizen ausgeblendet. Intelligente Verknüpfungen findest du weiter unter Einstellungen > Editor > Verhalten.",
+    "hideSuggestions": "Vorgeschlagene Verknüpfungen ausblenden",
+    "notRelated": "Kein Zusammenhang",
+    "notRelatedDone": "Wird nicht mehr vorgeschlagen",
+    "notRelatedCount": "Kein Zusammenhang ({{n}})",
+    "restoreSuggestion": "Wieder vorschlagen",
+    "linkAtCursor": "Am Cursor verlinken",
+    "linkNeedsCursor": "Klicke zuerst in die Notiz",
+    "linkAsFootnote": "Als Fußnote verlinken"
+  },
+  "drawing": {
+    "fullScreen": "Vollbild",
+    "frame": "Rahmen",
+    "laser": "Laserpointer",
+    "bar": {
+      "hiddenNote": "Sie funktionieren weiterhin über ihre Tasten."
+    },
+    "resetTitle": "Zeichenfläche zurücksetzen?",
+    "resetBody": "Damit wird alles auf der Zeichenfläche entfernt. Rückgängig holt es zurück.",
+    "hotkeysTitle": "Tastenkürzel zum Zeichnen",
+    "tools": {
+      "label": "Zeichenwerkzeuge",
+      "keepTool": "Werkzeug nach dem Zeichnen beibehalten",
+      "hand": "Zeichenfläche verschieben",
+      "rectangle": "Rechteck",
+      "diamond": "Raute",
+      "ellipse": "Ellipse",
+      "arrow": "Pfeil",
+      "line": "Linie",
+      "pen": "Stift",
+      "text": "Textfeld",
+      "steps": "Nummerierte Schritte",
+      "eraser": "Radierer",
+      "resetZoom": "Zoom zurücksetzen",
+      "open": "Zeichnungsdatei öffnen",
+      "reset": "Zeichenfläche zurücksetzen",
+      "style": "Stil",
+      "more": "Mehr Werkzeuge",
+      "fewer": "Weniger Werkzeuge"
+    }
+  },
+  "location": {
+    "add": "Standort hinzufügen",
+    "title": "Standort",
+    "chipLabel": "Standort: {{place}}",
+    "useCurrent": "Meinen aktuellen Standort verwenden",
+    "locating": "Dein Standort wird ermittelt",
+    "inputLabel": "Ort, Koordinaten oder ein Kartenlink",
+    "nameLabel": "Name (optional)",
+    "openOsm": "In OpenStreetMap öffnen",
+    "copyCoordinates": "Koordinaten kopieren",
+    "remove": "Standort entfernen",
+    "errorUnreadable": "Kein Ort gefunden. Gib einen Ort ein oder füge Koordinaten oder einen Kartenlink ein.",
+    "errorShortLink": "Kurzlinks brauchen zum Öffnen das Internet. Öffne den Link und kopiere dann die vollständige Adresse.",
+    "errorRange": "Diese Zahlen liegen außerhalb der Karte.",
+    "errorDenied": "Der Standortzugriff ist für PrivacyNotes aus. Schalte ihn in den Einstellungen ein oder füge Koordinaten ein.",
+    "errorOff": "Die Ortungsdienste sind auf diesem Telefon aus. Schalte sie in den Einstellungen ein oder füge Koordinaten ein.",
+    "errorTimeout": "Wir konnten deinen Standort nicht ermitteln. Versuche es draußen noch einmal oder füge Koordinaten ein.",
+    "saveFailed": "Der Ort wurde nicht gespeichert. Versuche es noch einmal.",
+    "mapNotice": "Karte von unserem eigenen Server, für deine Privatsphäre: maps.privacynotes.app",
+    "mapLoading": "Karte wird geladen",
+    "mapLabel": "Karte von {{place}}",
+    "mapFailed": "Die Karte kann hier nicht angezeigt werden. Öffne sie stattdessen in OpenStreetMap.",
+    "inputPlaceholder": "Fuji, oder 35.36, 138.72",
+    "townsLoading": "Ortsliste wird geladen",
+    "insertMap": "Karte einfügen",
+    "gestureCtrl": "Halte Strg gedrückt und scrolle, um die Karte zu zoomen",
+    "gestureMac": "Halte ⌘ gedrückt und scrolle, um die Karte zu zoomen",
+    "gestureTouch": "Verschiebe die Karte mit zwei Fingern",
+    "autoNote": "Meinen Standort zu jeder neuen Notiz hinzufügen",
+    "autoJournal": "Meinen Standort zu jedem neuen Tagebucheintrag hinzufügen",
+    "autoDenied": "Der Standortzugriff ist für PrivacyNotes aus. Schalte ihn zuerst in den Einstellungen deines Telefons ein.",
+    "autoOff": "Die Ortungsdienste sind auf diesem Telefon aus. Schalte sie zuerst ein."
+  }
+}

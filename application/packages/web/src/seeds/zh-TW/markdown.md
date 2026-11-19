@@ -1,0 +1,207 @@
+---
+id: 3d0c
+title: Markdown 在這裡能做的一切
+---
+
+下面每一樣，都是用這則筆記上方那排工具做出來的。沒有設定，沒有外掛。選取文字，工具就作用在它身上。點一下空白行，它就開始新的東西。
+
+## 文字
+
+你可以把一個詞變 **粗體**、*斜體*，或是 ***兩個都要***。可以畫掉，~~像這樣~~。可以 <u>加底線</u>。小字放 <sub>下標</sub>，次方放 <sup>上標</sup>。
+
+文字可以是 <span style="color: #e03131">紅</span>、<span style="color: #1971c2">藍</span>、<span style="color: #2f9e44">綠</span>，或九種顏色的任何一種。
+
+可以 ==用黃色標起來==，也可以 <mark style="background-color: rgba(64, 192, 87, 0.35)">用綠色</mark>。
+
+防雷文字會把字藏起來，直到有人點一下：禮物是 ||一台黑膠唱機||。選取文字，在 **插入** 選單中選 **防雷文字**，或在兩邊各打兩條直線。
+
+圖示或標誌可以放在一行文字裡，例如 :icon[gift] :icon[coffee] :icon[rocket-launch] 或 :logo[github]。到 **插入** > **圖示與標誌** 挑一個。
+
+**Aa** 按鈕會改變大小和字體。文字可以 <span style="font-size: 0.85em">小</span>、正常，或 <span style="font-size: 1.6em">大</span>。可以是 <span style="font-family: ui-sans-serif, system-ui, sans-serif">黑體</span>、<span style="font-family: ui-serif, Georgia, Cambria, serif">襯線</span> 或 <span style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace">等寬</span>。
+
+## 文字站在哪裡
+
+<p style="text-align: center;">這一段是置中的。</p>
+
+<p style="text-align: right;">這一段被推到右邊。</p>
+
+對齊搬的是整個段落，不會只搬一個詞。把游標放進段落，再用對齊按鈕。
+
+## 清單
+
+- 一個普通的項目
+- 再一個
+  - 按 Tab 可以把一行往內縮
+    - 再一次
+
+1. 有編號的步驟
+2. 第二個步驟
+3. 在任何位置插入一步，編號會自己更正
+
+- [x] 你打過勾的方框
+
+- [ ] 方框
+
+  - [ ] 按 Tab 可以把一項待辦往內縮
+
+  - [ ] 打勾看看動畫
+
+- [ ] 按 Shift 加 Tab 可以往外退一層
+
+## 表格
+
+| 地區 | 筆記 | 佔比 |
+| --- | :---: | ---: |
+| 歐洲 | 1,204 | 48% |
+| 美洲 | 902 | 36% |
+| 亞洲 | 401 | 16% |
+<!-- table-fill: r0=blue r1c2=green r3c2=red -->
+
+中間那欄置中，最後一欄靠右。拖曳欄位邊界就能把它拉寬。儲存格或整列都可以從表格工具列套上顏色。標題儲存格裡的小箭頭會排序它下方的列，再點一下就反過來排。
+
+表格也能做加總。在儲存格裡打 `=` 就能挑一個函式。儲存格顯示答案，筆記保留公式，所以點一下答案就能看到它是怎麼算出來的。
+
+| 品項 | 數量 | 價格 | 小計 |
+| --- | ---: | ---: | ---: |
+| 咖啡 | 2 | 3.50 | =B2*C2 |
+| 蛋糕 | 1 | 4.20 | =B3*C3 |
+|  |  | 總計 | =SUM(D2:D3) |
+
+## 標註
+
+標註是一個彩色方塊，用來放讀者不能錯過的東西。在空白行打 `[!` 就能挑一種。
+
+> [!tip]+ 小提示
+> 點一下它的圖示就能把它收起來。
+
+> [!warning]+ 注意
+> 每一種都有自己的顏色和圖示。
+
+> [!danger]+ 危險
+> 種類很多。**插入** 選單裡有完整清單。
+
+> [!fold]- 摺疊
+> 沒有方框也沒有顏色，只有在你打開之前不礙事的文字。
+
+## 引用
+
+> 引用會從邊界往內縮，旁邊帶一條彩色的線。
+
+## 註腳
+
+註腳能把出處或補充說明放在正文之外。[^1] 在字後面輸入 `[^1]`，或在 **插入** 選單中選擇 **註腳**。按一下小數字就會跳到註腳。
+
+## 程式碼
+
+程式碼會保留原本的空白，並依語言上色。區塊上方的名稱就是它的語言：點一下即可改選其他語言。
+
+```js
+export function seal(note, key) {
+  const nonce = randomBytes(24);
+  return xchacha20poly1305(key, nonce).encrypt(note);
+}
+```
+
+```python
+def rolling_mean(values, window):
+    return [sum(values[i:i + window]) / window
+            for i in range(len(values) - window + 1)]
+```
+
+長的區塊打開時會先收合，讓筆記的其餘內容就在附近。下方的按鈕會顯示所有行。
+
+```js
+const WORDS_PER_MINUTE = 200;
+
+export function readingStats(markdown) {
+  const text = markdown
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/[#*_~`>|-]/g, ' ');
+
+  const words = text.split(/\s+/).filter(Boolean);
+  const headings = markdown.match(/^#{1,6} /gm) ?? [];
+  const tasks = markdown.match(/^\s*- \[[ x]\] /gm) ?? [];
+  const done = tasks.filter((task) => task.includes('[x]'));
+
+  return {
+    words: words.length,
+    minutes: Math.max(1, Math.round(words.length / WORDS_PER_MINUTE)),
+    headings: headings.length,
+    tasks: tasks.length,
+    done: done.length,
+  };
+}
+
+export function summary(stats) {
+  const parts = [`${stats.words} words`, `${stats.minutes} min read`];
+  if (stats.headings > 0) {
+    parts.push(`${stats.headings} sections`);
+  }
+  if (stats.tasks > 0) {
+    parts.push(`${stats.done} of ${stats.tasks} tasks done`);
+  }
+  return parts.join(' · ');
+}
+
+export function isLongRead(stats) {
+  return stats.minutes >= 10;
+}
+```
+
+程式碼區塊可以加上標題。點一下語言名稱，選 **新增標題**。標題旁的箭頭會把區塊收成一行，筆記也會記住。
+
+```bash title="backup.sh" fold
+#!/bin/sh
+# Copy the notes folder into a dated archive.
+tar -czf "notes-$(date +%F).tar.gz" "$HOME/Notes"
+```
+
+**複製框** 放一樣要複製的東西，例如地址或指令。它的按鈕一鍵就能全部複製。
+
+```copy
+ssh-keygen -t ed25519 -C "laptop"
+```
+
+句子中間的一小段程式碼，看起來會是這樣：`像這個`。按住 Cmd（Windows 和 Linux 上是 Ctrl）再點它，就能複製。
+
+## 數學
+
+數學可以放在句子裡，例如 $a^2 + b^2 = c^2$，也可以自己占一行：
+
+$$i\hbar\frac{\partial}{\partial t}\Psi = \hat{H}\Psi$$
+
+## 圖片
+
+![櫻花後方的富士山。](/onboarding/fuji.webp){width=50 align=center}
+
+把圖片拖進筆記，或直接貼上。點一下就能改大小，或把它移到靠左、置中、靠右。上面那張是一半寬度並置中。
+
+## 地圖
+
+```map
+35.3606, 138.7274
+富士山
+```
+
+用 **插入** > **位置** 把一個地點放進筆記。地圖來自我們自己的伺服器，所以沒有任何地圖公司會看到你在看哪裡。在其他 Markdown 應用程式裡，它會顯示成座標和名稱。
+
+## 連結
+
+有兩種，而且刻意長得不一樣。
+
+- 網頁連結會打開一個網站：[privacynotes.app](https://privacynotes.app/tw)
+- 網頁連結可以帶提示文字。把指標停在[這一個](https://privacynotes.app/tw/help "我們的說明頁面")上，稍等一下。
+- 筆記連結會打開你的另一則筆記：[[你的筆記如何受到保護]]
+
+兩種在工具列都有按鈕。鎖鏈圖示做的是網頁連結。方括號做的是筆記連結：會列出你的筆記，你挑要指向哪一則。打 `[[` 也一樣。
+
+筆記連結不一定要顯示成筆記的標題。輸入標題、一條直線，再輸入你想顯示在頁面上的文字：[[你的筆記如何受到保護|這幾個字]] 就會打開那則筆記。
+
+筆記連結也能在筆記的某個標題處打開它。在筆記標題後輸入 `#`，再挑選標題：[[你的筆記如何受到保護#誰握有你的鑰匙]] 會在鑰匙那一節打開這則筆記。大綱裡標題旁的連結圖示，可以幫你複製這種連結。
+
+---
+
+*如果你本來就寫 Markdown，直接打就好，邊打邊套用格式。想看任何一則筆記背後的原始文字，點這則筆記右下角的 **顯示 Markdown**。*
+
+[^1]: 這就是註腳。旁邊的箭頭會帶你回到上方。

@@ -1,0 +1,881 @@
+/**
+ * Blob garbage collection - deletes orphaned encrypted image and
+ * attachment blobs when they are removed from notes or notes are
+ * hard-deleted.
+ *
+ * Two triggers:
+ * 1. On note body save: diff blob UUIDs before vs after. Any UUID
+ *    that disappeared gets enqueued for deletion, UNLESS a history
+ *    snapshot still references it.
+ * 2. On note hard-delete: enqueue all blobs referenced in the note's
+ *    body. The server drops the note's history in the statement that
+ *    accepts the tombstone (migration 0098), so a blob only that history
+ *    held is left with no reference and the orphan reconcile, which reads
+ *    every surviving snapshot, reclaims it.
+ *
+ * Deletion is two-phase (#125). A local mirror can be stale - a device
+ * that has never pulled a note, or still carries an unconfirmed
+ * tombstone for one, can wrongly conclude a blob referenced elsewhere
+ * is orphaned. Since Storage removal is immediate and permanent (no
+ * grace period like note tombstones get), that stale read would mean
+ * a real, unrecoverable data loss. So:
+ *
+ * - Phase 1 (here, at GC time): local cache + dedup rows are removed
+ *   and quota is decremented right away, but the Supabase Storage
+ *   object is left alone. The uuid is enqueued in db.blobGC instead -
+ *   see ImageStore.deferDelete / AttachmentStore.deferDelete. A blob
+ *   whose upload is still pending keeps its local rows: they are its
+ *   only copy, and a cut and paste or an undo brings its reference back
+ *   a moment later.
+ * - Phase 2 (sweepBlobGC, below): runs only right after a sync pass
+ *   whose pull completed cleanly, so the local mirror is as complete
+ *   as it can be. Queue entries past the grace period get a fresh
+ *   reference re-check against every local note row, including
+ *   trashed and not-yet-confirmed tombstoned ones (an unconfirmed
+ *   tombstone means the server may still be serving that note
+ *   elsewhere), and against every History version of the account.
+ *   Still-referenced entries are cancelled and their quota
+ *   re-credited; the rest have their Storage object actually removed,
+ *   along with any local rows phase 1 kept.
+ *
+ * The actual object deletion depends on db.blobGC, which is device-local
+ * and unreplicated, so a blob can still end up in Storage with nothing
+ * local tracking it: the queue is wiped on sign-out and on any local-data
+ * clear, and a few paths never enqueue at all (a note dropped by sync for
+ * an invalid uuid, a blob whose last reference was a pruned version
+ * snapshot). Batch deletes are
+ * not on that list: gcOnNotesDelete excludes the whole batch from the
+ * reference check, so a shared blob cannot hide behind a batch-mate. The
+ * server-side pending_blob_gc set (migration 0068, re-asserted by every
+ * sweep pass) keeps the QUOTA honest through all of it, and the nightly
+ * purge-pending-blobs edge function deletes pending objects no surviving
+ * device ever swept. reconcileOrphanBlobs (below) is the backstop that
+ * reclaims blobs nothing enqueued at all.
+ *
+ * The caller (NotesView / notesRepo integration) is responsible for
+ * invoking these at the right time. This module just provides the
+ * diffing + deletion logic.
+ */
+
+import { extractImageIds } from './imageProcessing';
+import { extractAttachmentIds } from './EncryptedAttachment';
+import type { ImageStore } from './imageStore';
+import type { AttachmentStore } from './attachmentStore';
+import { hasQueuedVersions, listNoteVersions } from './noteVersions';
+import { decryptNote, base64ToBytes, type SupabaseClient } from '@notes/shared';
+import { db } from './db';
+import { openWithRing } from './keyRing';
+import { isDemoMode } from './demo';
+import { isServerWriteBlocked } from './syncPause';
+import { fetchQuotaUsage, recalculateQuota } from './devices';
+
+// Guards against overlapping sweeps: sweepBlobGC is fired unawaited after
+// every successful sync pass, so a slow sweep could still be running when
+// the next one starts. Two overlapping sweeps can both read the same
+// still-referenced entry before either cancels it, and both re-credit
+// quota for it - a double refund.
+let sweepInFlight = false;
+
+/** Grace period a deferred blob sits in the queue before it becomes
+ * eligible for actual Storage removal. 24h:
+ * the pending exclusion keeps the displayed figure honest from the moment
+ * of the delete, so the grace only has to cover the cross-device restore
+ * race, and one day of clean pulls is enough for any device that is
+ * actually alive. Spec: docs/internal/design-decisions.md (deferred blob GC). */
+const BLOB_GC_GRACE_MS = 24 * 60 * 60 * 1000;
+
+/** How old an unreferenced object must be before the orphan reconcile takes
+ *  it, by the server's clock: the queue's 24 hours. The reconcile cannot see
+ *  another device's unsent note, so a note pushed a day after its picture can
+ *  still lose the object; a longer grace would only move that window, and
+ *  the device that holds the bytes uploads them again after its own listing
+ *  (uploadAgainWhatIsMissing). An orphan only costs quota until then.
+ *  Spec: docs/internal/design-decisions.md (deferred blob GC; the orphan
+ *  reconcile reads the server's clock). */
+const RECONCILE_GRACE_MS = BLOB_GC_GRACE_MS;
+
+/**
+ * Check which blob UUIDs are still referenced by any note other than
+ * the excluded one. Returns the subset of `uuids` that ARE still
+ * referenced elsewhere - these must NOT be deleted.
+ */
+async function findRefsInOtherNotes(
+  uuids: string[],
+  excludeNoteIds: Set<string>,
+): Promise<Set<string>> {
+  if (uuids.length === 0) return new Set();
+
+  const referenced = new Set<string>();
+  const remaining = new Set(uuids);
+
+  await db.notes
+    .where('deleted')
+    .equals(0)
+    .each((note) => {
+      if (excludeNoteIds.has(note.id) || remaining.size === 0) return;
+      for (const uuid of remaining) {
+        if (note.body.includes(uuid)) {
+          referenced.add(uuid);
+          remaining.delete(uuid);
+        }
+      }
+    });
+
+  return referenced;
+}
+
+/** Context needed to check image refs in note history snapshots. */
+export type VersionCtx = {
+  supabase: SupabaseClient;
+  encryptionKey: Uint8Array;
+  noteId: string;
+};
+
+/**
+ * Blobs named by a note state on its way to note history: a version save in
+ * flight, or one waiting to be tried again (useNoteEditing.ts). The version
+ * that will name them is not readable yet, so no path here removes one: the
+ * body-change GC does not queue it, the sweep leaves it queued, and the
+ * orphan reconcile leaves it in the bucket. Counted per state, so a blob two
+ * states name stays held until both are done.
+ */
+const heldForVersions = new Map<string, number>();
+
+/**
+ * Moves whenever a state starts on its way to history and whenever a version
+ * is saved. A pass that read the history or the holds and then awaited reads
+ * it again right before it deletes: when it moved, what the pass read may be
+ * missing a version that names a blob it is about to delete, so it deletes
+ * nothing and a later pass decides again.
+ */
+let versionActivity = 0;
+
+/** A version was saved on this device (useNoteEditing.ts, the restore). */
+export function markVersionActivity(): void {
+  versionActivity += 1;
+}
+
+/** Hold the blobs `body` names until the returned release runs (once). */
+export function holdBlobsForVersion(body: string): () => void {
+  versionActivity += 1;
+  const ids = [...extractImageIds(body), ...extractAttachmentIds(body)];
+  for (const id of ids) heldForVersions.set(id, (heldForVersions.get(id) ?? 0) + 1);
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    for (const id of ids) {
+      const left = (heldForVersions.get(id) ?? 1) - 1;
+      if (left > 0) heldForVersions.set(id, left);
+      else heldForVersions.delete(id);
+    }
+  };
+}
+
+const heldForVersion = (uuid: string) => heldForVersions.has(uuid);
+
+/**
+ * Compare the old and new body of a note. Delete any image/attachment
+ * blobs that were in the old body but not in the new one - unless a
+ * history snapshot still references them.
+ *
+ * Pass `versionCtx` for Pro users so version bodies are checked.
+ * If version fetch fails, deletion is skipped entirely (conservative).
+ */
+export async function gcOnBodyChange(
+  imageStore: ImageStore,
+  oldBody: string,
+  newBody: string,
+  noteId: string,
+  versionCtx?: VersionCtx,
+  attachmentStore?: AttachmentStore | null,
+): Promise<void> {
+  // --- Images ---
+  const oldImgIds = extractImageIds(oldBody);
+  const newImgIds = extractImageIds(newBody);
+  let imgCandidates: string[] = [];
+  for (const id of oldImgIds) {
+    if (!newImgIds.has(id)) imgCandidates.push(id);
+  }
+
+  // --- Attachments ---
+  const oldAttIds = extractAttachmentIds(oldBody);
+  const newAttIds = extractAttachmentIds(newBody);
+  let attCandidates: string[] = [];
+  for (const id of oldAttIds) {
+    if (!newAttIds.has(id)) attCandidates.push(id);
+  }
+
+  // A state on its way to history keeps what it names, now and after the
+  // reads below (see versionActivity).
+  const activity = versionActivity;
+  const notHeld = (id: string) => !heldForVersion(id);
+  imgCandidates = imgCandidates.filter(notHeld);
+  attCandidates = attCandidates.filter(notHeld);
+  if (imgCandidates.length === 0 && attCandidates.length === 0) return;
+
+  // Don't delete blobs still referenced by other notes (e.g. copy-pasted).
+  const refsElsewhere = await findRefsInOtherNotes(
+    [...imgCandidates, ...attCandidates],
+    new Set([noteId]),
+  );
+  if (refsElsewhere.size > 0) {
+    imgCandidates = imgCandidates.filter((id) => !refsElsewhere.has(id));
+    attCandidates = attCandidates.filter((id) => !refsElsewhere.has(id));
+    if (imgCandidates.length === 0 && attCandidates.length === 0) return;
+  }
+
+  // Check history snapshots for blob references before deleting.
+  if (versionCtx) {
+    let versionImgIds: Set<string>;
+    let versionAttIds: Set<string>;
+    try {
+      const versions = await listNoteVersions(
+        versionCtx.supabase,
+        versionCtx.encryptionKey,
+        versionCtx.noteId,
+      );
+      versionImgIds = new Set<string>();
+      versionAttIds = new Set<string>();
+      for (const v of versions) {
+        for (const id of extractImageIds(v.body)) versionImgIds.add(id);
+        for (const id of extractAttachmentIds(v.body)) versionAttIds.add(id);
+      }
+    } catch {
+      // listNoteVersions throws on any failed read, offline included.
+      // The sweep never looks at history, so this is the only check that
+      // keeps a snapshot's blobs alive.
+      return;
+    }
+    if (versionActivity !== activity) return;
+    const orphanedImgs = imgCandidates.filter((id) => !versionImgIds.has(id) && notHeld(id));
+    if (orphanedImgs.length > 0) await imageStore.deferDelete(orphanedImgs);
+    const orphanedAtts = attCandidates.filter((id) => !versionAttIds.has(id) && notHeld(id));
+    if (orphanedAtts.length > 0 && attachmentStore) {
+      await attachmentStore.deferDelete(orphanedAtts);
+    }
+    return;
+  }
+
+  if (versionActivity !== activity) return;
+  imgCandidates = imgCandidates.filter(notHeld);
+  attCandidates = attCandidates.filter(notHeld);
+  if (imgCandidates.length > 0) await imageStore.deferDelete(imgCandidates);
+  if (attCandidates.length > 0 && attachmentStore) {
+    await attachmentStore.deferDelete(attCandidates);
+  }
+}
+
+/**
+ * Delete all image and attachment blobs referenced by a BATCH of notes
+ * being permanently deleted together (empty trash, multi-select delete,
+ * trash auto-delete). The whole batch is excluded from the
+ * still-referenced check: running the single-note variant per note misses
+ * every blob two batch members share, because each note's check sees the
+ * other batch member still holding it and neither ever enqueues - a queue
+ * gap the orphan reconcile would only mop up days later.
+ */
+export async function gcOnNotesDelete(
+  imageStore: ImageStore,
+  notes: Array<{ id: string; body: string }>,
+  attachmentStore?: AttachmentStore | null,
+): Promise<void> {
+  const imgSet = new Set<string>();
+  const attSet = new Set<string>();
+  for (const n of notes) {
+    for (const id of extractImageIds(n.body)) imgSet.add(id);
+    for (const id of extractAttachmentIds(n.body)) attSet.add(id);
+  }
+  if (imgSet.size === 0 && attSet.size === 0) return;
+
+  // Don't delete blobs still referenced by notes outside the batch.
+  const refsElsewhere = await findRefsInOtherNotes(
+    [...imgSet, ...attSet],
+    new Set(notes.map((n) => n.id)),
+  );
+  const imgIds = [...imgSet].filter((id) => !refsElsewhere.has(id));
+  const attIds = [...attSet].filter((id) => !refsElsewhere.has(id));
+
+  if (imgIds.length > 0) {
+    await imageStore.deferDelete(imgIds);
+  }
+  if (attIds.length > 0 && attachmentStore) {
+    await attachmentStore.deferDelete(attIds);
+  }
+}
+
+/**
+ * Delete all image and attachment blobs referenced in a note's body.
+ * Call this when a SINGLE note is permanently deleted; batch paths must
+ * use gcOnNotesDelete so shared blobs cannot hide behind batch-mates.
+ */
+export async function gcOnNoteDelete(
+  imageStore: ImageStore,
+  body: string,
+  noteId: string,
+  attachmentStore?: AttachmentStore | null,
+): Promise<void> {
+  await gcOnNotesDelete(imageStore, [{ id: noteId, body }], attachmentStore);
+}
+
+/**
+ * Check which blob UUIDs are still referenced by ANY local note row -
+ * no `deleted` filter, no excluded note. Used by sweepBlobGC, where a
+ * row still sitting locally with deleted=1 is an unconfirmed tombstone
+ * (the server may have rejected the delete) and must count as a live
+ * reference. Returns the subset of `uuids` that ARE still referenced.
+ */
+async function findRefsAnywhere(uuids: string[]): Promise<Set<string>> {
+  if (uuids.length === 0) return new Set();
+
+  const referenced = new Set<string>();
+  const remaining = new Set(uuids);
+
+  await db.notes.each((note) => {
+    if (remaining.size === 0) return;
+    for (const uuid of remaining) {
+      if (note.body.includes(uuid)) {
+        referenced.add(uuid);
+        remaining.delete(uuid);
+      }
+    }
+  });
+
+  return referenced;
+}
+
+/**
+ * Delete this device's cached bytes and dedup rows for blobs that are gone
+ * for good. A dedup row must not outlive its object: uploadImage and
+ * uploadAttachment answer identical bytes with the recorded uuid and skip
+ * the upload, so the next insert of the same file would point every other
+ * device at nothing. Blob uuids are unique across both kinds, so each one
+ * is cleared from both sets of tables.
+ */
+async function dropLocalCopies(uuids: string[]): Promise<void> {
+  if (uuids.length === 0) return;
+  await db.imageCache.bulkDelete(uuids);
+  await db.imageDedup.where('uuid').anyOf(uuids).delete();
+  await db.attachmentCache.bulkDelete(uuids);
+  await db.attachmentDedup.where('uuid').anyOf(uuids).delete();
+}
+
+/**
+ * A cancel that found no row lost to the purge, which deletes its rows before
+ * it removes their objects; or another device cancelled first. Either way the
+ * notes still use the blob, so a copy this device holds goes up again: the
+ * retry sweep uploads it, and an object that is still there answers 409 and
+ * settles through the recount without a second charge. A restore calls it too,
+ * for a blob whose bytes already have an upload row under another id
+ * (`restoreBlobs` in import/privacynotes.ts).
+ */
+export async function uploadAgainWhatThePurgeTook(uuids: string[]): Promise<void> {
+  for (const uuid of uuids) {
+    const table = (await db.imageCache.get(uuid)) ? db.imageDedup : (await db.attachmentCache.get(uuid)) ? db.attachmentDedup : null;
+    if (!table) continue;
+    const marked = await table.where('uuid').equals(uuid).modify({ pendingUpload: 1, quotaBlocked: 0 });
+    // A copy this device downloaded has no upload row (only the uploader and
+    // the importers write one), and the retry sweep reads rows. Its key is
+    // not a content hash, so it can never stand in for another row.
+    if (marked === 0) await table.put({ hash: `restore:${uuid}`, uuid, encryptedSize: 0, pendingUpload: 1 });
+  }
+}
+
+/**
+ * The other half of the reconcile: a blob this device holds in its cache, that
+ * a live local note names and the complete bucket listing lacks, goes up
+ * again. Another device's reconcile deletes a picture whose note had not
+ * reached the server yet, and a re-added file whose hash this device
+ * remembered skipped its upload after another device's cleanup took the
+ * object; either way the device that holds the bytes is the one that can put
+ * them back (external report, 2026-10-24, bug reports 4 and 14). A row the
+ * server refused for good, or one already waiting to upload, is left alone.
+ */
+async function uploadAgainWhatIsMissing(inBucket: ReadonlySet<string>): Promise<void> {
+  const cached = [
+    ...(await db.imageCache.toCollection().primaryKeys()),
+    ...(await db.attachmentCache.toCollection().primaryKeys()),
+  ].filter((uuid) => !inBucket.has(uuid));
+  if (cached.length === 0) return;
+  const remaining = new Set(cached);
+  const named: string[] = [];
+  await db.notes.where('deleted').equals(0).each((note) => {
+    for (const uuid of remaining) {
+      if (note.body.includes(uuid)) {
+        named.push(uuid);
+        remaining.delete(uuid);
+      }
+    }
+  });
+  const missing: string[] = [];
+  for (const uuid of named) {
+    const rows = [
+      ...(await db.imageDedup.where('uuid').equals(uuid).toArray()),
+      ...(await db.attachmentDedup.where('uuid').equals(uuid).toArray()),
+    ];
+    if (rows.every((r) => !r.pendingUpload)) missing.push(uuid);
+  }
+  if (missing.length === 0) return;
+  console.warn('[imageGC] uploading again', missing.length, 'blob(s) the bucket lacks');
+  await uploadAgainWhatThePurgeTook(missing);
+}
+
+/**
+ * Phase 2 of deferred blob GC: actually remove Storage objects for
+ * queue entries that have cleared the grace period, after re-checking
+ * references against the full local mirror and the account's History
+ * versions (`history`: the session and key that read them). Must only be called right
+ * after a sync pass whose pull completed cleanly - that's what makes
+ * the reference re-check trustworthy (see module doc comment).
+ */
+export async function sweepBlobGC(
+  imageStore: ImageStore,
+  attachmentStore: AttachmentStore | null,
+  history: { supabase: SupabaseClient; pubkey: string; encryptionKey: Uint8Array },
+): Promise<void> {
+  // Below the release floor server writes pause (see sync.ts) - and GC
+  // deletes are the most dangerous write of all here, because an old client
+  // is deleting blobs based on reference rules that may have changed.
+  if (isDemoMode() || isServerWriteBlocked() || navigator.onLine === false) return;
+  if (sweepInFlight) return;
+  sweepInFlight = true;
+
+  try {
+    // Re-assert the server-side pending rows for the WHOLE queue before
+    // anything else, grace or no grace: the delete-time enqueue is
+    // best-effort, and a lost one otherwise leaves peers re-inflating the
+    // quota row until the orphan reconcile mops it up days later.
+    const queued = await db.blobGC.toArray();
+    if (queued.length === 0) return;
+    await imageStore.ensurePendingGC(queued.map((e) => e.uuid));
+
+    const cutoff = new Date(Date.now() - BLOB_GC_GRACE_MS).toISOString();
+    const entries = queued.filter((e) => e.enqueuedAt <= cutoff);
+    if (entries.length === 0) return;
+
+    const uuids = entries.map((e) => e.uuid);
+    const activity = versionActivity;
+    const referenced = await findRefsAnywhere(uuids);
+    // A version in another note's History can show a blob no live note
+    // names: a delete queues it without asking (gcOnNotesDelete), and the
+    // body-change GC keeps such a blob for exactly this reason. The same
+    // read as the orphan reconcile's gate 4; an account without History
+    // answers one count. A History that cannot be read removes nothing.
+    let historyKnown = true;
+    if (uuids.some((id) => !referenced.has(id))) {
+      const versionRefs = await collectVersionBlobRefs(history.supabase, history.pubkey, history.encryptionKey);
+      if (versionRefs) {
+        for (const id of uuids) if (versionRefs.has(id)) referenced.add(id);
+      } else {
+        historyKnown = false;
+      }
+    }
+
+    // Still-referenced entries: the deletion is cancelled below, once the
+    // server has dropped their pending rows.
+    const cancelled = entries.filter((e) => referenced.has(e.uuid));
+
+    // Not referenced: actually remove the Storage objects, grouped by kind.
+    // One a version on its way names stays queued for a later pass, and so
+    // does everything when a version was saved while the History was read.
+    const mayRemove = historyKnown && versionActivity === activity;
+    const toRemove = mayRemove
+      ? entries.filter((e) => !referenced.has(e.uuid) && !heldForVersion(e.uuid))
+      : [];
+    const imgUuids = toRemove.filter((e) => e.kind === 'image').map((e) => e.uuid);
+    const attUuids = toRemove.filter((e) => e.kind === 'attachment').map((e) => e.uuid);
+
+    // Checked again right before each removal: a hold can start while the
+    // reads above or the removal before it were awaited.
+    const settled: string[] = [];
+    const imgNow = imgUuids.filter((id) => !heldForVersion(id));
+    if (imgNow.length > 0) {
+      const { removed } = await imageStore.removeRemoteOnly(imgNow);
+      settled.push(...removed);
+    }
+    const attNow = attUuids.filter((id) => !heldForVersion(id));
+    if (attNow.length > 0 && attachmentStore) {
+      const { removed } = await attachmentStore.removeRemoteOnly(attNow);
+      settled.push(...removed);
+    }
+    // Local rows go before the queue rows: an entry that survives an
+    // interruption is settled again next pass, while a pending blob whose
+    // entry went first would upload with nothing left to collect it but
+    // the orphan reconcile.
+    await dropLocalCopies(settled);
+    if (settled.length > 0) await db.blobGC.bulkDelete(settled);
+
+    // Retire the server-side pending rows for everything that is settled:
+    // objects actually deleted, plus cancelled deletions whose blobs are
+    // back in use (their rows must stop excluding real usage). The table
+    // is per-account, so one store's client covers both kinds.
+    // Spec: packages/supabase/migrations/history/0068_pending_blob_gc_server_side.sql
+    //
+    // A cancelled entry leaves the local queue only once the server took
+    // the cancel. Its pending row is the deletion: purge-pending-blobs
+    // removes the object of every aged row with no reference check, so an
+    // entry dropped before a failed cancel lost an image a live note shows,
+    // with nothing left on this device to try again. The bytes come back
+    // through a server recount, not a refund of each size: another device's
+    // reconcile may have cancelled the same row and recounted already, and
+    // a refund on top of that counts the image twice.
+    if (settled.length > 0) await imageStore.clearPendingGC(settled).catch(() => false);
+    if (cancelled.length > 0) {
+      const ids = cancelled.map((e) => e.uuid);
+      const taken = await imageStore.cancelPendingGC(ids).catch(() => null);
+      if (taken !== null) {
+        await uploadAgainWhatThePurgeTook(ids.filter((id) => !taken.has(id)));
+        await db.blobGC.bulkDelete(ids);
+        await imageStore.recountQuota();
+      }
+    }
+  } finally {
+    sweepInFlight = false;
+  }
+}
+
+// ── Orphan reconcile ────────────────────────────────────────────────
+
+let reconcileInFlight = false;
+
+/** How often the orphan reconcile is allowed to run. Orphans are a slow leak,
+ * not an urgent condition, and the pass costs a recalc, a quota read and a
+ * full bucket listing. Spec: docs/internal/design-decisions.md (orphan blob
+ * reconcile). */
+const RECONCILE_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const RECONCILE_AT_KEY = 'privacynotes.blobReconcileAt';
+
+/** How long an UNSUCCESSFUL pass waits before trying again. A pass that gives
+ *  up at a gate never reaches the success stamp above, so without this every
+ *  eligible sync would re-run its recount and its bucket listing - the whole
+ *  cost of the pass, indefinitely, for an account whose mirror is simply not
+ *  complete yet. The cooldown is short because the work it defers is a slow
+ *  leak, and it changes only how often a refusal is retried: the gates
+ *  themselves are untouched, and nothing deletes on a pass that skipped. */
+const RECONCILE_RETRY_MS = 60 * 60 * 1000;
+const RECONCILE_TRIED_KEY = 'privacynotes.blobReconcileTriedAt';
+
+/** The failed-attempt stamp, read back only for the account that wrote it: a
+ *  different vault's refusal says nothing about this one's. */
+function reconcileRetryBlocked(pubkey: string): boolean {
+  try {
+    const raw = localStorage.getItem(RECONCILE_TRIED_KEY);
+    if (!raw) return false;
+    const held = JSON.parse(raw) as { at?: unknown; pubkey?: unknown };
+    if (held?.pubkey !== pubkey || typeof held.at !== 'number') return false;
+    return Date.now() - held.at < RECONCILE_RETRY_MS;
+  } catch {
+    return false;
+  }
+}
+
+/** A pass that reached its own end. Clears the attempt stamp, because the
+ *  24-hour success interval is the one that governs from here. */
+function markReconcileDone(): void {
+  try {
+    localStorage.setItem(RECONCILE_AT_KEY, String(Date.now()));
+    localStorage.removeItem(RECONCILE_TRIED_KEY);
+  } catch { /* storage full or blocked */ }
+}
+
+function markReconcileTried(pubkey: string): void {
+  try {
+    localStorage.setItem(RECONCILE_TRIED_KEY, JSON.stringify({ at: Date.now(), pubkey }));
+  } catch { /* storage full or blocked: the pass simply retries sooner */ }
+}
+
+/** Upper bound on version rows the reconcile will fetch and decrypt in one
+ * pass. Versions are capped at 50 per note, so this covers accounts up to a
+ * thousand notes with a full history. Past it the reconcile aborts rather
+ * than delete on an incomplete reference set. */
+const VERSION_SCAN_MAX = 50000;
+
+/** One page of a Supabase Storage listing. */
+const LIST_PAGE = 1000;
+
+/** Storage list rows carry only the fields we need; the client types them
+ * loosely, so narrow here rather than casting at each use. */
+type StorageObject = { name: string; created_at?: string | null };
+
+/**
+ * Reclaim Supabase Storage blobs that nothing references any more.
+ *
+ * This is the backstop for every orphan source db.blobGC cannot cover (see
+ * the module doc). It compares the bucket against the local mirror instead of
+ * against a queue, so it repairs history as well as future leaks, and it is
+ * the only thing that can bring an account showing usage with zero notes back
+ * to zero.
+ *
+ * Deleting a Storage object is immediate and permanent, so this only ever
+ * runs with the local mirror provably complete. Five conditions must all
+ * hold before a single object is removed:
+ *
+ * 1. No dirty local notes. A pending push means the server has not seen
+ *    everything this device has, so counts cannot be compared.
+ * 2. The local live-note count equals the server's note_count, taken from a
+ *    fresh recalc so the comparison is against a recount rather than a
+ *    delta-maintained counter that is allowed to drift. This is the actual
+ *    proof that scanning local bodies yields the complete reference set - it
+ *    is what the 24h grace in sweepBlobGC substitutes for, and what a device
+ *    mid-first-sync will always fail.
+ * 3. The uuid appears in no local note body, trashed and unconfirmed
+ *    tombstones included (findRefsAnywhere).
+ * 4. The uuid appears in no note_version snapshot. A blob removed from a
+ *    live note's body is deliberately kept alive by its history (see
+ *    gcOnBodyChange), and that reference exists only in encrypted server
+ *    rows. If the versions cannot be read, the pass aborts. A snapshot this
+ *    device has not saved yet holds its blobs too (holdBlobsForVersion).
+ * 5. The object is older than RECONCILE_GRACE_MS by the server's clock (the
+ *    stamp the recount in gate 2 writes), which covers the window between an
+ *    upload returning a uuid and that uuid reaching a saved body on any
+ *    device. This device's clock is not read: one a day fast made every
+ *    fresh upload look old enough.
+ *
+ * Anything currently in db.blobGC is skipped outright: those blobs already
+ * have an owner with its own grace period, and this pass must not shorten it.
+ *
+ * Best-effort throughout - every failure path returns without deleting.
+ */
+export async function reconcileOrphanBlobs(
+  supabase: SupabaseClient,
+  pubkey: string,
+  encryptionKey: Uint8Array,
+  imageStore: ImageStore,
+): Promise<void> {
+  // Same release-floor pause as sweepBlobGC above.
+  if (isDemoMode() || isServerWriteBlocked() || navigator.onLine === false) return;
+  if (reconcileInFlight) return;
+
+  const last = Number(localStorage.getItem(RECONCILE_AT_KEY) ?? 0);
+  if (Number.isFinite(last) && Date.now() - last < RECONCILE_INTERVAL_MS) return;
+  if (reconcileRetryBlocked(pubkey)) return;
+
+  reconcileInFlight = true;
+  // Written before the first gate and cleared by the success stamp below, so
+  // every way out of this pass other than completion counts as an attempt -
+  // a gate that returns, a read that throws, a listing that fails.
+  markReconcileTried(pubkey);
+  // The pass reads under whatever session the client holds at each request,
+  // and deletes under the prefix of `pubkey`. A session that moves to another
+  // account and back between those reads would hand it another account's
+  // empty version set, and the delete would then run on this account again.
+  // So a session that does not carry `pubkey`, seen at any point after the
+  // start, ends the pass before it deletes. A refresh or a tab-focus event of
+  // this account's own session is not a move.
+  let sessionMoved = false;
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (session?.user?.app_metadata?.pubkey !== pubkey) sessionMoved = true;
+  });
+  try {
+    // The session must belong to the account whose prefix this pass deletes.
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData.session?.user?.app_metadata?.pubkey !== pubkey) return;
+
+    // Pending deletions this device never queued. The device that queued
+    // one may have signed out, which clears its queue, or lost its cancel;
+    // the server purge then removes the object with no reference check. A
+    // reference in this mirror cancels the row. That needs none of the gates
+    // below, which guard deleting: a cancel only keeps an image, a stale
+    // reference keeps an orphan that a later pass reclaims, and a mirror
+    // short of a note cancels less. A failed read or cancel retries at the
+    // next pass.
+    const pending = await imageStore.listPendingGC();
+    if (pending === null) return;
+    const ownQueue = new Set((await db.blobGC.toArray()).map((e) => e.uuid));
+    const foreign = pending.filter((uuid) => !ownQueue.has(uuid));
+    if (foreign.length > 0) {
+      const inUse = await findRefsAnywhere(foreign);
+      if (inUse.size > 0) {
+        const taken = await imageStore.cancelPendingGC([...inUse]);
+        if (taken === null) return;
+        await uploadAgainWhatThePurgeTook([...inUse].filter((id) => !taken.has(id)));
+        // The server's count left these bytes out; count them again.
+        await recalculateQuota(supabase);
+      }
+    }
+
+    // Gate 1: nothing of ours is still unpushed, History versions included:
+    // a queued one may name a picture no saved version names yet.
+    if ((await db.notes.where('dirty').anyOf(1, 2).count()) > 0) return;
+    if (await hasQueuedVersions()) return;
+
+    // Gate 2: the server agrees with us about how many notes exist. recalc
+    // first so note_count is a recount, not a drifted delta counter.
+    //
+    // Both halves have to SUCCEED, not merely return. A recount that never
+    // ran leaves a delta-maintained counter that is allowed to drift, and a
+    // refused usage read answered as zero would match the zero of a device
+    // whose own vault is still empty, and clear this pass to delete every aged
+    // object in the bucket. fetchQuotaUsage throws on a failed read, so an
+    // unknown count cannot impersonate an empty account.
+    if (!await recalculateQuota(supabase)) {
+      console.warn('[imageGC] reconcile skipped - server did not recount');
+      return;
+    }
+    const usage = await fetchQuotaUsage(supabase);
+    // The recount just stamped the quota row with the server's now().
+    const stamped = await supabase.from('pubkey_quotas').select('updated_at').maybeSingle();
+    const serverNow = Date.parse((stamped.data as { updated_at?: string } | null)?.updated_at ?? '');
+    if (stamped.error || !Number.isFinite(serverNow)) {
+      console.warn('[imageGC] reconcile skipped - no server time');
+      return;
+    }
+    const localLive = await db.notes.where('deleted').equals(0).count();
+    if (localLive !== usage.noteCount) {
+      console.warn(
+        '[imageGC] reconcile skipped - local mirror incomplete',
+        localLive, 'local vs', usage.noteCount, 'server',
+      );
+      return;
+    }
+
+    // Everything currently in the bucket under our prefix.
+    const objects: StorageObject[] = [];
+    for (let offset = 0; ; offset += LIST_PAGE) {
+      const { data, error } = await supabase.storage
+        .from('encrypted-images')
+        .list(pubkey, { limit: LIST_PAGE, offset });
+      if (error) {
+        console.warn('[imageGC] reconcile listing failed:', error.message);
+        return;
+      }
+      const page = (data ?? []) as StorageObject[];
+      objects.push(...page);
+      if (page.length < LIST_PAGE) break;
+    }
+    await uploadAgainWhatIsMissing(new Set(objects.map((o) => o.name)));
+    if (objects.length === 0) {
+      markReconcileDone();
+      return;
+    }
+
+    // Gates 3 and 5, plus the blobGC hand-off.
+    const cutoff = serverNow - RECONCILE_GRACE_MS;
+    const aged = objects.filter((o) => {
+      const created = o.created_at ? Date.parse(o.created_at) : NaN;
+      return Number.isFinite(created) && created < cutoff;
+    });
+    if (aged.length === 0) {
+      markReconcileDone();
+      return;
+    }
+    // From here the pass reads references and then deletes on them.
+    const activity = versionActivity;
+    const queued = new Set((await db.blobGC.toArray()).map((e) => e.uuid));
+    const referenced = await findRefsAnywhere(
+      aged.map((o) => o.name).filter((n) => !queued.has(n)),
+    );
+    let candidates = aged
+      .map((o) => o.name)
+      .filter((n) => !queued.has(n) && !referenced.has(n) && !heldForVersion(n));
+    if (candidates.length === 0) {
+      markReconcileDone();
+      return;
+    }
+
+    // Gate 4: history snapshots. Only paid for once something looks orphaned.
+    const versionRefs = await collectVersionBlobRefs(supabase, pubkey, encryptionKey);
+    if (!versionRefs) return; // unreadable - never delete on a partial set
+    candidates = candidates.filter((uuid) => !versionRefs.has(uuid));
+    if (candidates.length === 0) {
+      markReconcileDone();
+      return;
+    }
+    // A state went on its way to history, or a version was saved, while
+    // this pass read: what it read may be missing them, so a later pass
+    // decides. Then the holds once more, right before the removal.
+    if (versionActivity !== activity) return;
+    candidates = candidates.filter((uuid) => !heldForVersion(uuid));
+    if (candidates.length === 0) return;
+    if (sessionMoved) return;
+
+    // Images and attachments share one bucket and one path shape, and the
+    // object name does not say which is which - removeRemoteOnly is the same
+    // call either way, so one store can remove both.
+    const { removed } = await imageStore.removeRemoteOnly(candidates);
+    if (removed.length > 0) {
+      console.warn('[imageGC] reconcile reclaimed', removed.length, 'orphaned blobs');
+      await dropLocalCopies(removed);
+      await recalculateQuota(supabase);
+    }
+    markReconcileDone();
+  } catch (err) {
+    console.warn('[imageGC] reconcile failed:', err);
+  } finally {
+    subscription.unsubscribe();
+    reconcileInFlight = false;
+  }
+}
+
+/**
+ * Every blob uuid referenced by any note_version snapshot on the account.
+ * Returns null when the set cannot be established - unreadable, oversized, or
+ * short-read version data must abort the reconcile rather than let it delete
+ * against an incomplete picture. RLS ('note_versions_owner_select') scopes the
+ * read to the caller; the explicit owner gives the planner an index condition
+ * on `note_versions(user_pubkey)` instead of a table scan.
+ * Spec: docs/internal/specs/supabase-performance-2026-09.md (Capacity check, 2026-10-19)
+ *
+ * The row count is established first and every page is then read explicitly,
+ * because a single big `.limit()` cannot tell "that is all of them" apart from
+ * "PostgREST capped the response at db-max-rows". The first reads as a
+ * complete reference set and would authorize deleting a blob that a version we
+ * never saw still holds. Pages are ordered oldest-first so a snapshot written
+ * mid-scan lands past the end instead of shifting rows across page boundaries.
+ */
+async function collectVersionBlobRefs(
+  supabase: SupabaseClient,
+  pubkey: string,
+  encryptionKey: Uint8Array,
+): Promise<Set<string> | null> {
+  const { count, error: countErr } = await supabase
+    .from('note_versions')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_pubkey', pubkey);
+  if (countErr || count == null) {
+    console.warn('[imageGC] reconcile version count failed:', countErr?.message);
+    return null;
+  }
+  if (count === 0) return new Set();
+  if (count > VERSION_SCAN_MAX) {
+    console.warn('[imageGC] reconcile skipped -', count, 'version rows to scan');
+    return null;
+  }
+
+  const refs = new Set<string>();
+  let seen = 0;
+  for (let from = 0; from < count; from += LIST_PAGE) {
+    const { data, error } = await supabase
+      .from('note_versions')
+      .select('ciphertext, nonce')
+      .eq('user_pubkey', pubkey)
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + LIST_PAGE - 1);
+    if (error) {
+      console.warn('[imageGC] reconcile version scan failed:', error.message);
+      return null;
+    }
+    const rows = (data ?? []) as { ciphertext: string; nonce: string }[];
+    if (rows.length === 0) break;
+    seen += rows.length;
+    for (const row of rows) {
+      let body: string;
+      try {
+        const ct = base64ToBytes(row.ciphertext);
+        const nonce = base64ToBytes(row.nonce);
+        body = openWithRing('sync', encryptionKey, (key) => decryptNote(ct, nonce, key)).body ?? '';
+      } catch {
+        // A snapshot we cannot read is a reference we cannot rule out.
+        return null;
+      }
+      for (const id of extractImageIds(body)) refs.add(id);
+      for (const id of extractAttachmentIds(body)) refs.add(id);
+    }
+  }
+  if (seen < count) {
+    console.warn('[imageGC] reconcile version scan short:', seen, 'of', count);
+    return null;
+  }
+  return refs;
+}

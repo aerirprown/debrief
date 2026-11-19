@@ -1,0 +1,394 @@
+import { useEffect, useRef, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
+import { useAuth } from './auth';
+import { deleteAccountServer } from './devices';
+import { deleteEntireLocalDatabase } from './notesRepo';
+import { describeOnlyHere, useOnlyOnThisDevice } from './neverBackedUp';
+import { setDeletingAccount } from './sync';
+import { SectionEyebrow } from './settingsUI';
+import { isDemoMode, isDemoOwnedKey } from './demo';
+import { settingsLocalKey } from './settingsLocalKey';
+import { HelpChip } from './HelpChip';
+import { ensureLevel2, MfaCancelledError, mfaSessionIdentity } from './mfaStep';
+import { jwtPayloadPubkey } from './authStorage';
+import { announceSignOut, endLiveSignIn } from './liveSignIn';
+import { cancelDeviceReminders, remindersTeardownSettled, REMINDER_TO_CANCEL_KEY } from './notesView/useReminders';
+
+/** How long the reload after a wipe waits for the reminders' teardown. */
+const RELOAD_WAIT_MS = 10_000;
+
+// ------------------------------------------------------------------
+// Danger zone - account & data deletion
+// ------------------------------------------------------------------
+
+/**
+ * Wipe this session's keys from both localStorage and sessionStorage.
+ * Catches per-key to avoid one bad key blocking the rest.
+ *
+ * The demo runs on the SAME origin as a real install whenever the URL
+ * carries `?demo=1`, and it renders this panel with the local half
+ * already ticked. A prefix sweep there removes the real account's phrase
+ * envelope, PIN wrap, biometric wrap and Supabase session, none of which
+ * the demo owns: every credential the demo writes goes into a `.demo`
+ * bucket for exactly this reason, and this was the one sweep that did
+ * not respect it. So in demo the sweep is the bucket plus the demo
+ * settings key, which is the same set clearFreshDemoCredentials drops on
+ * a fresh tab, and nothing else is touched.
+ */
+function clearAllStorageKeys(): void {
+  const demo = isDemoMode();
+  const demoSettings = settingsLocalKey();
+  for (const store of [localStorage, sessionStorage]) {
+    const keys: string[] = [];
+    for (let i = 0; i < store.length; i++) {
+      const k = store.key(i);
+      if (!k) continue;
+      // Clear app keys AND Supabase auth session keys. Without the
+      // sb- prefix, a stale OAuth session survives account deletion
+      // and hydrateFromOAuthSession treats the deleted user as
+      // existing on the next page load.
+      const owned = demo
+        ? isDemoOwnedKey(k) || k === demoSettings
+        : k.startsWith('privacynotes.') || k.startsWith('sb-');
+      // One key stays: the reminder ids the teardown has not seen cancelled
+      // yet, ids only, which exists only until that cancel went out, and
+      // which the next start cancels when the reload came first.
+      if (owned && k !== REMINDER_TO_CANCEL_KEY) keys.push(k);
+    }
+    for (const k of keys) {
+      try { store.removeItem(k); } catch { /* ignore */ }
+    }
+  }
+}
+
+/**
+ * The local half of a deletion: everything this account left on this
+ * device, keys first, then the database and every app key in storage. The
+ * caller reloads afterwards. Used by the Danger zone and by the dead man's
+ * switch dialog (DmsReturnModal), so both wipes stay one wipe.
+ */
+export async function wipeThisDevice(
+  authed: { encryptionKey: Uint8Array; signingPrivateKey: Uint8Array },
+  supabase: ReturnType<typeof useAuth>['supabase'],
+): Promise<void> {
+  // A sync pass already in flight must not write the phrase back
+  // between this wipe and the reload, here or in another tab of this
+  // browser (liveSignIn.ts).
+  endLiveSignIn();
+  announceSignOut();
+  // A phone's scheduled reminders, while the map that names them
+  // exists: the sweep below removes it, and the OS would ring them with
+  // this account's titles after it is gone.
+  await cancelDeviceReminders();
+  // Zero key material.
+  authed.encryptionKey.fill(0);
+  authed.signingPrivateKey.fill(0);
+  // Kill the Supabase session before wiping storage, locally only:
+  // after an account deletion the server user is gone, and a device
+  // wipe keeps the account. Without this the sb-* session key survives
+  // and hydrateFromOAuthSession treats a re-signup as a returning user.
+  //
+  // Not in demo: the demo holds no session of its own, so the only
+  // row this could clear belongs to the real account signed in on
+  // the same origin.
+  if (!isDemoMode()) {
+    await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+  }
+  // Nuke IndexedDB (notes, images, attachments, dedup tables).
+  await deleteEntireLocalDatabase();
+  // Wipe all localStorage/sessionStorage privacynotes.* + sb-* keys.
+  clearAllStorageKeys();
+  // The sweep took the sign-out notice too, and a stamp taken before
+  // any notice existed would read as current again without one.
+  announceSignOut();
+  // The reload below drops the page, and with it the reminders'
+  // second cancel if the OS was slow to answer; it goes first.
+  await remindersTeardownSettled(RELOAD_WAIT_MS);
+}
+
+export function DangerZone({ onDeleteStarted }: { onDeleteStarted: () => void }) {
+  const { t } = useTranslation('settings');
+  const { auth, supabase } = useAuth();
+  const [expanded, setExpanded] = useState(false);
+  const [deleteLocal, setDeleteLocal] = useState(true);
+  // Demo mode has no server-side account to delete, so the option is
+  // neither offered nor pre-selected - local wipe is the only real action.
+  const [deleteServer, setDeleteServer] = useState(!isDemoMode());
+  const [confirmText, setConfirmText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // null = unchecked, true/false = result of has_active_storage_sub RPC.
+  // We block server-side deletion until the user cancels their storage
+  // sub in Paddle (surface-and-defer per gap #8).
+  const [hasActiveSub, setHasActiveSub] = useState<boolean | null>(null);
+
+  const authed = auth.status === 'authenticated' ? auth : null;
+  const authRef = useRef(authed);
+  authRef.current = authed;
+
+  // Preflight when the danger zone expands. Cheap RPC, returns boolean.
+  useEffect(() => {
+    if (!expanded || !authed) return;
+    // Demo mode makes zero server calls - there is no account and no
+    // storage sub, so answer the preflight locally.
+    if (isDemoMode()) { setHasActiveSub(false); return; }
+    let cancelled = false;
+    void (async () => {
+      const { data, error: rpcErr } = await supabase.rpc(
+        'has_active_storage_sub',
+      );
+      if (cancelled) return;
+      if (rpcErr) {
+        // RPC unavailable (migration not applied) → fail open. Server
+        // still preflights, so this only affects the warning surface.
+        console.warn('[DangerZone] has_active_storage_sub failed', rpcErr);
+        setHasActiveSub(false);
+        return;
+      }
+      setHasActiveSub(data === true);
+    })();
+    return () => { cancelled = true; };
+  }, [expanded, authed, supabase]);
+
+  // What the local wipe destroys outright. Live while the panel is open,
+  // and released before the wipe starts.
+  const atStake = useOnlyOnThisDevice(expanded && authed !== null && !busy);
+
+  if (!authed) return null;
+
+  // Deleting the server account always implies wiping local state too -
+  // without a valid auth.users row the local session is dead anyway.
+  const effectiveDeleteLocal = deleteLocal || deleteServer;
+  const blockedByStorageSub = deleteServer && hasActiveSub === true;
+  // "Delete local data" on its own pushes nothing first, so it names the
+  // notes and files that exist only on this device before the DELETE field.
+  // An account deletion takes the server copy as well, and says so above.
+  const localOnly = deleteLocal && !deleteServer;
+  const atStakeLine = describeOnlyHere(t, atStake);
+  const canDelete =
+    confirmText.toUpperCase() === 'DELETE' &&
+    (deleteLocal || deleteServer) &&
+    !blockedByStorageSub;
+
+  async function handleDelete() {
+    if (!authed || !canDelete) return;
+    setBusy(true);
+    setError(null);
+
+    try {
+      // Server deletion first (while we still have credentials).
+      if (deleteServer) {
+        // A person may take longer than the network timeout to find a code.
+        // Keep this prompt before the timed deletion and bind its result to
+        // the same vault/session before touching data. tests/dangerZoneMfa.test.ts.
+        const before = (await supabase.auth.getSession()).data.session;
+        const identity = mfaSessionIdentity(before);
+        if (!identity || !before || jwtPayloadPubkey(before.access_token) !== authed.pubkey) throw new MfaCancelledError();
+        await ensureLevel2(supabase, { force: true, allowLocalUse: true });
+        // Re-poll storage sub status right before deleting - the user may
+        // have cancelled their sub in another tab since the DangerZone
+        // expanded. Catches multi-tab races before the 409. See gap #44.
+        const { data: subNow } = await supabase.rpc('has_active_storage_sub');
+        if (subNow === true) {
+          setHasActiveSub(true);
+          setBusy(false);
+          return;
+        }
+        const { data: sessData } = await supabase.auth.getSession();
+        const session = sessData.session;
+        if (!session?.access_token || !session.user?.id) {
+          throw new Error(t('settings:errors.noSession'));
+        }
+        if (authRef.current?.pubkey !== authed.pubkey || mfaSessionIdentity(session) !== identity || jwtPayloadPubkey(session.access_token) !== authed.pubkey) throw new MfaCancelledError();
+
+        // Block any further sync calls before we kick off deletion. An
+        // in-flight `sync()` started before this click can still land
+        // upserts after the server delete - we can't abort it from out
+        // here, but we can prevent NEW syncs and re-delete afterward.
+        // See gap #3.
+        setDeletingAccount(true);
+
+        const deleteArgs = {
+          supabase,
+          accessToken: session.access_token,
+          authUid: session.user.id,
+          signingPrivateKey: authed.signingPrivateKey,
+        };
+        // Timeout guard: if the edge function hangs, don't leave sync
+        // paused indefinitely. 60s is generous for a cold-start + DB ops.
+        // See gap #43.
+        const DELETE_TIMEOUT_MS = 60_000;
+        await Promise.race([
+          deleteAccountServer(deleteArgs),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(t('danger.deleteTimeout'))), DELETE_TIMEOUT_MS),
+          ),
+        ]);
+
+        // Belt-and-suspenders: any sync that was already in flight when
+        // we set the flag may have landed an upsert seconds after the
+        // edge function finished. Sleep briefly, then re-delete to mop
+        // up. Best-effort - auth.users is gone so this 401s, which is
+        // fine; what matters is that the server's idempotent table
+        // deletes (run before auth deletion) catch any sneaked-in rows.
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        try {
+          await deleteAccountServer(deleteArgs);
+        } catch (e) {
+          // Expected: 401 because auth.users is gone, or quiet success.
+          console.log('[DangerZone] re-delete returned (expected):', (e as Error).message);
+        }
+      }
+
+      // Local wipe - always runs when server is deleted (the session
+      // is gone), and optionally runs on its own ("wipe this device").
+      if (effectiveDeleteLocal) {
+        if (authRef.current?.pubkey !== authed.pubkey) throw new MfaCancelledError();
+        await wipeThisDevice(authed, supabase);
+      }
+
+      onDeleteStarted();
+
+      // Hard reload to onboarding. Both phrase and OAuth users land on
+      // the clean signup page and can create a fresh account.
+      window.location.replace('/');
+    } catch (err) {
+      // Roll back the deletion flag - the user is still authenticated
+      // and may want to keep using the app, so let sync resume.
+      setDeletingAccount(false);
+      const msg = (err as Error).message;
+      // Server-side fallback when the preflight didn't catch an
+      // active storage sub (stale client, RPC unavailable, etc.).
+      if (msg.includes('active_storage_sub')) {
+        setHasActiveSub(true);
+        setError(t('danger.activeSubError'));
+      } else {
+        setError(msg);
+      }
+      setBusy(false);
+    }
+  }
+
+  if (!expanded) {
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="w-full rounded-md border border-transparent bg-red-500/10 hover:bg-red-500/20 text-danger text-body font-medium px-3 py-1.5 transition"
+        >
+          {t('danger.deleteCta')}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-md border border-red-300 dark:border-red-900/60 p-4 space-y-3">
+      <SectionEyebrow danger setting="plan.dangerZone">
+        {t('danger.heading')}
+      </SectionEyebrow>
+
+      <p className="text-small text-pn-soft leading-relaxed">
+        {t('danger.warning')}
+      </p>
+
+      <HelpChip surface="deleteAccount" />
+
+      {blockedByStorageSub && (
+        <div className="rounded-md border border-amber-400/40 bg-amber-50 dark:border-amber-600/30 dark:bg-amber-950/20 text-warning text-small leading-relaxed px-3 py-2">
+          {t('danger.blockedByStorage')}
+        </div>
+      )}
+
+      <label className="flex items-start gap-2 text-body cursor-pointer">
+        <input
+          type="checkbox"
+          checked={effectiveDeleteLocal}
+          onChange={(e) => setDeleteLocal(e.target.checked)}
+          disabled={busy || deleteServer}
+          className="mt-0.5 accent-red-600"
+        />
+        <span className={`${deleteServer && !deleteLocal ? 'text-pn-muted' : 'text-pn-soft'}`}>
+          {t('danger.localLabel')}
+          <span className="block text-small text-pn-soft">
+            {t('danger.localDesc')}
+            {deleteServer && !deleteLocal && ` ${t('danger.localRequired')}`}
+          </span>
+        </span>
+      </label>
+
+      {!isDemoMode() && (
+      <label className="flex items-start gap-2 text-body cursor-pointer">
+        <input
+          type="checkbox"
+          checked={deleteServer}
+          onChange={(e) => setDeleteServer(e.target.checked)}
+          disabled={busy}
+          className="mt-0.5 accent-red-600"
+        />
+        <span className="text-pn-soft">
+          {t('danger.cloudLabel')}
+          <span className="block text-small text-pn-soft">
+            {t('danger.cloudDesc')}
+          </span>
+        </span>
+      </label>
+      )}
+
+      {localOnly && atStakeLine && (
+        <div className="rounded-md border border-amber-400/40 bg-amber-50 dark:border-amber-600/30 dark:bg-amber-950/20 text-warning text-small leading-relaxed px-3 py-2">
+          {atStakeLine}
+        </div>
+      )}
+
+      <div>
+        <label className="block text-small text-pn-soft mb-1">
+          <Trans
+            i18nKey="settings:danger.confirmPrompt"
+            components={{ kbd: <span className="font-mono font-semibold text-danger" /> }}
+          />
+        </label>
+        <input
+          type="text"
+          value={confirmText}
+          onChange={(e) => setConfirmText(e.target.value)}
+          disabled={busy}
+          placeholder="DELETE"
+          autoComplete="off"
+          spellCheck={false}
+          className="w-full rounded-md border border-divider bg-surface-2 text-body px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-red-500 dark:focus:ring-red-600 placeholder:text-pn-muted"
+        />
+      </div>
+
+      {error && (
+        <div className="rounded-md border border-red-300 bg-red-50 dark:border-red-900/60 dark:bg-red-950/30 text-red-700 dark:text-red-300 text-small p-2">
+          {error}
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setExpanded(false);
+            setConfirmText('');
+            setError(null);
+          }}
+          disabled={busy}
+          className="flex-1 rounded-md border border-divider hover:bg-surface-1 px-3 py-2 text-body transition"
+        >
+          {t('common:actions.cancel')}
+        </button>
+        <button
+          type="button"
+          onClick={() => void handleDelete()}
+          disabled={!canDelete || busy}
+          className="flex-1 rounded-md bg-red-600 hover:bg-red-700 disabled:bg-red-600/50 text-white px-3 py-2 text-body font-semibold transition disabled:cursor-not-allowed"
+        >
+          {busy ? t('danger.deleting') : t('danger.deletePermanently')}
+        </button>
+      </div>
+    </div>
+  );
+}

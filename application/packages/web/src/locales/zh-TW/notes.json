@@ -1,0 +1,405 @@
+{
+  "noteRow": {
+    "created": "建立於",
+    "modified": "修改於",
+    "select": "選取筆記",
+    "deselect": "取消選取筆記",
+    "pinProtected": "PIN 碼保護",
+    "readOnly": "唯讀",
+    "empty": "空白",
+    "noContent": "沒有內容",
+    "notBackedUp": "未備份",
+    "archived": "已封存",
+    "date": "日期",
+    "dayOf": "第 {{n}} 天，共 {{total}} 天",
+    "reminders_other": "{{count}} 個提醒"
+  },
+  "header": {
+    "new": "新增",
+    "newNote": "新增筆記",
+    "newEvent": "新增活動"
+  },
+  "folderChip": {
+    "clear": "清除資料夾篩選：{{folder}}",
+    "subfolders": "子資料夾",
+    "subfoldersLabel": "包含子資料夾"
+  },
+  "tagChip": {
+    "clear": "清除標籤篩選：{{tag}}"
+  },
+  "vaultNew": {
+    "ariaLabel": "新增保險庫項目",
+    "card": "信用卡",
+    "sshKey": "SSH 金鑰",
+    "generator": "密碼"
+  },
+  "newMenu": {
+    "note": "筆記",
+    "task": "任務",
+    "kanban": "看板",
+    "drawing": "繪圖",
+    "journal": "日誌",
+    "login": "登入資訊",
+    "bookmark": "書籤",
+    "clipPage": "擷取網頁",
+    "contact": "聯絡人",
+    "event": "活動"
+  },
+  "vaultFilter": {
+    "all": "全部",
+    "logins": "登入資訊",
+    "cards": "信用卡",
+    "keys": "金鑰"
+  },
+  "journal": {
+    "newEntry": "新增日誌"
+  },
+  "tasks": {
+    "newTitle": "{{date}} 的任務"
+  },
+  "trash": {
+    "empty": "清空",
+    "emptyHover": "刪除垃圾桶中的所有筆記",
+    "autoDelete": "30 天後自動刪除"
+  },
+  "search": {
+    "sortOptions": "排序與檢視選項",
+    "placeholderVault": "搜尋保險庫…",
+    "placeholderNotes": "搜尋筆記…",
+    "placeholderEvents": "搜尋活動…",
+    "placeholderDrawings": "搜尋繪圖…"
+  },
+  "selection": {
+    "countOf": "已選取 {{selected}}/{{total}} 項",
+    "selectAll": "全選",
+    "deselectAll": "取消全選"
+  },
+  "empty": {
+    "noMatches": "沒有符合的結果。",
+    "vault": "保險庫是空的。",
+    "notes": "還沒有筆記。",
+    "journal": "還沒有日誌。",
+    "drawings": "還沒有繪圖。",
+    "drawingsLine": "隨手畫下草圖、規劃或整理一個想法。繪圖可以連結到你的筆記，但不會顯示筆記的內容。",
+    "archive": "沒有封存的項目。",
+    "trash": "垃圾桶是空的。",
+    "filtered": "沒有項目符合篩選條件。",
+    "filteredAfter": "即可顯示。",
+    "hiddenInAll_other": "有 {{count}} 個項目被「顯示於『全部』」篩選條件隱藏。開啟「全部」旁的篩選條件即可顯示。",
+    "inOtherSpace_other": "有 {{count}} 個項目在你的「{{space}}」空間中。在側邊欄切換到「{{space}}」即可查看。"
+  },
+  "listGroups": {
+    "previous7Days": "過去 7 天",
+    "previous30Days": "過去 30 天",
+    "other": "其他",
+    "collapseAll": "收合所有群組",
+    "expandAll": "展開所有群組"
+  },
+  "footerStats": {
+    "journals_other": "日誌",
+    "items_other": "項目",
+    "trashed_other": "垃圾桶",
+    "notes_other": "筆記",
+    "bookmarks_other": "書籤",
+    "contacts_other": "聯絡人",
+    "drawings_other": "繪圖",
+    "files_other": "檔案",
+    "lists_other": "清單",
+    "tasks_other": "任務",
+    "today": "今天"
+  },
+  "toast": {
+    "imageUploadFailed": "圖片上傳失敗：{{error}}",
+    "imageError": "圖片錯誤：{{error}}",
+    "uploadFailedFor": "「{{filename}}」上傳失敗：{{error}}",
+    "importedSyncing_other": "已匯入 {{count}} 篇筆記。同步中…",
+    "addedTag_other": "已將 #{{tag}} 加入 {{count}} 個項目",
+    "restoreSummary": "已還原。新增 {{added}} 個，更新 {{updated}} 個，{{unchanged}} 個已是最新。"
+  },
+  "burn": {
+    "mediaOnly": "這篇筆記只包含媒體內容，無法透過 burn 連結分享。",
+    "shareTitle": "加密筆記"
+  },
+  "loadError": {
+    "message": "無法載入你的筆記。本機資料庫連線中斷；應用程式在背景待了一段時間後可能發生這種情況。",
+    "reload": "重新載入"
+  },
+  "banner": {
+    "proActivationPending": "已收到款項，但 Pro 開通比平常慢。請一分鐘後重新整理；如果一直沒有解鎖，請聯絡支援。",
+    "crypto": {
+      "waiting": "正在等待你的加密貨幣付款。確認後就會啟用 Pro。",
+      "seen": "已偵測到加密貨幣付款。網路確認後就會啟用 Pro，Bitcoin 通常在一小時內完成。",
+      "partial": "已收到部分加密貨幣付款。請在連結過期前於付款頁面上補足餘額。",
+      "ended": "你的加密貨幣付款連結在收到全額付款前已過期。",
+      "paid": "你的加密貨幣付款已確認。Pro 已啟用。",
+      "openPayment": "付款頁面"
+    },
+    "snapshotPaused": "筆記歷史已暫停。你的 Pro 方案看起來未生效，在 Pro 恢復前，新的編輯不會建立快照。",
+    "restorePro": "恢復 Pro",
+    "storagePastDue": "你的儲存空間訂閱扣款失敗。請到 Paddle 更新卡片資料，以免失去額外容量。",
+    "updateCard": "更新卡片"
+  },
+  "sidebar": {
+    "collapse": "收合側邊欄"
+  },
+  "notesList": {
+    "collapse": "收合筆記清單",
+    "expand": "展開筆記清單"
+  },
+  "split": {
+    "action": "拆分筆記",
+    "done": "已拆分出「{{title}}」",
+    "overLimit": "「{{title}}」超過 1 MB，只保留在這台裝置上",
+    "cannot": "無法在這裡拆分這則筆記。請把游標放在新筆記應該開始的位置。",
+    "continuedTitle": "{{title}}（續）",
+    "continuedIn": "接續於 {{link}}"
+  },
+  "paneResize": {
+    "hintCollapse": "點一下收合 · 拖曳調整大小",
+    "hintExpand": "點一下展開 · 拖曳調整大小"
+  },
+  "emptyEditor": {
+    "selectFile": "選擇要預覽的檔案",
+    "uploadFiles": "或上傳新檔案到你的加密保險庫。",
+    "selectNote": "選擇一篇筆記，或建立新筆記。",
+    "selectMarkdown": "開啟一個 Markdown 檔，就能在這裡閱讀。"
+  },
+  "zen": {
+    "exit": "離開 Zen",
+    "exitHover": "離開 Zen 模式",
+    "enterHover": "進入 Zen 模式",
+    "proHover": "Zen 模式（Pro）",
+    "enterAriaShortcut": "進入 Zen 模式（{{keys}}）"
+  },
+  "editor": {
+    "backToList": "回到筆記清單",
+    "backToGrid": "回到格狀檢視",
+    "titlePlaceholder": "未命名（點一下編輯，或留白自動產生）",
+    "titlePlaceholderLogin": "例如 GitHub",
+    "titlePlaceholderCard": "例如 4242 結尾的 Visa 卡",
+    "unlocked": "已解鎖",
+    "lock": "鎖定",
+    "lockNow": "立即鎖定",
+    "lockNowHint": "立即隱藏內容",
+    "turnOffHint": "重新允許編輯",
+    "unarchiveHint": "重新顯示在你的清單中",
+    "showFormatted": "顯示排版結果",
+    "invisiblesShow": "顯示編輯標記",
+    "invisiblesHide": "隱藏編輯標記",
+    "undo": "復原",
+    "redo": "重做",
+    "hide": "隱藏",
+    "show": "顯示",
+    "hideToolbar": "隱藏格式工具列",
+    "showToolbar": "顯示格式工具列",
+    "widthDefault": "預設寬度",
+    "widthWide": "更寬",
+    "widthFull": "全寬",
+    "titlePlaceholderLink": "書籤名稱",
+    "notBackedUpTooLarge": "超過 1 MB 上限，因此尚未備份。請把圖片改為附件，或將筆記拆成兩則。",
+    "notBackedUpFailed": "尚未備份。最近的錯誤：{{message}}。正在重試。",
+    "unknownType": "這個項目是由較新版本的 PrivacyNotes 建立的。請更新應用程式後再開啟。"
+  },
+  "share": {
+    "hover": "分享／匯出",
+    "ariaLabel": "分享或匯出",
+    "currentMdTitle": "目前筆記（.md）",
+    "currentMdDesc": "原始 Markdown，含 front-matter。",
+    "currentHtmlTitle": "目前筆記（.html）",
+    "currentHtmlDesc": "適合列印，Markdown 排版呈現於白底頁面。",
+    "printTitle": "列印／另存為 PDF",
+    "printDesc": "開啟列印對話框，可另存為 PDF 或送印。",
+    "printTextTitle": "僅列印內文",
+    "printTextDesc": "保留標題，省略日期、資料夾與標籤。",
+    "burnTitle": "分享與 Burn After Reading",
+    "burnDesc": "將這篇筆記發佈為一次性檢視連結，連結在被閱讀後自動銷毀。你的筆記仍安全保留在帳號中。",
+    "drawingFileTitle": "繪圖 (.excalidraw)",
+    "drawingFileDesc": "可在 Excalidraw 與 Obsidian 中開啟，並包含其中的圖片。",
+    "drawingPngTitle": "圖片 (.png)",
+    "drawingPngDesc": "將整份繪圖匯出為一張圖片。"
+  },
+  "weekReview": {
+    "title": "每週回顧",
+    "daysLogged": "已記錄 {{count}}/7 天",
+    "mood": "心情",
+    "meds": "用藥"
+  },
+  "footer": {
+    "settings": "設定",
+    "viewShortcuts": "檢視所有鍵盤快速鍵",
+    "newNote": "新增",
+    "newNoteHintMac": "Option + Shift + N",
+    "newNoteHintOther": "Alt + Shift + N",
+    "newNoteHintMacDesktop": "Command + N",
+    "newNoteHintOtherDesktop": "Ctrl + N",
+    "openStats": "開啟統計",
+    "journalCalendar": "日誌行事曆",
+    "words_other": "字",
+    "zen": "Zen 模式",
+    "lockApp": "鎖定應用程式",
+    "lockAppSetUp": "請先到「安全性」設定 PIN 碼",
+    "goToTop": "移至頂端",
+    "goToEnd": "移至結尾",
+    "signingOut": "登出中…",
+    "switchToLight": "切換至淺色模式",
+    "switchToDark": "切換至深色模式"
+  },
+  "settings": {
+    "groupYourNotes": "你的資料",
+    "groupPreferences": "偏好設定",
+    "groupBrand": "PrivacyNotes",
+    "statsLabel": "統計",
+    "importLabel": "轉移",
+    "backupLabel": "備份",
+    "planLabel": "帳號",
+    "storageLabel": "儲存空間",
+    "imagesLabel": "圖片",
+    "securityLabel": "安全性",
+    "accountLabel": "ID 與同步",
+    "appearanceLabel": "外觀",
+    "editorLabel": "編輯器",
+    "formatBarLabel": "工具列",
+    "listsLabel": "清單",
+    "trackersLabel": "追蹤項目",
+    "helpLabel": "說明",
+    "aboutLabel": "關於",
+    "languageLabel": "語言",
+    "dateLabel": "日期與時間",
+    "dateTabFormat": "格式",
+    "languageDesc": "選擇 PrivacyNotes 的顯示語言。",
+    "calendarLabel": "日曆"
+  },
+  "importStore": {
+    "title": "匯入還是儲存？",
+    "confirm": "匯入為筆記",
+    "cancel": "儲存為檔案",
+    "bodySingle": "<strong>{{filename}}</strong> 看起來是 Markdown 檔。要匯入為筆記以便閱讀和編輯，還是儲存為加密檔案附件？",
+    "bodyMulti": "這 {{count}} 個檔案看起來是 Markdown。要匯入為筆記以便閱讀和編輯，還是儲存為加密檔案附件？"
+  },
+  "archiveConfirm": {
+    "body_other": "要封存 <highlight>{{count}} 個項目</highlight>嗎？它們會離開你的清單，放在「封存」檢視中。選擇「取消封存」就能把它們移回來。"
+  },
+  "bulkTrash": {
+    "body_other": "要刪除 <highlight>{{count}} 個項目</highlight>嗎？移至垃圾桶之後仍可還原，或者永久刪除。",
+    "confirm": "移至垃圾桶",
+    "keys": "在這個視窗以外，<kbd>{{trash}}</kbd> 會立即將項目移至垃圾桶，而 <kbd>{{ask}}</kbd> 即使在選擇「不再詢問」之後也會開啟這個視窗。",
+    "dontAskAgain": "不再詢問",
+    "readOnlyAcknowledge": "知道了",
+    "readOnlyBlocked_other": "<highlight>{{count}} 個項目</highlight>是唯讀的，無法移至垃圾桶。請先到筆記選項關閉唯讀。",
+    "readOnlySkipped_other": "<highlight>{{count}} 個項目</highlight>是唯讀的，會留在原處。"
+  },
+  "deleteCheckedTasks": {
+    "title": "要刪除已勾選的項目嗎？",
+    "body_other": "將從這篇筆記刪除 <highlight>{{count}} 個項目</highlight>，包含巢狀項目。此動作無法復原。"
+  },
+  "tagConfirm": {
+    "mergeTitle": "合併標籤",
+    "mergeConfirm": "合併",
+    "mergeBody_other": "標籤 <highlight>「{{targetTag}}」</highlight>已存在。要將目前標記為「{{tag}}」的 <highlight>{{count}} 篇筆記</highlight>併入嗎？",
+    "deleteBody_other": "要從 <highlight>{{count}} 篇筆記</highlight>移除標籤 <highlight>「{{tag}}」</highlight>嗎？筆記本身不會被刪除。",
+    "deleteWithNotesBody_other": "要刪除標籤 <highlight>「{{tag}}」</highlight>並將 <highlight>{{count}} 篇筆記</highlight>移至垃圾桶嗎？之後仍可從垃圾桶還原。"
+  },
+  "createNote": {
+    "title": "要建立筆記嗎？",
+    "confirm": "建立筆記",
+    "body": "沒有標題為 <highlight>「{{title}}」</highlight>的筆記。被連結的筆記若改過名，就可能發生這種情況。要以這個標題建立新筆記嗎？"
+  },
+  "freshVault": {
+    "title": "已建立新保險庫",
+    "confirm": "知道了",
+    "body": "沒有既有保險庫符合你輸入的助憶詞，因此建立了一個新的空保險庫。如果你預期會看到自己的筆記，請登出後仔細重新輸入助憶詞：只要一個單字不同，開啟的就是另一個保險庫。"
+  },
+  "ambiguousLink": {
+    "title": "有兩則筆記用同一個標題",
+    "body": "不只一則筆記的標題是 <highlight>「{{title}}」</highlight>，所以這個連結說不出它指的是哪一則。把其中一則重新命名，連結就會指向另一則。"
+  },
+  "connections": {
+    "title": "關聯",
+    "hide": "隱藏關聯",
+    "linkedFrom": "被以下項目連結",
+    "linksTo": "連結至",
+    "missing": "尚未建立",
+    "protectedHidden_other": "有 {{count}} 個受 PIN 碼保護的項目未顯示",
+    "related": "建議的關聯",
+    "relatedWords": "都提到 {{words}}",
+    "relatedLinksTo": "都連結至 {{title}}",
+    "relatedLinkedFrom": "都被 {{title}} 連結",
+    "relatedTag": "都有標籤 {{tag}}",
+    "relatedMeaning": "意思相同",
+    "meaningDoor": "智慧關聯：用離線 AI 找出意思相同的筆記",
+    "meaningDoorNo": "不再顯示",
+    "meaningDoorHidden": "已在所有筆記中隱藏。智慧關聯仍在設定 > 編輯器 > 行為中。",
+    "hideSuggestions": "隱藏建議的關聯",
+    "notRelated": "不相關",
+    "notRelatedDone": "不會再建議",
+    "notRelatedCount": "不相關（{{n}}）",
+    "restoreSuggestion": "重新建議",
+    "linkAtCursor": "在游標處連結",
+    "linkNeedsCursor": "請先在筆記中點一下",
+    "linkAsFootnote": "以註腳連結"
+  },
+  "drawing": {
+    "fullScreen": "全螢幕",
+    "frame": "框架",
+    "laser": "雷射筆",
+    "bar": {
+      "hiddenNote": "它們仍可用各自的按鍵使用。"
+    },
+    "resetTitle": "要重設畫布嗎？",
+    "resetBody": "這會移除畫布上的所有內容。復原可以把它找回來。",
+    "hotkeysTitle": "繪圖快速鍵",
+    "tools": {
+      "label": "繪圖工具",
+      "keepTool": "繪製後保留目前工具",
+      "hand": "移動畫布",
+      "rectangle": "矩形",
+      "diamond": "菱形",
+      "ellipse": "橢圓",
+      "arrow": "箭頭",
+      "line": "線條",
+      "pen": "畫筆",
+      "text": "文字方塊",
+      "steps": "編號步驟",
+      "eraser": "橡皮擦",
+      "resetZoom": "重設縮放",
+      "open": "開啟繪圖檔案",
+      "reset": "重設畫布",
+      "style": "樣式",
+      "more": "更多工具",
+      "fewer": "較少工具"
+    }
+  },
+  "location": {
+    "add": "新增位置",
+    "title": "位置",
+    "chipLabel": "位置：{{place}}",
+    "useCurrent": "使用我目前的位置",
+    "locating": "正在取得你的位置",
+    "inputLabel": "地點、座標或地圖連結",
+    "nameLabel": "名稱（選填）",
+    "openOsm": "在 OpenStreetMap 中開啟",
+    "copyCoordinates": "複製座標",
+    "remove": "移除位置",
+    "errorUnreadable": "找不到地點。請輸入地點，或貼上座標或地圖連結。",
+    "errorShortLink": "短網址需要網路才能開啟。請先開啟連結，再複製完整網址。",
+    "errorRange": "這些數字超出了地圖範圍。",
+    "errorDenied": "PrivacyNotes 的定位權限已關閉。請在「設定」中開啟，或貼上座標。",
+    "errorOff": "這支手機的定位服務已關閉。請在「設定」中開啟，或貼上座標。",
+    "errorTimeout": "無法取得你的位置。請到戶外再試一次，或貼上座標。",
+    "saveFailed": "地點未儲存。請再試一次。",
+    "mapNotice": "地圖來自我們自己的伺服器，保護你的隱私：maps.privacynotes.app",
+    "mapLoading": "正在載入地圖",
+    "mapLabel": "{{place}}的地圖",
+    "mapFailed": "地圖無法在此顯示。請改在 OpenStreetMap 中開啟。",
+    "inputPlaceholder": "富士山，或 35.36, 138.72",
+    "townsLoading": "正在載入地點清單",
+    "insertMap": "插入地圖",
+    "gestureCtrl": "按住 Ctrl 並捲動即可縮放地圖",
+    "gestureMac": "按住 ⌘ 並捲動即可縮放地圖",
+    "gestureTouch": "用兩指移動地圖",
+    "autoNote": "為每篇新筆記加入我的位置",
+    "autoJournal": "為每則新日誌紀錄加入我的位置",
+    "autoDenied": "PrivacyNotes 的定位權限已關閉。請先在手機的「設定」中開啟。",
+    "autoOff": "這支手機的定位服務已關閉。請先開啟。"
+  }
+}

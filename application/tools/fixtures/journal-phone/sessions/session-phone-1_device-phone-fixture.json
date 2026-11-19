@@ -1,0 +1,10 @@
+{
+  "id": "session-phone-1",
+  "device_id": "device-phone-fixture",
+  "game_id": "game-phone-1",
+  "started_at": "2026-11-18T18:00:00Z",
+  "stopped_at": "2026-11-18T19:15:00Z",
+  "text": "logged from phone",
+  "what_next": "try the side quest",
+  "frame_id": null
+}

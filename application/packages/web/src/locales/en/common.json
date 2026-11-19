@@ -1,0 +1,323 @@
+{
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "delete": "Delete",
+    "done": "Done",
+    "edit": "Edit",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "remove": "Remove",
+    "deleteConfirm": "Delete?",
+    "removeConfirm": "Remove?",
+    "copy": "Copy",
+    "rename": "Rename",
+    "create": "Create",
+    "search": "Search",
+    "add": "Add",
+    "clearSearch": "Clear search"
+  },
+  "state": {
+    "loading": "Loading...",
+    "saving": "Saving...",
+    "untitled": "Untitled",
+    "noResults": "No results"
+  },
+  "deleteNote": {
+    "confirm": "Delete Forever",
+    "body": "Permanently delete <highlight>“{{title}}”</highlight>? This cannot be undone."
+  },
+  "emptyTrash": {
+    "title": "Empty Trash",
+    "body_one": "Permanently delete <highlight>{{count}} note</highlight>? This cannot be undone.",
+    "body_other": "Permanently delete <highlight>{{count}} notes</highlight>? This cannot be undone."
+  },
+  "storageBar": {
+    "usage": "{{percent}}% used ({{used}} / {{max}})",
+    "refresh": "Refresh storage",
+    "cleanupInfo": "Deleted items stop counting right away. The encrypted files themselves leave the server within a few days.",
+    "open": "Open storage settings"
+  },
+  "updateToast": {
+    "available": "Update available",
+    "required": "Update required",
+    "changelog": "Changelog",
+    "refresh": "Refresh",
+    "restart": "Restart",
+    "dismiss": "Dismiss",
+    "download": "Download",
+    "update": "Update",
+    "copyCommand": "Copy command"
+  },
+  "hotkeys": {
+    "heading": "Hotkeys Help",
+    "typingNote": "Most shortcuts are ignored while you're typing in a text field, so regular keys like J and K still type J and K.",
+    "cheatSheet": "Printable cheat sheet"
+  },
+  "palette": {
+    "label": "Commands",
+    "empty": "No matching command",
+    "groups": {
+      "features": "Features",
+      "commands": "Commands",
+      "new": "New",
+      "goTo": "Go to",
+      "themes": "Themes"
+    },
+    "commands": {
+      "quickSwitcher": "Open Ninja: find an item, add anything, run a command",
+      "historyBack": "Go back",
+      "historyForward": "Go forward",
+      "toggleSidebar": "Show or hide the sidebar",
+      "toggleTheme": "Switch between light and dark",
+      "openSettings": "Open settings",
+      "zen": "Zen mode",
+      "markdownView": "Markdown view on or off",
+      "invisibles": "Invisible characters on or off",
+      "find": "Find in note",
+      "findReplace": "Find and replace",
+      "outline": "Show or hide the outline",
+      "insertDate": "Insert the date",
+      "insertDateTime": "Insert the date and time",
+      "clearFilters": "Clear filters",
+      "moveToTrash": "Delete note",
+      "closeTab": "Close the tab or the note",
+      "nextTab": "Next tab",
+      "previousTab": "Previous tab",
+      "zoomIn": "Make the app bigger",
+      "zoomOut": "Make the app smaller",
+      "zoomReset": "App back to normal size",
+      "help": "Keyboard shortcuts"
+    }
+  },
+  "quickNote": {
+    "bodyPlaceholder": "Write more here",
+    "hint": "Type / for a folder, # for a tag",
+    "locked": "PrivacyNotes is locked. Your note is sealed and opens when you unlock.",
+    "queued": "Saved. It opens when you unlock.",
+    "tooLong": "This note is too long. Split it into two notes.",
+    "full": "Too many notes wait. Unlock to add them.",
+    "empty": "Write something first.",
+    "failed": "Could not save the note. Open PrivacyNotes and try again.",
+    "added_one": "{{count}} quick note added",
+    "added_other": "{{count}} quick notes added"
+  },
+  "quickSwitcher": {
+    "label": "Ninja: find an item or a setting, add anything, run a command",
+    "jumpTo": "Ninja",
+    "placeholder": "Ninja at your service: a title, + to add, > for commands",
+    "recent": "Recent",
+    "empty": "No item or setting with that name",
+    "searchAll": "Search everything for “{{query}}”",
+    "searchIn": "Search {{section}} for “{{query}}”",
+    "searchList": "Search the list for “{{query}}”",
+    "searchDetail": "Finds words inside the text",
+    "move": "move",
+    "open": "open",
+    "openInTab": "open in a tab",
+    "edit": "edit",
+    "close": "close",
+    "folders": "Folders",
+    "tagItems_one": "{{count}} item",
+    "tagItems_other": "{{count}} items",
+    "emptyTags": "No tag with that name",
+    "emptyFolders": "No folder with that name",
+    "emptyVault": "Nothing here yet. Type + to add your first item.",
+    "onlyTags": "tags",
+    "onlyFolders": "folders",
+    "showOnlyTags": "Only tags",
+    "showOnlyFolders": "Only folders",
+    "showOnlyCommands": "Only commands",
+    "goToTag": "Go to a tag",
+    "goToFolder": "Go to a folder",
+    "createTag": "Create tag #{{name}}",
+    "createFolder": "Create folder “{{name}}”",
+    "newTag": "New Tag",
+    "newFolder": "New Folder",
+    "goToDay": "Go to day",
+    "inText": "In the text",
+    "actions": "actions",
+    "back": "back",
+    "actionsPlaceholder": "Filter the actions",
+    "onlyCreate": "add",
+    "ninjaLockedTitle": "PrivacyNotes is locked",
+    "ninjaLockedBody": "Open PrivacyNotes and unlock it. Then Ninja finds your notes from any app."
+  },
+  "cardForm": {
+    "cardholderName": "Cardholder Name",
+    "cardholderPlaceholder": "John Doe",
+    "cardNumber": "Card Number",
+    "cardNumberPlaceholder": "4242 4242 4242 4242",
+    "showNumber": "Show number",
+    "hideNumber": "Hide number",
+    "copyCardNumber": "Copy card number",
+    "unknownNetwork": "Unknown network",
+    "network": "Network",
+    "numberTooShort_one": "Card number too short ({{count}} digit, expected {{expected}})",
+    "numberTooShort_other": "Card number too short ({{count}} digits, expected {{expected}})",
+    "expiry": "Expiry",
+    "monthPlaceholder": "MM",
+    "yearPlaceholder": "YY",
+    "cvv": "CVV",
+    "cvvPlaceholder": "123",
+    "showCvv": "Show CVV",
+    "hideCvv": "Hide CVV",
+    "expiredHint": "This card appears to be expired.",
+    "billingZip": "Billing ZIP / Postal Code",
+    "billingZipPlaceholder": "10001",
+    "notes": "Notes",
+    "notesPlaceholder": "Additional notes (optional)",
+    "requirePin": "Require PIN to view",
+    "whatDoesThisDo": "What does this do?",
+    "setUpPinFirst": "Set up a PIN in Security settings first."
+  },
+  "sshKeyForm": {
+    "label": "Label",
+    "labelPlaceholder": "e.g. GitHub deploy key",
+    "publicKey": "Public Key",
+    "copyPublicKey": "Copy public key",
+    "privateKey": "Private Key",
+    "copyPrivateKey": "Copy private key",
+    "downloadPublicKey": "Download public key",
+    "downloadPrivateKey": "Download private key",
+    "downloadHint": "Move the downloaded key to ~/.ssh and run chmod 600 on it, or ssh refuses it.",
+    "downloadHintDesktop": "PrivacyNotes does not save into ~/.ssh, to keep the keys there safe. Save the key somewhere else, move it to ~/.ssh and run chmod 600 on it, or ssh refuses it.",
+    "downloadHintWindows": "PrivacyNotes does not save into your .ssh folder, to keep the keys there safe. Save the key somewhere else and move it to %USERPROFILE%\\.ssh. Windows needs no chmod.",
+    "downloadFailed": "The key file could not be saved. Check the file and try again.",
+    "passphrase": "Passphrase",
+    "passphrasePlaceholder": "Key passphrase (if any)",
+    "show": "Show",
+    "hide": "Hide",
+    "copyPassphrase": "Copy passphrase"
+  },
+  "tagInput": {
+    "placeholder": "Add tags… separate by comma, # or enter",
+    "create": "Create “#{{tag}}”",
+    "removeTag": "Remove {{tag}}"
+  },
+  "loading": {
+    "pause": "Pause the lines",
+    "play": "Play the lines",
+    "lines": [
+      "bringing swiss banking energy to note taking",
+      "protecting your shower thoughts",
+      "your notes are encrypted on your device",
+      "cold storage for warm thoughts",
+      "another beautiful day for encryption",
+      "keeping secrets boring since launch",
+      "privacy without the ted talk",
+      "keeping the cloud confused",
+      "the server stores ciphertext. it finds it dull",
+      "less surveillance. more notes",
+      "encrypted nonsense, as expected",
+      "tracking disabled emotionally and technically",
+      "your device holds the gossip",
+      "private thoughts entering private mode",
+      "another note hidden from capitalism",
+      "privacy isn’t premium here",
+      "security through actual security",
+      "quietly resisting data brokers",
+      "no ai training material detected",
+      "encrypted harder than necessary",
+      "all signal. no surveillance",
+      "converting trust issues into software",
+      "your thoughts remain off-market",
+      "data miners found nothing but sadness",
+      "your vault stays aggressively encrypted",
+      "swiss neutrality, but for notes",
+      "no ads. no trackers. no plot twist",
+      "open source, so you can check the math",
+      "ciphertext is our love language",
+      "making your notes boring to strangers",
+      "your diary called. it wants privacy",
+      "your mood tracker missed you",
+      "your ideas, minus the audience",
+      "your journal kept your secrets overnight",
+      "one private place for everything you’d never post",
+      "no algorithm decides what you see here",
+      "your brain dump is safe and sound",
+      "writing is thinking. thinking is private",
+      "no influencers were consulted"
+    ],
+    "loadingOnly": [
+      "loading your encrypted overthinking",
+      "one moment while we disappoint advertisers",
+      "your secrets survived another reboot",
+      "opening the vault quietly",
+      "locally decrypted. globally ignored",
+      "decrypting like it’s nobody’s business",
+      "turning thoughts into unreadable soup",
+      "another encrypted masterpiece incoming",
+      "restoring order from encrypted chaos",
+      "locally decrypting existential thoughts",
+      "warming up the keys",
+      "finding your train of thought",
+      "counting your unchecked tasks. no judgment",
+      "no ads were shown during this loading",
+      "putting your notes back where you left them",
+      "untangling yesterday’s thoughts",
+      "shuffling bits into a nice order",
+      "remembering what you forgot to remember"
+    ]
+  },
+  "neverBackedUp": {
+    "one": "Never backed up. This is the only copy.",
+    "some_one": "{{count}} of these notes was never backed up. This is its only copy.",
+    "some_other": "{{count}} of these notes were never backed up. These are the only copies.",
+    "changesOne": "Its latest changes are not backed up and would be lost.",
+    "changesSome_one": "{{count}} of these notes has changes that are not backed up and would be lost.",
+    "changesSome_other": "{{count}} of these notes have changes that are not backed up and would be lost."
+  },
+  "ninja": {
+    "topHit": "Best match",
+    "trashEmpty": "The trash is empty",
+    "allThemes": "All themes",
+    "features": {
+      "stats": {
+        "detail": "Your writing, streaks and trackers over time"
+      },
+      "trackers": {
+        "detail": "Mood, habits, factors and medication"
+      },
+      "medication": {
+        "label": "Medication",
+        "detail": "Doses, times and reminders"
+      },
+      "yearInPixels": {
+        "label": "Year in pixels",
+        "detail": "Each day of the year as one colored square"
+      },
+      "importExport": {
+        "detail": "Bring notes in, or take them out"
+      },
+      "backup": {
+        "detail": "Back up now, automatic backups and restore"
+      },
+      "generator": {
+        "label": "Password generator",
+        "detail": "A strong password or passphrase, ready to copy"
+      },
+      "themes": {
+        "detail": "Color themes for light and dark"
+      }
+    },
+    "new": {
+      "medication": "New medication",
+      "customTracker": "New custom tracker"
+    },
+    "commands": {
+      "syncResume": "Resume sync",
+      "lockProtected": "Lock this note",
+      "changelog": "What is new",
+      "themesPage": "Community themes",
+      "website": "PrivacyNotes website"
+    },
+    "themes": {
+      "word": "Theme",
+      "light": "Light theme",
+      "dark": "Dark theme"
+    }
+  }
+}

@@ -1,0 +1,1296 @@
+{
+  "page": {
+    "importTitle": "Import do PrivacyNotes",
+    "importSteps": [
+      "Otevři PrivacyNotes a jdi do Nastavení > Přenos.",
+      "Vyber jako zdroj **{{app}}**.",
+      "Přetáhni sem soubor, který jsi právě vyexportoval, nebo klikni a vyber ho.",
+      "Podívej se v náhledu, co dorazí, a pak spusť import."
+    ],
+    "otherGuides": "Další návody k importu"
+  },
+  "guides": {
+    "1password": {
+      "app": "1Password",
+      "title": "Export trezoru z 1Password",
+      "metaTitle": "Jak exportovat trezor z 1Password - PrivacyNotes",
+      "lead": "Aplikace 1Password exportuje tvůj účet do jednoho souboru .1pux a PrivacyNotes z jeho přihlašovacích údajů, karet, poznámek a identit vytvoří položky Trezoru a poznámky.",
+      "sections": [
+        {
+          "h": "Export z 1Password",
+          "steps": [
+            "Otevři v počítači aplikaci 1Password a odemkni ji.",
+            "Vyber File > Export a zvol svůj účet.",
+            "Zadej heslo k účtu, nech formát 1PUX a soubor ulož."
+          ]
+        },
+        {
+          "h": "1PUX, nebo CSV",
+          "p": [
+            "Zvol 1PUX. Export do CSV obsahuje jen přihlašovací údaje: žádné karty, poznámky ani identity a žádná vlastní pole."
+          ]
+        },
+        {
+          "h": "Kam co přijde",
+          "p": [
+            "Každá položka s přihlašovacími údaji se stane [přihlašovacími údaji v Trezoru](/cs/help/vault) i s klíčem 2FA, takže [tvoje kódy fungují dál](/cs/help/vault-totp), a přenesou se i další weby a vlastní pole. Karta se stane kartou a zabezpečená poznámka nebo identita poznámkou. Značky zůstanou značkami, i vnořené, oblíbené položky dorazí připnuté a archivované půjdou do archivu. Přiložené soubory se nepřenesou: ulož si je z 1Password a připoj je tady.",
+            "Export obsahuje tvoje hesla v čitelné podobě. Naimportuj ho, zkontroluj, že všechno dorazilo, a pak soubor smaž."
+          ]
+        }
+      ]
+    },
+    "google-calendar": {
+      "app": "Google Calendar",
+      "title": "Vyexportuj si Google Calendar",
+      "metaTitle": "Jak vyexportovat Google Calendar - PrivacyNotes",
+      "lead": "Google Calendar vyexportuje všechny kalendáře, které spravuješ, jako jeden .zip z nastavení na počítači. PrivacyNotes ten .zip čte přímo, není potřeba ho rozbalovat.",
+      "sections": [
+        {
+          "h": "Vyexportuj všechny kalendáře najednou",
+          "steps": [
+            "Otevři [Google Calendar](https://calendar.google.com) v prohlížeči na počítači. Mobilní aplikace export nemá.",
+            "Klikni na ozubené kolo vpravo nahoře a pak na „Settings“.",
+            "V seznamu vlevo klikni na „Import & export“.",
+            "V části „Export“ klikni na „Export“. Prohlížeč stáhne .zip s jedním souborem .ics pro každý kalendář.",
+            "Nech ten .zip přesně tak, jak je."
+          ],
+          "p": [
+            "V .zipu je každý kalendář, ve kterém máš oprávnění „Make changes and manage sharing“, včetně tvého vlastního. Kalendáře, které můžeš jen prohlížet, třeba svátky nebo kalendář kolegy, v něm nejsou. U pracovního nebo školního účtu může správce export omezit."
+          ]
+        },
+        {
+          "h": "Nebo vyexportuj jeden kalendář",
+          "steps": [
+            "V seznamu vlevo najeď v části „My calendars“ na název kalendáře, klikni na „More“ (tři tečky) a pak na „Settings and sharing“.",
+            "V části „Calendar settings“ klikni na „Export calendar“. Prohlížeč stáhne .zip se souborem .ics toho kalendáře. Nech ho tak, jak je."
+          ]
+        },
+        {
+          "h": "Co se přenese",
+          "p": [
+            "Každá událost dorazí se svým dnem, časem a délkou, včetně událostí na několik dní. Opakované události si zachovají své pravidlo a výskyt, který byl v Google přesunutý nebo smazaný, zůstane přesunutý nebo smazaný. Každý kalendář se stane složkou.",
+            "Připomínky nastavené u události dorazí také, včetně e-mailových: [stanou se připomínkami v aplikaci](/cs/help/reminders), a aby zazvonily, potřebují PrivacyNotes Pro. Událost, která používala výchozí připomínky kalendáře, dorazí bez připomínky, protože Google výchozí hodnoty do souboru nezapisuje. Místo, odkaz na videohovor, hosté i popis se zapíšou do textu události. [Časy se zobrazí tak, jak je ukazovalo toto zařízení při importu](/cs/help/calendar-time-zones).",
+            "Funguje i jeden soubor .ics z libovolné aplikace s kalendářem, včetně Apple Calendar a Outlooku.",
+            "Když později naimportuješ stejný soubor znovu, události, které tu už jsou, se přeskočí, takže se přidají jen nové."
+          ]
+        }
+      ]
+    },
+    "google-keep": {
+      "app": "Google Keep",
+      "title": "Vyexportuj si poznámky z Google Keepu",
+      "metaTitle": "Export Google Keepu přes Takeout - PrivacyNotes",
+      "lead": "Google Keep sám v sobě žádné tlačítko pro export nemá; oficiální cesta ven je Google Takeout. Zabere to asi pět minut a PrivacyNotes čte soubor z Takeoutu přímo, není potřeba ho rozbalovat.",
+      "sections": [
+        {
+          "h": "Vyexportuj poznámky z Google Keepu",
+          "steps": [
+            "Přejdi na [takeout.google.com](https://takeout.google.com) a přihlas se Google účtem, kterému poznámky patří.",
+            "Klikni na „Deselect all“, pak sjeď v seznamu produktů dolů a zaškrtni jenom „Keep“.",
+            "Klikni na „Next step“ a ponech výchozí nastavení: jednorázový export, soubor .zip.",
+            "Klikni na „Create export“. Google archiv připraví a pošle ti e-mailem odkaz ke stažení; u samotného Keepu to obvykle trvá minuty, ne hodiny.",
+            "Stáhni .zip. Můžeš ho nechat přesně tak, jak je."
+          ]
+        },
+        {
+          "h": "Co se přenese",
+          "p": [
+            "Názvy, text poznámek i formátování dorazí neporušené. Zaškrtávací seznamy z Keepu se převedou na [nativní seznamy úkolů v PrivacyNotes](/cs/help/tasks) a popisky z Keepu dorazí jako značky.",
+            "Do importu přetáhni celý .zip z Takeoutu. Pokud už je rozbalený, funguje i jednotlivý soubor .json s poznámkou ze složky Takeout/Keep."
+          ]
+        }
+      ]
+    },
+    "apple-notes": {
+      "app": "Apple Notes",
+      "title": "Vyexportuj si poznámky z Apple Notes",
+      "metaTitle": "Export Apple Notes do Markdownu - PrivacyNotes",
+      "lead": "Apple Notes nemá vlastní hromadný export, takže praktická cesta na Macu je bezplatná aplikace Exporter, která tvoje poznámky zapíše jako Markdown. PrivacyNotes takový export čte přímo, včetně obrázků.",
+      "sections": [
+        {
+          "h": "Vyexportuj poznámky na Macu",
+          "steps": [
+            "Nainstaluj si bezplatnou aplikaci „Exporter“ z Mac App Store.",
+            "Otevři ji a vyexportuj poznámky. Dostaneš složku se soubory Markdown, rozdělenou podle účtů a složek, a k nim obrázky.",
+            "Ve Finderu na tu složku klikni pravým tlačítkem a zvol „Komprimovat“, čímž z ní vznikne .zip."
+          ]
+        },
+        {
+          "h": "Přecházíš z iPhonu nebo iPadu",
+          "p": [
+            "Přijímáme i zipy jednotlivých poznámek sdílené z iOS (malý .zip s Markdownem poznámky a složkou Attachments): přetahuj je po jednom. Na celou knihovnu je cesta přes Mac popsaná výše mnohem rychlejší."
+          ]
+        },
+        {
+          "h": "Co se přenese",
+          "p": [
+            "Struktura složek, text poznámek i vložené obrázky přechod přežijí. Poznámky si zachovají názvy a přílohy skončí v [šifrovaném úložišti souborů](/cs/help/attachment-limits) u své poznámky."
+          ]
+        }
+      ]
+    },
+    "bear": {
+      "app": "Bear",
+      "title": "Vyexportuj si poznámky z Bear",
+      "metaTitle": "Export poznámek z Bear - PrivacyNotes",
+      "lead": "Bear exportuje celou tvoji knihovnu jako jeden soubor se zálohou a právě ten je potřeba přinést: obsahuje všechny poznámky, včetně archivu a koše.",
+      "sections": [
+        {
+          "h": "Vytvoř zálohu v Bear",
+          "steps": [
+            "Otevři Bear na Macu.",
+            "Zvol File > Backup Notes...",
+            "Ulož soubor. Dostaneš jeden soubor .bear2bk, který obsahuje celou tvoji knihovnu.",
+            "Přetáhni ten .bear2bk sem tak, jak je."
+          ]
+        },
+        {
+          "h": "Záloha obsahuje víc než export",
+          "p": [
+            "File > Export Notes... zapíše jen poznámky ze zobrazení, které máš otevřené, takže archivované poznámky a poznámky z koše zůstanou stranou. Záloha obsahuje všechny a pamatuje si, které poznámky byly připnuté, archivované, v koši nebo jen pro čtení.",
+            "Pokud máš jen export do Markdownu nebo Text Bundle, zabal ho do zipu a přetáhni sem ten zip. Text, značky i přílohy se přenesou, ale archiv, koš a připnutí ne, protože tyhle exporty je nezapisují.",
+            "Exportuješ z Bear ručně? Vyber aspoň dvě poznámky. Jedna poznámka otevře dialog pro uložení, který může souboru dát špatnou příponu."
+          ]
+        },
+        {
+          "h": "Co se přenese",
+          "p": [
+            "Tvoje značky se přenesou jako značky. Vnořené značky jako #work/projects se navíc znovu postaví jako složky a každá poznámka skončí ve složce své nejhlouběji zanořené značky. [Odkaz na jinou poznámku se změní na odkaz na poznámku](/cs/help/note-links) a odkaz na nadpis míří na ten nadpis.",
+            "Formátování přežije: nadpisy, tučné písmo, kurzíva, podtržení, přeškrtnutí, zvýraznění v barvách z Bear, seznamy úkolů, tabulky, bloky kódu, citace, callouty, matematika a poznámky pod čarou. Obrázky se otevřou v plné šířce a sbalené nadpisy dorazí rozbalené.",
+            "Připnuté poznámky zůstanou připnuté, [archivované poznámky skončí v archivu](/cs/help/archive), poznámky z koše v koši, poznámky jen pro čtení zůstanou jen pro čtení a každá poznámka si zachová svá původní data.",
+            "Obrázky a soubory připojené k poznámkám se naimportují do tvého úložiště. Poznámka, která odkazuje na soubor, jenž v záloze není, se přesto naimportuje a náhled importu ti řekne, kolika odkazů se to týká."
+          ]
+        }
+      ]
+    },
+    "obsidian": {
+      "app": "Obsidian",
+      "title": "Vyexportuj si vault z Obsidianu",
+      "metaTitle": "Export vaultu z Obsidianu - PrivacyNotes",
+      "lead": "Obsidian nemá žádný krok exportu a ani ho nepotřebuje: vault už je složka se soubory Markdown. Tohle je vůbec nejjednodušší přesun. Zabal vault do zipu a přetáhni ho sem.",
+      "sections": [
+        {
+          "h": "Vyexportuj svůj vault",
+          "steps": [
+            "Najdi na disku složku svého vaultu. Pokud nevíš, kde leží, Obsidian cestu zobrazí, když klikneš na název vaultu v přepínači vaultů.",
+            "Zabal složku do .zip: na macOS pravým tlačítkem > Komprimovat, na Windows Odeslat > Komprimovaná složka (metoda ZIP).",
+            "Ten zip je soubor pro import. Žádné pluginy ani exporty nepotřebuješ."
+          ]
+        },
+        {
+          "h": "Co se přenese",
+          "p": [
+            "Tvoje struktura složek se znovu postaví jako skutečné složky, ne jako značky, ať je zanořená jakkoli hluboko. Poznámka ve Work/Projects skončí ve složce Work > Projects. Při opakovaném importu stejného vaultu se použijí už vytvořené složky, místo aby se duplikovaly.",
+            "V bezplatném tarifu si tyhle složky můžeš hned prohlížet; [vytváření, přejmenování a přesouvání složek je funkce Pro](/cs/help/folders), takže import z Obsidianu je dobrý způsob, jak si to vyzkoušet ještě předtím, než na Pro přejdeš.",
+            "YAML frontmatter umíme přečíst: značky, aliasy a data vytvoření respektujeme a značky uvedené přímo v textu (#takto) se sloučí do pole se značkami. Během importu můžeš navíc zaškrtnout „Označit poznámky i podle složky“ a přidat tak jako značku i název každé složky, což se hodí, když k filtrování používáš značky.",
+            "Tvoje odkazy [[...]] fungují dál: [PrivacyNotes je vykreslí jako odkazy na poznámky](/cs/help/note-links), takže propojení mezi poznámkami přesun přežije. Konfigurační složka .obsidian a .trash se automaticky přeskočí."
+          ]
+        }
+      ]
+    },
+    "siyuan": {
+      "app": "SiYuan",
+      "title": "Export poznámek ze SiYuan",
+      "metaTitle": "Jak exportovat poznámky ze SiYuan jako Data.zip - PrivacyNotes",
+      "lead": "SiYuan exportuje celý pracovní prostor jako jeden soubor Data.zip. Ten přenese všechny zápisníky i s vnořenými dokumenty, značkami, odkazy na bloky, přílohami a daty.",
+      "sections": [
+        {
+          "img": {
+            "src": "/help/img/siyuan-export.webp",
+            "alt": "Dialog Data migration v SiYuan s vybraným řádkem Data.zip a zvýrazněným tlačítkem Export.",
+            "width": 1576,
+            "height": 1076
+          },
+          "h": "Exportuj pracovní prostor jako Data.zip",
+          "steps": [
+            "Otevři SiYuan na počítači.",
+            "Klikni vlevo nahoře na nabídku SiYuan a zvol „Data migration“.",
+            "V části SiYuan ukaž na „Data.zip“ a klikni na Export.",
+            "Vyber složku. SiYuan zapíše jeden soubor .zip se všemi zápisníky z pracovního prostoru.",
+            "Ten soubor .zip nahraj tak, jak je."
+          ],
+          "p": [
+            "Chceš-li přenést jen jeden zápisník, klikni na něj v panelu Documents pravým tlačítkem a zvol Export > „SiYuan .sy.zip“. Ten soubor přečteme stejně."
+          ]
+        },
+        {
+          "h": "Odemkni šifrované zápisníky a exportuj je zvlášť",
+          "p": [
+            "Data.zip nechá šifrovaný zápisník zašifrovaný, takže ho nepřečteme. Přeskočíme ho a náhled importu ho uvede jménem. Odemkni zápisník v SiYuan, exportuj ho jako „SiYuan .sy.zip“ a nahraj i ten soubor: takový export přečíst jde."
+          ]
+        },
+        {
+          "h": "Zvol Data.zip, ne Markdown",
+          "p": [
+            "Export do Markdownu (.zip) zachová text, ale vynechá značky a data dokumentů a odkazy na bloky zapíše jako prostý text nebo poznámky pod čarou. Přečteme ho, pokud nemáš nic jiného, a každá poznámka dostane datum importu."
+          ]
+        },
+        {
+          "h": "Co se přenese",
+          "p": [
+            "Každý zápisník se změní na složku a vnořené dokumenty na vnořené složky. Dokument, který má poddokumenty i vlastní text, se stane poznámkou uvnitř složky téhož jména. Každá poznámka si ponechá své značky a data vytvoření a úpravy, která SiYuan uložil.",
+            "Nadpisy, seznamy, zaškrtávací seznamy, citace, kód s jazykem, tabulky se zarovnáním, matematika, calloutty, zvýraznění a barvy textu se přenesou beze změny. [Odkazy na bloky se změní na odkazy na poznámky](/cs/help/note-links), obrázky a soubory se naimportují do tvého úložiště a dokumenty v záložkách dorazí připnuté.",
+            "Databáze se změní na tabulku z viditelných sloupců, karty na sbalitelné sekce a myšlenková mapa na vnořený seznam. Kartičky zůstanou prostým textem a dotaz na vložení se uloží jako kód. SiYuan ve svých exportech koš nemá, smazané dokumenty proto zůstanou v jeho historii."
+          ]
+        }
+      ]
+    },
+    "standard-notes": {
+      "app": "Standard Notes",
+      "title": "Vyexportuj si poznámky ze Standard Notes",
+      "metaTitle": "Export zálohy ze Standard Notes - PrivacyNotes",
+      "lead": "Standard Notes exportuje celý tvůj účet jako jednu dešifrovanou zálohu. Poznámky Super přenese s formátováním, k tomu zaškrtávací seznamy, značky a kódy 2FA.",
+      "sections": [
+        {
+          "h": "Vyexportuj poznámky ze Standard Notes",
+          "steps": [
+            "Otevři Standard Notes (web na app.standardnotes.com nebo desktopovou aplikaci) a přihlas se.",
+            "Klikni vlevo dole na ikonu účtu a pak na Account settings > Backups.",
+            "V části Data backups vyber Decrypted a klikni na Download backup. Tento jediný soubor obsahuje všechny poznámky, včetně poznámek Super.",
+            "Dostaneš .zip se souborem „Standard Notes Backup and Import File.txt“. Zip nech tak, jak je."
+          ]
+        },
+        {
+          "h": "Poznámky Super, zaškrtávací seznamy a kódy 2FA si zachovají podobu",
+          "p": [
+            "Poznámky Super si zachovají formátování: nadpisy, seznamy, zaškrtávací seznamy, tabulky, bloky kódu, zvýraznění, barvy, zarovnání textu a sbalitelné sekce. [Odkaz na jinou poznámku se stane odkazem na poznámku](/cs/help/note-links) a #hashtag v textu se stane značkou poznámky. Zaškrtávací seznamy skončí v Úkolech, tabulkové poznámky se stanou tabulkami a položky autentizátoru se stanou přihlašovacími údaji [v Trezoru i s klíčem 2FA](/cs/help/vault-totp). Vnořené značky se stanou složkami a každá poznámka si navíc ponechá své značky.",
+            "Soubory nahrané do Standard Notes zůstávají na jejich serveru, takže záloha obsahuje jen jejich názvy. Každá importovaná poznámka označí místo, kde byl soubor. Stáhni tyto soubory ze Standard Notes a přidej je do poznámky znovu."
+          ]
+        },
+        {
+          "h": "Šifrované zálohy nepodporujeme",
+          "p": [
+            "Šifrovaná záloha ze Standard Notes je šifrovaný text, který otevře jedině tvoje heslo ke Standard Notes, takže ji PrivacyNotes nepřečte. Pokud ti vznikla šifrovaná varianta, exportuj znovu a zvol dešifrovanou. Soubor obsahuje tvoje poznámky v čitelné podobě, takže ho po dokončení importu smaž.",
+            "Do importu přetáhni celý .zip, nebo jen soubor .txt, pokud už je rozbalený."
+          ]
+        }
+      ]
+    },
+    "simplenote": {
+      "app": "Simplenote",
+      "title": "Vyexportuj si poznámky ze Simplenote",
+      "metaTitle": "Export poznámek ze Simplenote - PrivacyNotes",
+      "lead": "Simplenote má přehledný vestavěný export na tři kliknutí a PrivacyNotes výsledný zip čte přímo.",
+      "sections": [
+        {
+          "h": "Vyexportuj poznámky ze Simplenote",
+          "steps": [
+            "Přihlas se na [app.simplenote.com](https://app.simplenote.com) (nebo otevři desktopovou aplikaci).",
+            "Otevři nabídku v postranním panelu a přejdi do Settings.",
+            "V sekci Account zvol „Export Notes“. Hned se stáhne .zip."
+          ]
+        },
+        {
+          "h": "Co se přenese",
+          "p": [
+            "V zipu je hlavní soubor notes.json se všemi poznámkami a jejich metadaty: značky se přenesou a data vytvoření zůstanou zachovaná. Do importu přetáhni celý .zip tak, jak je."
+          ]
+        }
+      ]
+    },
+    "samsung-notes": {
+      "app": "Samsung Notes",
+      "title": "Vyexportuj si poznámky ze Samsung Notes",
+      "metaTitle": "Export Samsung Notes do Wordu - PrivacyNotes",
+      "lead": "Samsung Notes exportuje jeden soubor na poznámku, a to ve dvou podobách. Zvol raději export do Microsoft Wordu (.docx): zachová formátování, zatímco export do čistého textu ho zahodí.",
+      "sections": [
+        {
+          "h": "Vyexportuj poznámky ze Samsung Notes",
+          "steps": [
+            "V Samsung Notes vyber dlouhým stiskem poznámky, které chceš (nebo použij Select all).",
+            "Klepni na nabídku se třemi tečkami a zvol „Save as file“.",
+            "Pro formátované poznámky zvol „Microsoft Word file“ (.docx), pro čistý text „Text file“ (.txt).",
+            "Samsung uloží jeden soubor na poznámku do úložiště zařízení. Pokud jich je víc než pár, posbírej je do jednoho .zip (vyber je ve správci souborů a zabal)."
+          ]
+        },
+        {
+          "h": "Co se přenese",
+          "p": [
+            "Z exportu .docx přežije tučné písmo, kurzíva, podtržení, přeškrtnutí, odrážkové i číslované seznamy a zaškrtávací políčka (z nich se stanou [nativní seznamy úkolů](/cs/help/tasks)). Z exportu .txt jen text, nic dalšího.",
+            "Obrázky vložené v poznámce ze Samsungu přeneseš ručně: u každé poznámky, která nějaký měla, na to import upozorní, takže přesně víš, kam je vrátit. Text, názvy i data přijdou v jednom průchodu."
+          ]
+        }
+      ]
+    },
+    "bitwarden": {
+      "app": "Bitwarden",
+      "title": "Vyexportuj si trezor z Bitwardenu",
+      "metaTitle": "Export trezoru z Bitwardenu - PrivacyNotes",
+      "lead": "Bitwarden exportuje celý tvůj trezor jako jeden nešifrovaný soubor .json a PrivacyNotes zařadí každou položku tam, kam patří: přihlašovací údaje, karty, SSH klíče a zabezpečené poznámky.",
+      "sections": [
+        {
+          "h": "Vyexportuj trezor z Bitwardenu",
+          "steps": [
+            "Otevři webový trezor Bitwardenu (nebo desktopovou aplikaci) a přihlas se.",
+            "Přejdi do Tools a pak na „Export vault“.",
+            "Jako formát souboru zvol .json (ten obyčejný, ne „.json (Encrypted)“).",
+            "Potvrď to hlavním heslem a soubor stáhni."
+          ]
+        },
+        {
+          "h": "Kam se co uloží",
+          "p": [
+            "Z přihlašovacích údajů se stanou [položky přihlašovacích údajů v Trezoru](/cs/help/vault) (i s ikonami webů), z karet položky karet, z SSH klíčů položky SSH klíčů a zabezpečené poznámky i identity dorazí jako čitelné poznámky. Složky z Bitwardenu se převedou na značky a oblíbené položky dorazí s hvězdičkou. Ověřovací klíče (TOTP) putují s sebou, takže [tvoje kódy 2FA fungují dál](/cs/help/vault-totp).",
+            "Exportovaný soubor obsahuje tvoje hesla v čitelné podobě, takže ho naimportuj, zkontroluj, že všechno dorazilo, a pak ho pořádně smaž. V PrivacyNotes je pak všechno zase zašifrované, na tvém zařízení i cestou na server."
+          ]
+        }
+      ]
+    },
+    "enpass": {
+      "app": "Enpass",
+      "title": "Export trezoru z Enpassu",
+      "metaTitle": "Jak exportovat trezor z Enpassu - PrivacyNotes",
+      "lead": "Enpass exportuje trezor do jednoho souboru .json a PrivacyNotes z jeho přihlašovacích údajů, karet, poznámek a identit vytvoří položky Trezoru a poznámky.",
+      "sections": [
+        {
+          "h": "Export z Enpassu",
+          "steps": [
+            "Otevři v počítači Enpass a odemkni ho.",
+            "Vyber File > Export, zvol trezor a formát .json.",
+            "Soubor ulož a pak zadej své hlavní heslo. Každý trezor exportuj zvlášť."
+          ]
+        },
+        {
+          "h": "Kam co přijde",
+          "p": [
+            "Každá položka s přihlašovacími údaji se stane [přihlašovacími údaji v Trezoru](/cs/help/vault) i s klíčem 2FA, takže [tvoje kódy fungují dál](/cs/help/vault-totp), a přenesou se i další weby a vlastní pole. Karta se stane kartou a zabezpečená poznámka nebo identita poznámkou. Složky se stanou značkami, i vnořené, oblíbené položky dorazí připnuté a archivované půjdou do archivu. Položky v koši Enpassu a přiložené soubory se nepřenesou.",
+            "Export obsahuje tvoje hesla v čitelné podobě. Naimportuj ho, zkontroluj, že všechno dorazilo, a pak soubor smaž."
+          ]
+        }
+      ]
+    },
+    "evernote": {
+      "app": "Evernote",
+      "title": "Vyexportuj si poznámky z Evernotu",
+      "metaTitle": "Export poznámek z Evernotu do ENEX - PrivacyNotes",
+      "lead": "Evernote exportuje vždycky jen jeden zápisník a jedině z desktopové aplikace. Zvol formát ENEX a poznámky dorazí celé: formátování, značky, přílohy, webové výstřižky i odkazy mezi nimi.",
+      "sections": [
+        {
+          "img": {
+            "src": "/help/img/evernote-export-menu.webp",
+            "alt": "Kontextová nabídka zápisníku v desktopové aplikaci Evernote se zvýrazněnou položkou „Export notebook...“.",
+            "width": 1576,
+            "height": 652
+          },
+          "h": "Vyexportuj zápisník",
+          "steps": [
+            "Otevři Evernote na Macu nebo ve Windows. Webová verze ani mobilní aplikace soubory .enex zapsat neumí.",
+            "Klikni na zápisník v postranním panelu pravým tlačítkem a zvol „Export notebook...“.",
+            "Zvol „ENEX format (.enex)“ a nech zaškrtnutá všechna políčka pod „Export note attributes“: nesou tvoje značky, data, připomínky i adresy webových výstřižků.",
+            "Ulož soubor. Evernote ho pojmenuje podle zápisníku a ten název se u nás stane názvem složky, takže ho neměň.",
+            "Ten soubor .enex přetáhni sem tak, jak je. Pokud máš víc zápisníků, zopakuj export u každého, pak soubory .enex zabal do jednoho zipu a přetáhni ho sem najednou."
+          ]
+        },
+        {
+          "img": {
+            "src": "/help/img/evernote-export-format.webp",
+            "alt": "Exportní dialog Evernotu s vybraným „ENEX format (.enex)“ a všemi zaškrtnutými atributy poznámky.",
+            "width": 1576,
+            "height": 1120
+          },
+          "h": "Zvol ENEX, ne export do HTML nebo PDF",
+          "p": [
+            "Zbylé tři formáty cestu nepřežijí. Oba HTML exporty nafouknou každou poznámku kopií jednoho a téhož souboru se styly a u každé přílohy, která není obrázek, ztratí název souboru i odkaz ke stažení; export do PDF slije celý zápisník do jediného dokumentu, ve kterém už jednotlivé poznámky nikde nezačínají ani nekončí. Když sem některý z nich omylem přetáhneš, řekneme ti to, místo abychom naimportovali půlku zápisníku.",
+            "„Split file size by“ nech vypnuté, pokud zrovna v zápisníku nemáš gigabajty skenů."
+          ]
+        },
+        {
+          "h": "Vždycky jen jeden zápisník",
+          "p": [
+            "Export celého účtu neexistuje a stack se jako celek vyexportovat nedá. Ruční výběr poznámek tě navíc zastaví na stovce na jeden export, takže kliknout pravým tlačítkem na zápisník je rychlejší a je to jediná cesta, jak se přes ten limit dostat. Stacky se do souboru taky nezapisují, takže tvoje složky dorazí všechny na stejné úrovni.",
+            "Exportovat můžeš i v bezplatném tarifu, jen s jedním háčkem: bezplatná úroveň dovolí jediné připojené zařízení a tohle potřebuje desktopovou aplikaci."
+          ]
+        },
+        {
+          "h": "Co se přenese a co ne",
+          "p": [
+            "Tabulky, bloky kódu, zvýraznění, podtržení, barva textu i vzorce přežijí. [Ze zaškrtávacích seznamů se stanou seznamy úkolů](/cs/help/tasks), z připomínky u poznámky úkol hned na jejím začátku, přílohy a obrázky se znovu zašifrují do tvého úložiště, webové výstřižky si nechají zdrojovou adresu a hlasové poznámky svůj přepis. [Z interních odkazů se stanou odkazy na poznámky](/cs/help/note-links), spárované podle názvu odkazované poznámky, protože Evernote žádná id poznámek neexportuje.",
+            "Úkoly se nepřenesou: export nechá místo každého bloku úkolů jen zástupné „Content not supported“, bez názvů, termínů i stavu dokončení. Šifrované bloky zůstanou šifrované, takže si je nejdřív dešifruj v Evernotu. Vlastní fonty, zarovnání textu a zanořenou hierarchii značek zahodíme."
+          ]
+        },
+        {
+          "h": "Když se export zastaví v půlce",
+          "p": [
+            "Evernote má tvoje poznámky na svých serverech a stahuje si je, teprve když export zapisuje, takže velký zápisník se může zastavit na 13 %, pak na 40 % a doběhnout až napotřetí. Spusť ten samý export znovu: každý pokus si toho lokálně do mezipaměti uloží víc a dostane se dál než ten předchozí."
+          ]
+        }
+      ]
+    },
+    "markdown": {
+      "app": "Markdown",
+      "title": "Import souborů Markdown",
+      "metaTitle": "Import souborů Markdown do PrivacyNotes",
+      "lead": "Univerzální cesta pro všechno ostatní: z každé aplikace, která umí exportovat Markdown, se dá přejít do PrivacyNotes. Fungují jednotlivé soubory .md i .zip s celou složkou.",
+      "sections": [
+        {
+          "h": "Připrav si soubory",
+          "steps": [
+            "Vyexportuj nebo posbírej svoje soubory .md. Zdroj je jedno: jiná aplikace na poznámky, statický web, složka plná souborů README.",
+            "Pokud jde o víc než hrst souborů, zabal složku do .zip.",
+            "Přetáhni zip (nebo jednotlivé soubory .md) do importu."
+          ]
+        },
+        {
+          "h": "Jak se soubory čtou",
+          "p": [
+            "Pokud je v souboru frontmatter YAML, respektujeme ho: pole title, created, updated a tags použijeme přímo, díky čemuž je tohle zároveň [cesta, jak obnovit vlastní exporty PrivacyNotes do Markdownu](/cs/help/export). Čteme i značky napsané jako #hashtagy v textu. U obyčejných souborů bez frontmatteru se jako název použije jméno souboru a jako tělo jeho obsah. Parser je záměrně tolerantní: přijme .md, .markdown, .mdown, .mkd i .txt.",
+            "Zabal celou složku a struktura půjde s ní. Podsložky se znovu postaví jako skutečné složky, v jakékoli hloubce, a obrázky i soubory, na které tvoje poznámky odkazují, se naimportují spolu s nimi. To, na co nic neodkazuje, zůstane stranou a spočítáme ti to, takže složka plná starých snímků obrazovky ti nesežere úložiště."
+          ]
+        }
+      ]
+    },
+    "notesnook": {
+      "app": "Notesnook",
+      "title": "Vyexportuj si poznámky z Notesnooku",
+      "metaTitle": "Export poznámek z Notesnooku - PrivacyNotes",
+      "lead": "Notesnook umí zapsat celý tvůj účet jako složku souborů. Zvol export do HTML a nezůstane nic pozadu: formátování, poznámkové bloky, značky, přílohy i odkazy na poznámky přesun přežijí.",
+      "sections": [
+        {
+          "img": {
+            "src": "/help/img/notesnook-export.webp",
+            "alt": "Nastavení Notesnooku, stránka Backup & export, s otevřenou rozbalovací nabídkou Export as a vybraným HTML.",
+            "width": 1576,
+            "height": 963
+          }
+        },
+        {
+          "h": "Vyexportuj poznámky",
+          "steps": [
+            "Otevři Notesnook a přejdi do Settings > Backup & export.",
+            "Najdi „Export all notes“ a otevři rozbalovací nabídku „Export as“.",
+            "Zvol HTML. Na tom záleží: je to jediný formát, který Notesnook zapíše, aniž by předtím odstranil tvoje formátování.",
+            "Notesnook uloží jeden .zip, ve kterém je jeden soubor na poznámku a složka s přílohami. Ten zip je tvůj soubor pro import."
+          ]
+        },
+        {
+          "h": "Zvol HTML, ne Markdown",
+          "p": [
+            "Rozbalovací nabídka exportu v Notesnooku nabízí Text, Markdown, Markdown + Frontmatter a HTML. Všechno zachová jedině HTML.",
+            "Obě varianty Markdownu poznámky před zápisem zjednoduší: podtržení, velikosti písma a zarovnání textu jsou pryč dřív, než se k nám soubor vůbec dostane. Samotný Markdown navíc nezapisuje žádné značky ani původní data, takže každá naimportovaná poznámka by byla bez značek a s dnešním datem. Obojí přijmeme a řekneme ti, co se ztratilo, ale volba je HTML.",
+            "Export do formátu Text nemá žádnou strukturu, ze které by se dalo čerpat, a nepřijímáme ho."
+          ]
+        },
+        {
+          "h": "Co se přenese",
+          "p": [
+            "[Tvoje poznámkové bloky se znovu postaví jako skutečné složky](/cs/help/folders), ne jako značky, přesně v té hloubce, v jaké byly v Notesnooku zanořené. Poznámka ve Work > Projects skončí ve složce Work > Projects.",
+            "Připnuté a oblíbené poznámky zůstanou označené. Notesnook má Pin a Favorite jako dvě samostatné vlastnosti; PrivacyNotes má jediný seznam Připnuté, takže poznámka, která měla jednu z nich, skončí v něm.",
+            "Zvýraznění, barvy textu, velikosti písma, horní index, dolní index, matematika a zarovnání textu se přenesou tak, jak jsou: každá barva se přesune na nejbližší barvu v naší paletě, zvolená velikost písma se změní na Malé, Velké nebo Velmi velké, vzorce se znovu vykreslí jako matematika a bloky zarovnané na střed nebo doprava si zarovnání zachovají. Vlastní fonty tady nemají obdobu, takže se písmo zahodí a samotný text zůstane."
+          ]
+        },
+        {
+          "h": "Soubor se zálohou není export",
+          "p": [
+            "Notesnook umí uložit i soubor se zálohou s koncovkou .nnbackupz. To je něco jiného: ukládá každou přílohu ve vlastním šifrovaném formátu Notesnooku, který rozbalí jedině Notesnook. Když ho sem přetáhneš, řekneme ti to, místo abychom naimportovali půlku. Použij místo toho „Export all notes“ do HTML."
+          ]
+        }
+      ]
+    },
+    "apple-journal": {
+      "app": "Apple Journal",
+      "title": "Vyexportuj si záznamy z Apple Journal",
+      "metaTitle": "Export záznamů z Apple Journal - PrivacyNotes",
+      "lead": "Apple Journal (Deník) exportuje jeden HTML soubor na záznam, plus složku se všemi fotkami, videi a hlasovými poznámkami. PrivacyNotes celý export přečte a každý záznam znovu sestaví jako záznam v deníku, s datem dne, kdy jsi ho napsal.",
+      "sections": [
+        {
+          "h": "Exportuj deník na Macu",
+          "steps": [
+            "Otevři Deník a v panelu nabídek zvol „File“ > „Export“.",
+            "Vyber cíl. Deník vytvoří složku s názvem AppleJournalEntries, která obsahuje složku Entries a složku Resources.",
+            "Klikni na tuhle složku pravým tlačítkem a zvol „Komprimovat“. Vedle ní se objeví AppleJournalEntries.zip a to je soubor pro import."
+          ]
+        },
+        {
+          "h": "Exportuj z iPhonu nebo iPadu",
+          "steps": [
+            "Otevři Deník. Pod nadpisem „Journals“ klepni na svůj deník, abys ho otevřel (jmenuje se Journal, pokud jsi ho nepřejmenoval, a ukazuje, kolik záznamů obsahuje).",
+            "V seznamu záznamů klepni vpravo nahoře na tlačítko „…“, zvol „Export“ a potvrď tlačítkem „Export“.",
+            "Ulož ho do telefonu.",
+            "Otevři aplikaci Soubory a najdi zapsanou složku s názvem AppleJournalEntries.",
+            "Podrž prst na té složce a zvol „Komprimovat“. Soubor .zip, který se vedle ní objeví, je soubor pro import."
+          ]
+        },
+        {
+          "h": "Co se přenese",
+          "p": [
+            "[Každý záznam skončí v Denících](/cs/help/journal) místo v Poznámkách, s datem dne, který nad ním Deník zobrazuje, takže tvoje historie zůstane v původní podobě.",
+            "Fotky a Live Photos se importují jako obrázky, videa a hlasové poznámky jako přílohy. Apple dodává fotky ve formátu HEIC, který většina prohlížečů nezobrazí, takže [PrivacyNotes každou z nich cestou převede do JPEG](/cs/help/image-quality). To je ta pomalá část velkého importu: pár set fotek může trvat několik minut, a řádek s průběhem je pro tebe průběžně počítá.",
+            "Tučné písmo, kurzíva, podtržení, přeškrtnutí, barvy textu, odrážkové a číslované seznamy i citační bloky zůstanou zachované."
+          ]
+        },
+        {
+          "h": "Fotky, videa a tvoje úložiště",
+          "p": [
+            "Deník plný fotek je mnohem větší než deník plný textu a [počítá se do tvého úložiště stejně jako cokoli jiného](/cs/help/storage-usage). Náhled importu to spočítá předem a odmítne začít, kdyby se to nevešlo."
+          ]
+        },
+        {
+          "h": "Kam se podějí tvoje polohy",
+          "p": [
+            "Deník si zaznamenává, kde se záznam odehrál. Místo, které zaznamenal se souřadnicemi, se na konci záznamu v části „Places“ stane mapou a to první je zároveň místem samotného záznamu, na jeho štítku polohy.",
+            "Místo, které Deník jen pojmenoval, nemá co připíchnout, takže se stane odkazem, který na OpenStreetMap hledá tento název. Mapy se načítají z našeho vlastního serveru maps.privacynotes.app, když záznam otevřeš. Odkaz na vyhledávání nic neodešle, dokud na něj neklikneš."
+          ]
+        },
+        {
+          "h": "Stav mysli",
+          "p": [
+            "Pokud máš záznam z funkce State of Mind, PrivacyNotes u toho záznamu [vyplní sledované hodnoty nálady a emocí](/cs/help/choose-trackers) všude tam, kde se Applova formulace shoduje s některou z našich. Cokoli, co se nepodaří spárovat, a životní oblasti, které jsi označil, zůstanou zachované jako řádek textu, aby se nic neztratilo."
+          ]
+        },
+        {
+          "h": "Co se nepřenese",
+          "p": [
+            "Návrhové karty Deníku pro tréninky, kontakty a přehrávaná média si zachovají text, ale ne svou grafiku. Hlasové poznámky se přenesou jako nahrávky, ale bez Applova přepisu: exportér z něj odstraní každou mezeru, takže napíše jeden nepřerušený řetězec znaků. Radši ho necháme stranou, než abychom ho importovali nečitelný.",
+            "Hlasové poznámky z exportu na Macu jsou soubory CAF, které nepřehraje žádný prohlížeč. Naimportují se a stáhnou v pořádku, ale v aplikaci je neuslyšíš. Export z iPhonu zapisuje stejné nahrávky jako M4A, které se přehraje přímo, takže pokud máš na výběr, použij telefon."
+          ]
+        }
+      ]
+    },
+    "upnote": {
+      "app": "UpNote",
+      "title": "Vyexportuj si poznámky z UpNote",
+      "metaTitle": "Export poznámek z UpNote - PrivacyNotes",
+      "lead": "Export se v UpNote jmenuje záloha: zapíše celý tvůj účet do složky na disku, a to i v bezplatném tarifu. Zabal tu složku do zipu a přenese se všechno: poznámky s úplným formátováním, zápisníky, značky, připnutí, odkazy na poznámky, obrázky i přílohy.",
+      "sections": [
+        {
+          "img": {
+            "src": "/help/img/upnote-backup.webp",
+            "alt": "Nastavení UpNote, stránka Backup, s viditelnými volbami Backup attachments, Backup now a View backup folder.",
+            "width": 1576,
+            "height": 1070
+          },
+          "h": "Vytvoř místní zálohu",
+          "steps": [
+            "Otevři UpNote na počítači a přejdi do Settings > Backup.",
+            "Zapni „Backup attachments“. Ve výchozím nastavení je vypnuté a bez něj zůstanou tvoje obrázky a soubory pozadu.",
+            "Klikni na „Backup now“ a počkej, až se aktualizuje řádek „Last backup at“.",
+            "Klikni na „View backup folder“. UpNote otevře složku, kterou právě zapsal."
+          ]
+        },
+        {
+          "img": {
+            "src": "/help/img/upnote-folder.webp",
+            "alt": "Složka se zálohou UpNote s vybranými složkami data, files, Markdown a revisions a s nabídkou pravého tlačítka otevřenou na volbě Compress.",
+            "width": 1576,
+            "height": 642
+          },
+          "h": "Zabal do zipu všechno v té složce",
+          "steps": [
+            "Vyber ve složce se zálohou všechno: data, files a cokoli, co leží vedle nich.",
+            "Zkomprimuj výběr: na macOS pravým tlačítkem > Komprimovat, na Windows Odeslat > Komprimovaná složka (metoda ZIP).",
+            "Ten .zip je tvůj soubor pro import."
+          ],
+          "p": [
+            "Zabal do zipu celou složku, ne jen složku Markdown uvnitř. Ty markdownové kopie jsou zjednodušené vykreslení: podtržení, barvy, zvýraznění, sbalitelné sekce a zarovnání textu v nich už chybí. Úplné formátování tvých poznámek žije ve složce data a právě tu čteme. Když sem přetáhneš zip bez ní, řekneme ti to, místo abychom naimportovali zjednodušené kopie."
+          ]
+        },
+        {
+          "img": {
+            "src": "/help/img/upnote-export-menu.webp",
+            "alt": "Nabídka Export v UpNote na iOS s možnostmi Export to Text, PDF, Markdown a HTML.",
+            "width": 1576,
+            "height": 1235
+          },
+          "h": "Na iPhonu nebo Androidu: exportuj poznámky po jedné",
+          "steps": [
+            "Mobilní aplikace UpNote zálohu zapsat neumí. Místo toho otevři poznámku a klepni na tři tečky v horním rohu.",
+            "Zvol Export > „Export to HTML“. Ne Markdown: UpNote před zápisem svého Markdownu zjednoduší callouty, barvy textu, zarovnání a dolní i horní index, zatímco HTML zachová všechno.",
+            "Výsledek nasdílej do aplikace Soubory nebo si ho pošli a pak ho sem přetáhni beze změny.",
+            "Přenášíš víc poznámek? Ulož exporty do aplikace Soubory, vyber je všechny a zvol „Komprimovat“: takový zip se naimportuje najednou."
+          ],
+          "p": [
+            "Export do HTML přenese tvoje formátování v plném rozsahu. Co žádný export jednotlivé poznámky nenese, je struktura knihovny: zápisníky, připnutí a data žijí jen v záloze, takže jakmile se dostaneš k počítači, dokončí přesun cesta přes zálohu popsaná výše. Přijímáme i exporty do Markdownu, i s tím zjednodušením, které s sebou nesou."
+          ]
+        },
+        {
+          "h": "Co se přenese",
+          "p": [
+            "Tvoje zápisníky se znovu postaví jako skutečné složky, zanořené tak hluboko, jak byly v UpNote. Poznámka, která žila ve víc zápisnících, skončí v prvním z nich a ostatní si ponese jako značky.",
+            "Připnuté poznámky a poznámky z Quick Access dorazí jako Připnuté. Poznámky z koše skončí v koši, šablony se naimportují jako poznámky se značkou #template, [propojení poznámek se převedou na odkazy na poznámky](/cs/help/note-links) a každá poznámka si zachová svá původní data.",
+            "Formátování přežije: zaškrtávací seznamy, tabulky, bloky kódu, matematika, podtržení, dolní i horní index, zarovnání textu a zvýraznění. Sbalitelné sekce se změní na sbalitelné callouty a zachovají si otevřený nebo zavřený stav. Barvy textu i barvy zvýraznění se napasují na vlastní paletu editoru, takže žluté zvýraznění zůstane žluté a zelené zelené. Každá poznámka dorazí tak, jak ji UpNote naposledy uložil."
+          ]
+        },
+        {
+          "h": "Když chybí obrázky nebo soubory",
+          "p": [
+            "Záloha vytvořená předtím, než jsi zaškrtl „Backup attachments“, žádné soubory neobsahuje a náhled importu tě upozorní, že poznámky odkazují na přílohy, které záloha nenese. Pokud se to stane, import zruš, zapni v UpNote to nastavení, klikni znovu na „Backup now“, zabal čerstvou složku do zipu a naimportuj tu."
+          ]
+        }
+      ]
+    },
+    "joplin": {
+      "app": "Joplin",
+      "title": "Vyexportuj si poznámky z Joplin",
+      "metaTitle": "Export poznámek z Joplin ve formátu JEX - PrivacyNotes",
+      "lead": "Joplin exportuje všechny zápisníky najednou jako jeden soubor JEX. Poznámky přenese i s jejich zápisníky, značkami, úkoly, odkazy na poznámky a přílohy.",
+      "sections": [
+        {
+          "h": "Vyexportuj všechno jako JEX",
+          "steps": [
+            "Otevři Joplin na počítači.",
+            "Zvol File > Export all > „JEX - Joplin Export File“.",
+            "Ulož soubor. Dostaneš jeden soubor .jex, který obsahuje všechny zápisníky, takže není co zabalovat do zipu.",
+            "Přetáhni ten .jex sem tak, jak je."
+          ],
+          "p": [
+            "Tools > Create backup zapíše stejný soubor, bajt po bajtu, jako all_notebooks.jex ve složce JoplinBackup v tvé domovské složce. Pokud ti Joplin takové zálohy už dělá, stejně dobře poslouží ta nejnovější."
+          ]
+        },
+        {
+          "h": "Vyber JEX, ne Markdown, HTML ani PDF",
+          "p": [
+            "Export all nabízí i MD, MD + Front Matter, HTML directory a PDF. To jsou kopie určené ke čtení v jiných aplikacích. Soubor JEX je vlastní záznam Joplin o každé poznámce, zápisníku, značce a příloze a právě ten čteme. Když sem přetáhneš jiný z exportů, řekneme ti to, místo abychom naimportovali jen jeho půlku.",
+            "Pokud už máš vyexportované „RAW - Joplin Export Directory“, zabal tu složku do zipu a přetáhni sem ten zip. Obsahuje stejné položky jako soubor JEX."
+          ]
+        },
+        {
+          "h": "Vyndej poznámky z koše dřív, než exportuješ",
+          "p": [
+            "Joplin vynechává koš z každého exportu i z každé zálohy. Každou poznámku, kterou chceš zachovat, před exportem z koše vyndej, jinak zůstane v Joplin."
+          ]
+        },
+        {
+          "h": "Co se přenese",
+          "p": [
+            "Tvoje zápisníky se znovu postaví jako skutečné složky, zanořené tak hluboko, jak je zanořil Joplin, a každá poznámka si zachová své značky i data vytvoření a úpravy, která ti Joplin ukazoval.",
+            "[Úkoly se stanou poznámkami s políčkem](/cs/help/tasks), které můžeš odškrtnout, a pokud byl úkol hotový, je už odškrtnuté; termín zůstane zapsaný vedle názvu. [Odkazy na jiné poznámky zůstanou funkční jako odkazy na poznámky](/cs/help/note-links). Obrázky a přílohy se naimportují do tvého úložiště a v poznámce zůstanou na svém místě. Poznámky uložené jako HTML, například mnoho výstřižků z webu, se převedou i s formátováním.",
+            "Poznámky ze zápisníku Conflicts v Joplin dorazí se značkou „conflict“, takže je snadno najdeš a roztřídíš. Pokud používáš šifrování v Joplin, nech ho před exportem dokončit dešifrování: položka, která je ještě šifrovaná, se přeskočí a náhled importu ti řekne, kolik jich je."
+          ]
+        }
+      ]
+    },
+    "browser-bookmarks": {
+      "app": "Záložky prohlížeče",
+      "title": "Vyexportuj si záložky z prohlížeče",
+      "metaTitle": "Export záložek z libovolného prohlížeče - PrivacyNotes",
+      "lead": "Každý prohlížeč na počítači exportuje stejný soubor se záložkami (.html) a PrivacyNotes ho přečte i s tvými složkami a daty. Safari ten soubor zabalí do .zip, který můžeš přetáhnout, aniž bys ho rozbaloval. Žádný prohlížeč na telefonu exportovat neumí, tak si tam zapni synchronizaci prohlížeče a exportuj z počítače.",
+      "sections": [
+        {
+          "h": "Export z Chromu, Edge, Brave, Opery nebo Vivaldi",
+          "steps": [
+            "Otevři správce záložek zkratkou Ctrl+Shift+O, na Macu Cmd+Option+B. V Edge se stejná stránka jmenuje Favorites.",
+            "Klikni vpravo nahoře ve správci na tlačítko „...“ a vyber „Export bookmarks“. V Edge se položka jmenuje „Export favorites“.",
+            "Ulož soubor. Je to .html s dnešním datem v názvu."
+          ]
+        },
+        {
+          "h": "Export z Firefoxu",
+          "steps": [
+            "Stiskni Ctrl+Shift+O, na Macu Cmd+Shift+O, a otevře se okno Library.",
+            "Klikni v jeho nástrojové liště na „Import and Backup“ a vyber „Export Bookmarks to HTML...“.",
+            "Ulož ho. Soubor se jmenuje bookmarks.html."
+          ]
+        },
+        {
+          "h": "Export ze Safari",
+          "img": {
+            "src": "/help/img/safari-export-menu.webp",
+            "alt": "Nabídka File v Safari se zvýrazněnou položkou „Export Browsing Data to File...“ dole",
+            "width": 1576,
+            "height": 1226
+          },
+          "steps": [
+            "V řádku nabídek zvol File > „Export Browsing Data to File...“.",
+            "Vypni všechno kromě Bookmarks a klikni na Export.",
+            "Safari uloží .zip. Přetáhni sem ten .zip tak, jak je, nebo Bookmarks.html z jeho nitra. Funguje obojí.",
+            "Starší verze Safari ukazují místo toho File > Export > „Bookmarks...“ a uloží obyčejný soubor .html."
+          ]
+        },
+        {
+          "h": "Nech zapnutý jen přepínač Bookmarks",
+          "img": {
+            "src": "/help/img/browser-bookmarks-safari-export.webp",
+            "alt": "Okno Export Browsing Data v Safari se zapnutým Bookmarks a všemi ostatními druhy vypnutými",
+            "width": 1576,
+            "height": 1356
+          },
+          "p": [
+            "Stejné okno nabízí History, Extensions, Credit Cards a Passwords. Ty nech vypnuté. PrivacyNotes z archivu nečte nic než záložky, jenže export, který pak musíš smazat, je další čitelná kopie tvých hesel ležící ve složce stažených souborů."
+          ]
+        },
+        {
+          "h": "Co přijde s nimi",
+          "p": [
+            "Každá složka, kterou jsi měl, přijde s nimi a zůstane zanořená přesně tak, jak jsi ji nechal, uvnitř jedné nové složky s názvem Bookmarks. Lišta záložek je výjimka: její obsah se posune o úroveň výš, místo aby se z něj stala složka, protože každý prohlížeč tu lištu v každém jazyce pojmenuje jinak. Safari neoznačuje nic, takže jeho Favorites opravdu přijde jako složka.",
+            "Den, kdy jsi každou záložku uložil, přijde s ní. Safari je jediný prohlížeč, který data nezapisuje vůbec, takže export ze Safari dorazí s dnešním datem.",
+            "Firefox je zároveň jediný, který k záložce ukládá štítky a klíčové slovo pro adresní řádek. Když je tvůj soubor obsahuje, náhled nabídne zaškrtávátko, aby zůstaly, a obojí sem dorazí jako značky.",
+            "Tři věci zůstanou záměrně stranou. Vnitřní zkratky prohlížeče jako Most Visited nejsou skutečné odkazy, takže se spočítají a přeskočí. Ikony webů se ze souboru také nečtou, protože kopie uložená uvnitř zastarává; [PrivacyNotes si stáhne čerstvou](/cs/help/bookmarks). A složka, ve které žádná záložka nebyla, se znovu nevytvoří.",
+            "Naimportovat stejný soubor dvakrát je bezpečné. Záložka, jejíž adresu už máš uloženou, se přeskočí místo toho, aby se přidala znovu, a náhled ti řekne, kolik jich bylo."
+          ]
+        },
+        {
+          "h": "Jak si je odnést",
+          "p": [
+            "Jdi do Nastavení > Přenos > Export a vyber „Soubor záložek (.html)“. Dostaneš stejný standardní soubor i se složkami, který přečte každý prohlížeč. Tvoje záložky tu nikdy nejsou zamčené."
+          ]
+        }
+      ]
+    },
+    "browser-passwords": {
+      "app": "Hesla z prohlížeče",
+      "title": "Vyexportuj si hesla z prohlížeče",
+      "metaTitle": "Export uložených hesel z prohlížeče - PrivacyNotes",
+      "lead": "Chrome, Edge, Firefox i Safari exportují uložená hesla jako obyčejný soubor .csv a PrivacyNotes přečte každý z nich, jedny přihlašovací údaje na řádek. Safari svůj .csv zabalí do .zip, který můžeš přetáhnout, aniž bys ho rozbaloval.",
+      "sections": [
+        {
+          "h": "Export z Chrome, Edge, Brave, Opera nebo Vivaldi",
+          "steps": [
+            "Otevři Settings prohlížeče a jdi na stránku s hesly. V Chrome je to „Passwords and autofill“ > Google Password Manager > Settings, v Edge „Profiles > Passwords“.",
+            "Najdi „Export passwords“ a vyber „Download file“.",
+            "Potvrď heslem zařízení nebo otiskem prstu. Soubor se obvykle jmenuje passwords.csv."
+          ]
+        },
+        {
+          "h": "Export z Firefoxu",
+          "steps": [
+            "Napiš do adresního řádku about:logins a stiskni Enter.",
+            "Klikni vpravo nahoře na tlačítko „...“ a vyber „Export Logins...“.",
+            "Potvrď heslem zařízení. Soubor se jmenuje logins.csv."
+          ]
+        },
+        {
+          "h": "Export ze Safari",
+          "img": {
+            "src": "/help/img/safari-export-menu.webp",
+            "alt": "Nabídka File v Safari se zvýrazněnou položkou „Export Browsing Data to File...“ dole",
+            "width": 1576,
+            "height": 1226
+          },
+          "steps": [
+            "V řádku nabídek zvol File > „Export Browsing Data to File...“.",
+            "Vypni všechno kromě Passwords a klikni na Export.",
+            "Potvrď přes Touch ID nebo heslem svého Macu. Safari uloží .zip se souborem Passwords.csv uvnitř a ten .zip sem můžeš přetáhnout tak, jak je.",
+            "Od macOS 15 exportuje aplikace Passwords stejné řádky přes File > „Export All Passwords...“, jako obyčejný .csv."
+          ]
+        },
+        {
+          "h": "Nech zapnutý jen přepínač Passwords",
+          "img": {
+            "src": "/help/img/browser-passwords-safari-export.webp",
+            "alt": "Okno Export Browsing Data v Safari se zapnutým Passwords a všemi ostatními druhy vypnutými",
+            "width": 1576,
+            "height": 1358
+          },
+          "p": [
+            "Stejné okno exportuje i tvoje záložky, historii a uložené karty. Každý přepínač, který necháš zapnutý, zapíše do téhož archivu další nešifrovaný soubor, tak je vypni. Jedna výjimka: jestli chceš mít tady i záložky, zapni oba a přetáhni ten jeden .zip do obou importérů, protože každý z něj čte jen svůj vlastní soubor."
+          ]
+        },
+        {
+          "h": "Co přijde s sebou",
+          "p": [
+            "Z každého řádku vzniknou přihlašovací údaje se stránkou, uživatelským jménem a heslem, a k tomu poznámka, kterou u nich prohlížeč držel. Datum zapisuje jako jediný z těch tří Firefox, takže jeho přihlašovací údaje si nesou den, kdy jsi je uložil, a ostatní přijdou s dnešním datem. Ověřovací klíč exportuje jako jediné Safari, a jen když jsi v něm kódy měl - [pak kód funguje dál i tady](/cs/help/vault-totp).",
+            "Prohlížeče ukládají zvláštní záznam pro každou přihlašovací stránku, takže velký export často obsahuje víc řádků pro jednu firmu. Naimportují se všechny a potom je můžeš spojit nebo smazat.",
+            "Prohlížeč drží hesla v jednom plochém seznamu, takže není žádná struktura složek, kterou by šlo obnovit. Místo toho dorazí všechny přihlašovací údaje označené značkou, což ti celou dávku vytáhne na jedno kliknutí."
+          ]
+        },
+        {
+          "h": "Až budeš hotový, smaž exportovaný soubor: jsou to tvoje hesla v čitelné podobě",
+          "p": [
+            "Ve vyexportovaném .csv není nic šifrované, ať už přijde v .zip, nebo ne. Kdo ho otevře, přečte si každé heslo, které sis uložil, tak si ho nech na vlastním počítači, naimportuj ho, ověř, že dorazilo všechno, a pak soubor smaž a vysyp koš. Uvnitř PrivacyNotes je zase všechno zašifrované, na tvém zařízení i cestou na server."
+          ]
+        }
+      ]
+    },
+    "typora": {
+      "app": "Typora",
+      "title": "Vyexportuj si poznámky z Typory",
+      "metaTitle": "Export poznámek z Typory - PrivacyNotes",
+      "lead": "Typora edituje obyčejné soubory .md, které už leží ve složce na tvém disku, takže žádný export není potřeba. Zabal složku do zipu a přetáhni ji sem.",
+      "sections": [
+        {
+          "h": "Zabal složku, ve které píšeš",
+          "steps": [
+            "Najdi složku se svými soubory .md. Typora nemá vlastní knihovnu, takže soubory najdeš tam, kam sis je uložil.",
+            "Klikni na složku pravým tlačítkem a zvol Komprimovat (macOS) nebo Odeslat > Komprimovaná složka (Windows).",
+            "Přetáhni .zip do importu."
+          ]
+        },
+        {
+          "h": "Než zabalíš, vyřeš, kde bydlí tvoje obrázky",
+          "p": [
+            "Typora umí obrázek nechat vedle poznámky, v podsložce assets, nebo tam, odkud jsi ho přetáhl. Projít můžou jenom obrázky uvnitř složky, kterou balíš. Otevři Preferences > Image, nastav kopírování obrázků do vlastní složky assets dané poznámky, a u starších poznámek, jejichž obrázky pořád ukazují jinam, použij „Format > Image > Copy image files to...“."
+          ]
+        },
+        {
+          "h": "Co projde",
+          "p": [
+            "Podsložky se stanou skutečnými složkami, v jakékoli hloubce. Nadpisy, tabulky, seznamy úkolů, bloky kódu, poznámky pod čarou, vzorce i zvýraznění zůstanou, a holé adresy URL se změní na klikatelné odkazy. Frontmatter YAML se čte kvůli názvu, datům a značkám.",
+            "Značky projdou oběma cestami: z frontmatteru YAML i z #hashtagů napsaných v textu. Hashtag v bloku kódu zůstane kódem a holé číslo jako #4711 zůstane číslem tiketu."
+          ]
+        }
+      ]
+    },
+    "ia-writer": {
+      "app": "iA Writer",
+      "title": "Vyexportuj si knihovnu z iA Writeru",
+      "metaTitle": "Export knihovny z iA Writeru - PrivacyNotes",
+      "lead": "iA Writer drží tvoje texty jako obyčejné soubory .md ve své knihovně, takže ta složka už je exportem. Jedna věc musí vyjít: přimět iCloud, aby ti nejdřív vydal skutečné soubory.",
+      "sections": [
+        {
+          "h": "Dostaň složku z iCloudu a pak ji zabal",
+          "steps": [
+            "V iA Writeru klikni pravým tlačítkem na složku v postranním panelu Library a zvol „Show in Finder“.",
+            "Ve Finderu klikni na tu složku pravým tlačítkem a zvol „Stáhnout nyní“, ať iCloud opravdu stáhne každý soubor místo zástupných.",
+            "Klikni znovu pravým tlačítkem a zvol Komprimovat.",
+            "Přetáhni .zip do importu."
+          ]
+        },
+        {
+          "h": "Na iPhonu nebo iPadu",
+          "p": [
+            "Otevři aplikaci Soubory, jdi do iCloud Drive > iA Writer, podrž složku a zvol Komprimovat. Sdílej .zip do PrivacyNotes, nebo otevři PrivacyNotes a vyber ho ze Souborů."
+          ]
+        },
+        {
+          "h": "Past se zástupnými soubory",
+          "p": [
+            "Se zapnutou volbou „Optimalizovat úložiště Macu“ iCloud nahradí soubory, které jsi delší dobu neotevřel, drobnými zástupci. Když složku zabalíš v tomto stavu, dostaneš archiv prázdných skořápek: import proběhne, ohlásí úspěch a nepřinese skoro nic. Nejdřív „Stáhnout nyní“, pak zkontroluj, že .zip váží zhruba tolik co tvoje texty."
+          ]
+        },
+        {
+          "h": "Co projde",
+          "p": [
+            "Složky knihovny se stanou skutečnými složkami, v jakékoli hloubce, a obrázky i soubory, na které tvoje poznámky odkazují, jdou s nimi. Nadpisy, tabulky, seznamy úkolů, bloky kódu a poznámky pod čarou zůstanou, a holé adresy URL se změní na klikatelné odkazy. Frontmatter se čte kvůli názvu, datům a značkám.",
+            "Obsahové bloky, které při psaní vtahují jeden soubor do druhého, dorazí jako odkaz v té podobě, v jaké je zapsaný, ne jako vtažený text."
+          ]
+        }
+      ]
+    },
+    "zettlr": {
+      "app": "Zettlr",
+      "title": "Vyexportuj si poznámky ze Zettlru",
+      "metaTitle": "Export poznámek ze Zettlru - PrivacyNotes",
+      "lead": "Zettlr pracuje přímo se složkou souborů .md, takže pracovní prostor, který už máš, je exportem. Zabal ho a přetáhni sem.",
+      "sections": [
+        {
+          "h": "Zabal pracovní prostor",
+          "steps": [
+            "V Zettlr klikni pravým tlačítkem na pracovní prostor nahoře ve stromu souborů a zvol „Show in Finder“, na Windows „Show in Explorer“.",
+            "Klikni tam na složku pravým tlačítkem a zkomprimuj ji.",
+            "Přetáhni .zip do importu."
+          ]
+        },
+        {
+          "h": "Odkazy Zettelkastenu si nesou text, ne cíl",
+          "p": [
+            "Zettlr propojuje poznámky přes identifikátor, takže odkaz vypadá takto: [[20260823120000]]. [My necháváme odkazy na poznámky přesně tak, jak jsou zapsané](/cs/help/note-links), což znamená, že odkaz přes identifikátor tu najde svou poznámku jen tehdy, když se nějaká poznámka opravdu jmenuje tímto identifikátorem. Odkazy psané názvem souboru fungují normálně, takže pokud na nich stavíš, přepni si před exportem formát interních odkazů na název souboru.",
+            "Citační klíče jako [@doe2026] jsou pro nás text. Projdou beze změny a přestanou být klikatelné."
+          ]
+        },
+        {
+          "h": "Co projde",
+          "p": [
+            "Podsložky pracovního prostoru se stanou skutečnými složkami, v jakékoli hloubce, a obrázky i soubory, na které tvoje poznámky odkazují, jdou s nimi. Nadpisy, tabulky, seznamy úkolů, bloky kódu, poznámky pod čarou, vzorce i zvýraznění zůstanou. Značky čteme z frontmatteru YAML i z #hashtagů napsaných v textu, takže Zettelkasten postavený na hashtazích si udrží své třídění."
+          ]
+        }
+      ]
+    },
+    "nextcloud-notes": {
+      "app": "Nextcloud Notes",
+      "title": "Vyexportuj si poznámky z Nextcloud Notes",
+      "metaTitle": "Export Nextcloud Notes - PrivacyNotes",
+      "lead": "Nextcloud Notes žádný krok exportu nepotřebuje: každá poznámka už je obyčejný soubor v jedné složce na tvém vlastním serveru a Nextcloud ti tu složku vydá celou jako .zip. Čteme tu obě přípony, které používá, takže není co předem převádět.",
+      "sections": [
+        {
+          "h": "Stáhni složku Notes",
+          "steps": [
+            "Otevři Soubory ve svém Nextcloudu, v prohlížeči.",
+            "Najdi složku Notes. Jmenuje se Notes, pokud ji správa nepřejmenovala.",
+            "U složky otevři nabídku „...“ a zvol Download. Nextcloud zabalí celou složku do .zip.",
+            "Přetáhni .zip do importu."
+          ]
+        },
+        {
+          "h": "Co projde",
+          "p": [
+            "Kategorie jsou uložené jako podsložky, takže dorazí jako skutečné složky. Data poznámek pocházejí ze samotných souborů, ne z okamžiku importu. Nadpisy, tabulky, seznamy úkolů, bloky kódu, poznámky pod čarou i vzorce zůstanou, a holé adresy URL se změní na klikatelné odkazy.",
+            "Tady importuješ kopii. Z tvého Nextcloudu se nic nemaže a nic se nesynchronizuje zpátky, takže si server nech jako archiv, dokud nebudeš spokojený s tím, co sem dorazilo."
+          ]
+        },
+        {
+          "h": "Fungují obě přípony",
+          "p": [
+            "Notes ve výchozím stavu zapisuje .txt, a .md ve chvíli, kdy ty nebo tvůj správce změníte nastavení. Čteme tu obě, stejně jako .markdown, .mdown a .mkd, takže před exportem nemusíš nic přejmenovávat ani sahat na server."
+          ]
+        }
+      ]
+    },
+    "contacts": {
+      "app": "Kontakty (vCard)",
+      "title": "Vyexportuj si kontakty",
+      "metaTitle": "Jak vyexportovat kontakty jako vCard - PrivacyNotes",
+      "lead": "Každý telefon i adresář umí vyexportovat tvoje kontakty jako jeden soubor .vcf a PrivacyNotes ten soubor čte přímo, včetně fotek.",
+      "sections": [
+        {
+          "h": "Export z iPhonu",
+          "steps": [
+            "Otevři Contacts a klepni vlevo nahoře na „Lists“.",
+            "Podrž prst na „All Contacts“ a zvol Export.",
+            "Ulož soubor .vcf do aplikace Soubory, nebo ho pošli přes AirDrop do zařízení, na kterém budeš importovat."
+          ]
+        },
+        {
+          "h": "Export z Macu nebo iCloudu",
+          "steps": [
+            "V Contacts vyber „All Contacts“ a stiskni Command-A.",
+            "Zvol File > Export > Export vCard.",
+            "Na [icloud.com/contacts](https://www.icloud.com/contacts) vyber všechny kontakty, pak otevři nabídku „...“ a zvol „Export vCard“."
+          ]
+        },
+        {
+          "h": "Export z Androidu nebo Google Contacts",
+          "steps": [
+            "V aplikaci Google Contacts klepni na „Fix & manage“ > „Export to file“.",
+            "Na [contacts.google.com](https://contacts.google.com) zvol Export a pak vyber „vCard (for iOS Contacts)“.",
+            "Na telefonu Samsung otevři Contacts > Manage contacts > Import or export contacts > Export."
+          ]
+        },
+        {
+          "h": "Vyber vCard, ne CSV",
+          "p": [
+            "Google vedle vCard nabízí ještě dva formáty CSV. Import čte jen soubory .vcf, takže se CSV ve výběru souborů vůbec neukáže. Vyexportuj kontakty znovu a vyber vCard."
+          ]
+        },
+        {
+          "h": "Co se přenese",
+          "p": [
+            "Přenese se každá vizitka v souboru: jména, telefony, e-mailové adresy, poštovní adresy, narozeniny a další data, weby, profily na sociálních sítích i poznámky. Tvoje vlastní popisky zůstanou přesně tak, jak je máš napsané, takže z „Mámina pracovní linka“ zůstane „Mámina pracovní linka“.",
+            "Fotka uložená přímo v souboru se přenese. Fotka, která je jen odkazem na web, zůstane odkazem a nic se nestahuje. [Když se fotky nevejdou do tvého úložiště](/cs/help/storage-usage), kontakty se i tak naimportují a fotky zůstanou venku."
+          ]
+        },
+        {
+          "h": "Stejný soubor můžeš kdykoli importovat znovu",
+          "p": [
+            "Druhý import přeskočí lidi, které už máš. Každou vizitku páruje nejdřív podle jejího ID, pak podle jména a shodného telefonního čísla a nakonec podle shodné e-mailové adresy. Kontakty, které už máš uložené, se nemění, takže tvoje úpravy tady zůstanou v bezpečí."
+          ]
+        }
+      ]
+    },
+    "anytype": {
+      "app": "Anytype",
+      "title": "Export prostoru z Anytype",
+      "metaTitle": "Jak exportovat prostor z Anytype - PrivacyNotes",
+      "lead": "Anytype exportuje celý prostor najednou jako jeden zip ve formátu Any-Block JSON. Ten přenese tvoje stránky i s jejich značkami, kolekcemi, úkoly, odkazy a soubory.",
+      "sections": [
+        {
+          "img": {
+            "src": "/help/img/anytype-export.webp",
+            "alt": "Nastavení prostoru v Anytype, stránka Export, Any-Block v1 s formátem souboru JSON a archivem Zip, zapnuté volby Include files data a Include archived objects.",
+            "width": 1576,
+            "height": 800
+          },
+          "h": "Exportuj prostor jako Any-Block JSON",
+          "steps": [
+            "Otevři Anytype na počítači a přejdi do prostoru, který chceš přenést.",
+            "Vyber File > Export. Anytype otevře nastavení prostoru na stránce Export. Novější verze říkají prostoru kanál, takže stránka se jmenuje „Export Channel“.",
+            "Zvol „Any-Block v1“ a File Format nech na JSON.",
+            "Zapni „Zip archive“, „Include files data“ a „Include archived objects“.",
+            "Klikni na „Export data“ a vyber složku. Anytype zapíše jeden soubor .zip pojmenovaný podle prostoru a data.",
+            "Ten soubor .zip nahraj tak, jak je."
+          ],
+          "p": [
+            "Jeden export obsahuje jeden prostor. Pokud máš poznámky ve více prostorech, exportuj každý z nich a zipy nahraj jeden po druhém."
+          ]
+        },
+        {
+          "h": "Zvol Any-Block JSON, ne Markdown ani Protobuf",
+          "p": [
+            "Export do Markdownu zachová text, ale vynechá podtržení, barvy, calloutty, zarovnání a jazyky kódu a kolekce do něj nepatří. Přečteme ho, pokud nemáš nic jiného, a náhled importu napíše, o co jsi přišel.",
+            "Any-Block nabízí i formát souboru Protobuf. Obsahuje stejná data v binární podobě, kterou nečteme, proto chceme export do JSON. Any-Block v2 Anytype označuje jako náhled a není to záloha."
+          ]
+        },
+        {
+          "h": "Co se přenese",
+          "p": [
+            "Stránky, poznámky, úkoly a záložky se změní na poznámky se svými značkami a daty vytvoření a úpravy, která Anytype uložil. Anytype složky nemá, takže stránka v kolekci skončí ve složce pojmenované podle kolekce a každá další stránka na nejvyšší úrovni.",
+            "Nadpisy, seznamy, zaškrtávací seznamy, citace, kód s jazykem, tabulky, matematika a diagramy Mermaid se přenesou beze změny. Přepínače se změní na sbalitelné sekce a calloutty na calloutty. [Odkazy a zmínky mezi stránkami se změní na odkazy na poznámky](/cs/help/note-links), obrázky a soubory se naimportují do tvého úložiště.",
+            "Úkol dorazí jako poznámka s úkolem, splněný, pokud byl hotový. Vlastní vlastnosti se zapíšou jako krátký seznam na začátku poznámky. Stránky z koše Anytype skončí v tvém koši, takže je tam můžeš obnovit nebo smazat.",
+            "Ikony a obálky stránek zůstanou pozadu a náhled importu napíše, kolik jich bylo. Oblíbené součástí exportu nejsou, proto ty poznámky po importu znovu připni."
+          ]
+        }
+      ]
+    },
+    "apple-calendar": {
+      "app": "Apple Calendar",
+      "title": "Vyexportuj si kalendář z Apple Calendar",
+      "metaTitle": "Export kalendáře z Apple Calendar - PrivacyNotes",
+      "lead": "Kalendář na Macu exportuje vždy jeden kalendář jako soubor .ics a PrivacyNotes ho přečte tak, jak je. Z každého kalendáře vznikne složka.",
+      "sections": [
+        {
+          "h": "Vyexportuj kalendář z Kalendáře na Macu",
+          "steps": [
+            "Otevři Kalendář a vlevo zobraz seznam kalendářů (Zobrazit > Zobrazit seznam kalendářů).",
+            "Klikni na kalendář, který chceš převést.",
+            "Zvol Soubor > Exportovat > „Exportovat...“ a ulož soubor .ics.",
+            "Stejně postupuj u každého dalšího kalendáře, který chceš. Každý je samostatný soubor."
+          ]
+        },
+        {
+          "h": "Co se přenese",
+          "p": [
+            "Každá událost dorazí se svým dnem, časem a délkou, včetně celodenních událostí a událostí na několik dní. Opakující se události si zachovají své pravidlo.",
+            "Výchozí upozornění kalendáře jsou v nastavení Kalendáře, ne v událostech, takže je export vynechá, a krok kontroly ti řekne, kolik nadcházejících událostí dorazí bez připomínky. Upozornění nastavené u jedné události se přenese. Když stejný soubor naimportuješ znovu, události, které už máš, se přeskočí."
+          ]
+        }
+      ]
+    },
+    "keepass": {
+      "app": "KeePass",
+      "title": "Vyexportuj si databázi z KeePassu",
+      "metaTitle": "Export databáze z KeePassu - PrivacyNotes",
+      "lead": "KeePass exportuje celou tvoji databázi jako jeden soubor KeePass XML a PrivacyNotes z každého záznamu udělá přihlašovací údaje nebo poznámku. XML zachová víc než export do CSV.",
+      "sections": [
+        {
+          "h": "Vyexportuj data z KeePassu",
+          "steps": [
+            "Otevři databázi v KeePassu a odemkni ji.",
+            "Zvol File > Export.",
+            "Vyber „KeePass XML (2.x)“ a ulož soubor .xml."
+          ]
+        },
+        {
+          "h": "Zvol XML, ne .kdbx",
+          "p": [
+            "Soubor databáze .kdbx je zamčený tvým hlavním klíčem, takže ho PrivacyNotes přečíst nemůže, a když ho do importu přetáhneš, import to řekne. Funguje i export do CSV z KeePassu, ale ten zachová jen název, uživatelské jméno, heslo, web a poznámky."
+          ]
+        },
+        {
+          "h": "Kam se co uloží",
+          "p": [
+            "Záznam s uživatelským jménem, heslem, webem nebo klíčem 2FA se stane [přihlašovacími údaji v Trezoru](/cs/help/vault), jakýkoli jiný záznam zabezpečenou poznámkou. Další weby a tvoje vlastní pole se přenesou, chráněné pole zůstane skryté a datum vypršení platnosti se stane polem. Klíč 2FA se přenese také, takže [tvoje kódy fungují dál](/cs/help/vault-totp). Přiložené soubory se přenesou také, a to do sekce Soubory u přihlašovacích údajů nebo na konec poznámky. Skupiny a značky se stanou značkami. Záznamy v Recycle Bin a starší verze záznamu se nepřenesou.",
+            "Export obsahuje tvoje hesla v čitelné podobě. Naimportuj ho, zkontroluj, že všechno dorazilo, a pak soubor smaž."
+          ]
+        }
+      ]
+    },
+    "keepassxc": {
+      "app": "KeePassXC",
+      "title": "Vyexportuj si databázi z KeePassXC",
+      "metaTitle": "Export databáze z KeePassXC - PrivacyNotes",
+      "lead": "KeePassXC exportuje tvoji databázi jako soubor XML nebo CSV a PrivacyNotes přečte oba. Export do XML zachová všechno, co CSV vynechá.",
+      "sections": [
+        {
+          "h": "Vyexportuj data z KeePassXC",
+          "steps": [
+            "Otevři databázi v KeePassXC a odemkni ji.",
+            "Zvol Database > Export > „XML File...“.",
+            "Potvrď varování o nešifrovaném souboru a ulož ho."
+          ]
+        },
+        {
+          "h": "XML, nebo CSV",
+          "p": [
+            "Zvol XML. CSV zachová název, uživatelské jméno, heslo, web, poznámky, klíč 2FA, data vytvoření a úprav a skupinu, ale žádné značky, žádná vlastní pole, žádný druhý web, žádné datum vypršení platnosti a žádné přiložené soubory. Samotný soubor .kdbx je zamčený, takže ho PrivacyNotes přečíst nemůže."
+          ]
+        },
+        {
+          "h": "Kam se co uloží",
+          "p": [
+            "Záznam s uživatelským jménem, heslem, webem nebo klíčem 2FA se stane [přihlašovacími údaji v Trezoru](/cs/help/vault), jakýkoli jiný záznam zabezpečenou poznámkou. Vlastní pole dorazí jako pole, chráněné zůstane skryté a klíč 2FA se přenese, takže [tvoje kódy fungují dál](/cs/help/vault-totp). Přiložené soubory se přenesou také, a to do sekce Soubory u přihlašovacích údajů nebo na konec poznámky. Skupiny a značky se stanou značkami. Záznamy v Recycle Bin a starší verze záznamu se nepřenesou.",
+            "Export obsahuje tvoje hesla v čitelné podobě. Naimportuj ho, zkontroluj, že všechno dorazilo, a pak soubor smaž."
+          ]
+        }
+      ]
+    },
+    "lastpass": {
+      "app": "LastPass",
+      "title": "Vyexportuj si trezor z LastPassu",
+      "metaTitle": "Export trezoru z LastPassu - PrivacyNotes",
+      "lead": "LastPass exportuje tvůj trezor jako jeden soubor .csv a PrivacyNotes z jeho hesel udělá přihlašovací údaje a ze zabezpečených poznámek poznámky nebo karty.",
+      "sections": [
+        {
+          "h": "Vyexportuj data z LastPassu",
+          "steps": [
+            "Přihlas se ke svému trezoru LastPass v prohlížeči.",
+            "Zvol Advanced options > Export.",
+            "Vyber „Export data for use anywhere“ a potvrď hlavním heslem. LastPass uloží soubor .csv."
+          ]
+        },
+        {
+          "h": "Kam se co uloží",
+          "p": [
+            "Každé heslo se stane [přihlašovacími údaji v Trezoru](/cs/help/vault) se svým klíčem 2FA, takže [tvoje kódy fungují dál](/cs/help/vault-totp). Zabezpečená poznámka se stane poznámkou a poznámka s platební kartou se stane kartou. Složky se stanou značkami, vnořené také, a oblíbené položky dorazí připnuté. Soubor neobsahuje žádné údaje o datu, takže každá položka dostane den, kdy ji naimportuješ.",
+            "Export obsahuje tvoje hesla v čitelné podobě. Naimportuj ho, zkontroluj, že všechno dorazilo, a pak soubor smaž."
+          ]
+        }
+      ]
+    },
+    "nordpass": {
+      "app": "NordPass",
+      "title": "Vyexportuj si trezor z NordPassu",
+      "metaTitle": "Export trezoru z NordPassu - PrivacyNotes",
+      "lead": "NordPass exportuje tvůj trezor jako jeden soubor .csv a PrivacyNotes z jeho hesel, poznámek, karet a osobních údajů udělá položky Trezoru.",
+      "sections": [
+        {
+          "h": "Vyexportuj data z NordPassu",
+          "steps": [
+            "Otevři NordPass a odemkni ho.",
+            "Přejdi do Settings a zvol „Export Items“.",
+            "Potvrď hlavním heslem a ulož soubor .csv."
+          ]
+        },
+        {
+          "h": "Kam se co uloží",
+          "p": [
+            "Každé heslo se stane [přihlašovacími údaji v Trezoru](/cs/help/vault) se svými dalšími weby a vlastními poli, skryté pole zůstane skryté. Poznámky dorazí jako poznámky, karty jako karty a osobní údaje jako poznámka s každým údajem na samostatném řádku. Složka každé položky se stane značkou. Soubor uvádí jen složku, ve které položka leží, ne složky nad ní.",
+            "V bezplatném tarifu NordPass klíče 2FA neukládá, takže je v souboru nenajdeš. Export obsahuje tvoje hesla v čitelné podobě. Naimportuj ho, zkontroluj, že všechno dorazilo, a pak soubor smaž."
+          ]
+        }
+      ]
+    },
+    "proton-pass": {
+      "app": "Proton Pass",
+      "title": "Vyexportuj si trezor z Proton Pass",
+      "metaTitle": "Export trezoru z Proton Pass - PrivacyNotes",
+      "lead": "Proton Pass exportuje tvoje trezory jako .zip, .csv nebo soubor šifrovaný PGP. PrivacyNotes přečte .zip i .csv a .zip zachová nejvíc.",
+      "sections": [
+        {
+          "h": "Vyexportuj data z Proton Pass",
+          "steps": [
+            "Otevři Proton Pass a přejdi do Settings > Export.",
+            "V části File format zvol ZIP.",
+            "Klikni na Export a potvrď heslem k účtu Proton."
+          ]
+        },
+        {
+          "h": "Zvol ZIP, ne soubor šifrovaný PGP",
+          "p": [
+            "Soubor šifrovaný PGP je zamčený tvou přístupovou frází, takže ho PrivacyNotes přečíst nemůže, a import to řekne. Funguje i .csv, ale nemá vlastní pole."
+          ]
+        },
+        {
+          "h": "Kam se co uloží",
+          "p": [
+            "Každá přihlašovací položka se stane [přihlašovacími údaji v Trezoru](/cs/help/vault) se svými dalšími weby, vlastními poli a daty vytvoření a úprav. Klíč 2FA se přenese, takže [tvoje kódy fungují dál](/cs/help/vault-totp). Když má položka e-mail i uživatelské jméno, uživatelské jméno vyplní přihlašovací údaje a e-mail se stane polem. Poznámky dorazí jako poznámky, karty jako karty a identity jako poznámky s každým údajem na samostatném řádku. Každý alias hide-my-email se stane poznámkou s jeho adresou, takže ti zůstane přehled, který web dostal kterou adresu; Proton na ni dál přeposílá poštu, dokud je tvůj účet Proton aktivní. Při více trezorech se každý trezor stane značkou. Položky v koši se nepřenesou.",
+            "Export obsahuje tvoje hesla v čitelné podobě. Naimportuj ho, zkontroluj, že všechno dorazilo, a pak soubor smaž."
+          ]
+        }
+      ]
+    },
+    "dashlane": {
+      "app": "Dashlane",
+      "title": "Export trezoru z Dashlane",
+      "metaTitle": "Jak exportovat trezor z Dashlane - PrivacyNotes",
+      "lead": "Dashlane exportuje tvůj trezor jako soubor .zip se soubory CSV a PrivacyNotes z jeho přihlašovacích údajů, zabezpečených poznámek a platebních karet vytvoří položky Trezoru a poznámky.",
+      "sections": [
+        {
+          "h": "Export z Dashlane",
+          "steps": [
+            "Otevři svůj trezor Dashlane v rozšíření prohlížeče nebo ve webové aplikaci.",
+            "Vyber Settings > Export data.",
+            "Zvol formát CSV a ulož soubor .zip."
+          ]
+        },
+        {
+          "h": "CSV, ne .dash",
+          "p": [
+            "Zvol CSV. Export .dash je zamčený vlastním heslem a PrivacyNotes ti to řekne, když ho do okna přetáhneš."
+          ]
+        },
+        {
+          "h": "Kam co přijde",
+          "p": [
+            "Každá položka s přihlašovacími údaji se stane [přihlašovacími údaji v Trezoru](/cs/help/vault) i s klíčem 2FA, takže [tvoje kódy fungují dál](/cs/help/vault-totp). Zabezpečená poznámka se stane poznámkou a platební karta kartou. Doklady totožnosti a osobní údaje se stanou poznámkami s jejich podrobnostmi. Kategorie se stanou značkami, i vnořené. Dashlane drží u každé položky s přihlašovacími údaji jen jeden web, takže druhý web v souboru není.",
+            "Export obsahuje tvoje hesla v čitelné podobě. Naimportuj ho, zkontroluj, že všechno dorazilo, a pak soubor smaž."
+          ]
+        }
+      ]
+    },
+    "daylio": {
+      "app": "Daylio",
+      "title": "Vyexportuj si záznamy z Daylio",
+      "metaTitle": "Jak exportovat zálohu z Daylia - PrivacyNotes",
+      "lead": "Daylio exportuje zálohu .daylio z More > Backup & Restore. PrivacyNotes tento soubor přečte a každý záznam znovu vytvoří jako záznam v deníku, s náladou, aktivitami a fotkami.",
+      "sections": [
+        {
+          "h": "Exportuj zálohu .daylio",
+          "steps": [
+            "Daylio úplně zavři a otevři ho znovu. Záloha vytvořená hned po novém záznamu může tento záznam vynechat, dokud se aplikace nerestartuje.",
+            "Vyber More > Backup & Restore > Advanced Options > Export.",
+            "Daylio otevře nabídku sdílení, ne dialog pro uložení. Ulož soubor mezi své soubory nebo na cloudové úložiště, které otevřeš na tomto zařízení.",
+            "Uložený soubor .daylio je ten, který budeš importovat."
+          ]
+        },
+        {
+          "h": "Vyber zálohu, ne CSV",
+          "p": [
+            "More > Export Entries vytvoří CSV, což je v Daylio funkce Premium. PrivacyNotes čte i to, jenže CSV neobsahuje fotky, hlasové poznámky ani skupiny nálad, takže vlastní nebo přejmenovaná nálada skončí v záznamu jako text, a ne ve sledované hodnotě nálady. Kdykoli to jde, použij zálohu .daylio."
+          ]
+        },
+        {
+          "h": "Co se přenese",
+          "p": [
+            "[Každý záznam skončí v Denících](/cs/help/journal), ve dni a čase, které ukazuje Daylio, a dva záznamy z jednoho dne zůstanou dvěma záznamy. Každá nálada vyplní [sledované hodnoty nálady](/cs/help/choose-trackers) podle své skupiny nálad v Daylio, takže přejmenovaná nálada si udrží své místo na škále, a vlastní nálada se navíc objeví na začátku záznamu.",
+            "Aktivity se změní na [faktory](/cs/help/factors) a nová aktivita si ponechá svou skupinu z Daylio. Škály jako Energy nebo Stress dorazí jako seznam na konci záznamu. Názvy poznámek, tučné písmo, kurzíva, podtržení, přeškrtnutí a seznamy se zachovají, fotky se importují jako obrázky, hlasové poznámky jako přílohy a záznam s hvězdičkou si hvězdičku ponechá. Cíle a důležité dny se nepřenesou a souhrn importu uvede jejich počet."
+          ]
+        }
+      ]
+    },
+    "diarium": {
+      "app": "Diarium",
+      "title": "Vyexportuj si deník z Diaria",
+      "metaTitle": "Jak exportovat deník z Diaria - PrivacyNotes",
+      "lead": "Diarium exportuje tvůj deník jako JSON z nabídky Export. PrivacyNotes tento export přečte a každý záznam znovu vytvoří jako záznam v deníku, s hodnocením, značkami a přílohami.",
+      "sections": [
+        {
+          "h": "Exportuj JSON s přílohami",
+          "steps": [
+            "Otevři Diarium a v nabídce vyber Export.",
+            "Jako formát vyber JSON a zapni Attachments.",
+            "Vyber Save to local storage a zvol složku. Diarium uloží soubor .zip, který obsahuje JSON a tvoje fotky a soubory.",
+            "Tento soubor .zip je ten, který budeš importovat."
+          ]
+        },
+        {
+          "h": "Nech Attachments zapnuté",
+          "p": [
+            "S vypnutými Attachments Diarium uloží holý soubor .json. PrivacyNotes importuje jeho text, ale fotky a soubory se nepřenesou a souhrn importu uvede jejich počet. Exportuj znovu se zapnutými Attachments a místo toho nahraj soubor .zip.",
+            "Volba Create separate file for each entry nic nemění: PrivacyNotes přečte každý soubor JSON v .zip. Exporty DOCX, TXT, HTML a PDF a záloha .diary se neimportují, proto vyber JSON."
+          ]
+        },
+        {
+          "h": "Co se přenese",
+          "p": [
+            "[Každý záznam skončí v Denících](/cs/help/journal), ve dni a čase, které ukazuje Diarium. Hodnocení hvězdičkami vyplní [sledované hodnoty nálady](/cs/help/choose-trackers). Značky se změní na značky poznámek a [faktory](/cs/help/factors) a lidé se stanou faktory ve skupině Lidé.",
+            "Tučné písmo, kurzíva, podtržení, přeškrtnutí, zvýraznění, barvy textu, seznamy a odkazy se zachovají a odkaz na jiný záznam se změní na [odkaz na poznámku](/cs/help/note-links), pokud je ten záznam ve stejném exportu. Sledované hodnoty dorazí jako seznam na konci záznamu, počasí, slunce a měsíc jako jeden řádek nahoře a poloha se uloží jako poloha záznamu. Fotky se importují jako obrázky a videa, zvuk a PDF jako přílohy."
+          ]
+        }
+      ]
+    },
+    "google-journal": {
+      "app": "Google Journal",
+      "title": "Vyexportuj si záznamy z Google Journalu",
+      "metaTitle": "Jak exportovat záznamy z Google Journalu - PrivacyNotes",
+      "lead": "Google Journal se exportuje přes Google Takeout, jakmile je zapnutá záloha. PrivacyNotes přečte soubor .zip z Takeoutu a každý záznam znovu vytvoří jako záznam v deníku, s fotkami a videi.",
+      "sections": [
+        {
+          "h": "Nejdřív zapni zálohu",
+          "p": [
+            "Takeout Journal nezobrazí, dokud se Journal nezálohuje do tvého účtu Google. Nejdřív zapni zálohu, jinak Journal v seznamu Takeoutu nenajdeš."
+          ],
+          "steps": [
+            "Otevři Journal na svém Pixelu a přejdi do Settings.",
+            "Zapni Back up your journal.",
+            "Počkej pár minut. Journal se v Takeoutu objeví, až když je záloha zapnutá."
+          ]
+        },
+        {
+          "h": "Exportuj Journal z Google Takeoutu",
+          "steps": [
+            "Otevři takeout.google.com a přihlas se stejným účtem Google.",
+            "Klikni na „Deselect all“ a pak zaškrtni jen Journal („Your journal entries and attachments from Journal“).",
+            "Klikni na „Next step“, nech typ souboru .zip a klikni na „Create export“.",
+            "Až bude archiv hotový, Google ti pošle odkaz. Stáhni .zip: to je soubor, který budeš importovat."
+          ]
+        },
+        {
+          "h": "Co se přenese",
+          "p": [
+            "[Každý záznam skončí v Denících](/cs/help/journal), ve dni, který je u něj v Journalu nastavený. Každý záznam si ponechá název a text a fotky a videa se importují jako obrázky a přílohy. Mapa u záznamu se přenese jako obrázek.",
+            "Takeout nepřenáší názvy míst, náměty k psaní, záložky ani reflexe z Journalu, takže zůstanou v Journalu. Souhrn importu to říká."
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,430 @@
+{
+  "noteRow": {
+    "created": "Aangemaakt",
+    "modified": "Gewijzigd",
+    "select": "Notitie selecteren",
+    "deselect": "Selectie opheffen",
+    "pinProtected": "Met PIN beveiligd",
+    "readOnly": "Alleen-lezen",
+    "empty": "Leeg",
+    "noContent": "Geen inhoud",
+    "notBackedUp": "Geen back-up",
+    "archived": "Gearchiveerd",
+    "date": "Datum",
+    "dayOf": "dag {{n}} van {{total}}",
+    "reminders_one": "{{count}} herinnering",
+    "reminders_other": "{{count}} herinneringen"
+  },
+  "header": {
+    "new": "Nieuw",
+    "newNote": "Nieuwe notitie",
+    "newEvent": "Nieuwe afspraak"
+  },
+  "folderChip": {
+    "clear": "Mapfilter wissen: {{folder}}",
+    "subfolders": "Submappen",
+    "subfoldersLabel": "Submappen meenemen"
+  },
+  "tagChip": {
+    "clear": "Tagfilter wissen: {{tag}}"
+  },
+  "vaultNew": {
+    "ariaLabel": "Nieuw kluisitem",
+    "card": "Creditcard",
+    "sshKey": "SSH-sleutel",
+    "generator": "Wachtwoord"
+  },
+  "newMenu": {
+    "note": "Notitie",
+    "task": "Taak",
+    "kanban": "Kanban",
+    "drawing": "Tekening",
+    "journal": "Dagboek",
+    "login": "Login",
+    "bookmark": "Bladwijzer",
+    "clipPage": "Pagina clippen",
+    "contact": "Contact",
+    "event": "Afspraak"
+  },
+  "vaultFilter": {
+    "all": "Alles",
+    "logins": "Logins",
+    "cards": "Creditcards",
+    "keys": "Sleutels"
+  },
+  "journal": {
+    "newEntry": "Nieuwe dagboeknotitie"
+  },
+  "tasks": {
+    "newTitle": "Taken voor {{date}}"
+  },
+  "trash": {
+    "empty": "Legen",
+    "emptyHover": "Alle notities in de prullenbak verwijderen",
+    "autoDelete": "Na 30 dagen automatisch verwijderen"
+  },
+  "search": {
+    "sortOptions": "Sorteer- en weergaveopties",
+    "placeholderVault": "Kluis doorzoeken…",
+    "placeholderNotes": "Notities zoeken…",
+    "placeholderEvents": "Afspraken zoeken…",
+    "placeholderDrawings": "Tekeningen zoeken…"
+  },
+  "selection": {
+    "countOf": "{{selected}} van {{total}} geselecteerd",
+    "selectAll": "Alles selecteren",
+    "deselectAll": "Selectie opheffen"
+  },
+  "empty": {
+    "noMatches": "Geen resultaten.",
+    "vault": "De kluis is leeg.",
+    "notes": "Nog geen notities.",
+    "journal": "Nog geen dagboeknotities.",
+    "drawings": "Nog geen tekeningen.",
+    "drawingsLine": "Schets, plan of breng een idee in kaart. Tekeningen kunnen naar je notities linken, maar tonen niet wat erin staat.",
+    "archive": "Niets gearchiveerd.",
+    "trash": "De prullenbak is leeg.",
+    "filtered": "Geen items voldoen aan je filters.",
+    "filteredAfter": "om ze te tonen.",
+    "hiddenInAll_other": "{{count}} items zijn verborgen door het filter Tonen in Alles. Open het filter naast Alles om ze te tonen.",
+    "inOtherSpace_other": "{{count}} items staan in je ruimte {{space}}. Schakel in de zijbalk over naar {{space}} om ze te zien.",
+    "inOtherSpace_one": "{{count}} item staat in je ruimte {{space}}. Schakel in de zijbalk over naar {{space}} om het te zien.",
+    "hiddenInAll_one": "{{count}} item is verborgen door het filter Tonen in Alles. Open het filter naast Alles om het te tonen."
+  },
+  "listGroups": {
+    "previous7Days": "Afgelopen 7 dagen",
+    "previous30Days": "Afgelopen 30 dagen",
+    "other": "Overig",
+    "collapseAll": "Alle groepen inklappen",
+    "expandAll": "Alle groepen uitklappen"
+  },
+  "footerStats": {
+    "journals_other": "Dagboeknotities",
+    "journals_one": "Dagboeknotitie",
+    "items_other": "Items",
+    "items_one": "Item",
+    "trashed_other": "In prullenbak",
+    "trashed_one": "In prullenbak",
+    "notes_other": "Notities",
+    "notes_one": "Notitie",
+    "bookmarks_other": "Bladwijzers",
+    "bookmarks_one": "Bladwijzer",
+    "contacts_other": "Contacten",
+    "drawings_one": "Tekening",
+    "drawings_other": "Tekeningen",
+    "files_other": "Bestanden",
+    "lists_other": "Lijsten",
+    "tasks_other": "Taken",
+    "today": "Vandaag",
+    "tasks_one": "Taak",
+    "lists_one": "Lijst",
+    "files_one": "Bestand",
+    "contacts_one": "Contact"
+  },
+  "toast": {
+    "imageUploadFailed": "Uploaden van afbeelding mislukt: {{error}}",
+    "imageError": "Fout bij afbeelding: {{error}}",
+    "uploadFailedFor": "Uploaden mislukt voor \"{{filename}}\": {{error}}",
+    "importedSyncing_one": "{{count}} notitie geïmporteerd. Synchroniseren…",
+    "importedSyncing_other": "{{count}} notities geïmporteerd. Synchroniseren…",
+    "addedTag_one": "#{{tag}} toegevoegd aan {{count}} item",
+    "addedTag_other": "#{{tag}} toegevoegd aan {{count}} items",
+    "restoreSummary": "Hersteld. {{added}} toegevoegd, {{updated}} bijgewerkt, {{unchanged}} al up-to-date."
+  },
+  "burn": {
+    "mediaOnly": "Deze notitie bevat alleen media en kan niet via een burn-link worden gedeeld.",
+    "shareTitle": "Versleutelde notitie"
+  },
+  "loadError": {
+    "message": "Kon je notities niet laden. De verbinding met de lokale database is onderbroken. Dit kan gebeuren als de app een tijd op de achtergrond heeft gestaan.",
+    "reload": "Herladen"
+  },
+  "banner": {
+    "proActivationPending": "Je betaling is binnen, maar het activeren van Pro duurt langer dan normaal. Ververs over een minuut, of neem contact op met support als Pro niet actief wordt.",
+    "crypto": {
+      "waiting": "Wachten op je cryptobetaling. Pro gaat aan zodra die bevestigd is.",
+      "seen": "Cryptobetaling gezien. Pro gaat aan zodra het netwerk die bevestigt, bij Bitcoin meestal binnen een uur.",
+      "partial": "Een deel van je cryptobetaling is binnen. Stuur de rest op de betaalpagina voordat de link verloopt.",
+      "ended": "Je crypto-betaallink is verlopen voordat er een volledige betaling binnenkwam.",
+      "paid": "Je cryptobetaling is bevestigd. Pro staat aan.",
+      "openPayment": "Betaalpagina"
+    },
+    "snapshotPaused": "Notitiegeschiedenis is gepauzeerd. Je Pro-plan lijkt niet actief. Van nieuwe bewerkingen worden geen versies bewaard totdat Pro is hersteld.",
+    "restorePro": "Pro herstellen",
+    "storagePastDue": "De betaling voor je opslagabonnement is mislukt. Werk je kaart bij in Paddle om je extra ruimte niet te verliezen.",
+    "updateCard": "Kaart bijwerken"
+  },
+  "sidebar": {
+    "collapse": "Zijbalk inklappen"
+  },
+  "notesList": {
+    "collapse": "Notitielijst inklappen",
+    "expand": "Notitielijst uitklappen"
+  },
+  "split": {
+    "action": "Notitie splitsen",
+    "done": "Gesplitst in “{{title}}”",
+    "overLimit": "“{{title}}” is groter dan 1 MB en blijft op dit apparaat",
+    "cannot": "Deze notitie kan hier niet worden gesplitst. Zet de cursor waar de nieuwe notitie moet beginnen.",
+    "continuedTitle": "{{title}} (vervolg)",
+    "continuedIn": "Verder in {{link}}"
+  },
+  "paneResize": {
+    "hintCollapse": "Klik om in te klappen · Sleep om de grootte aan te passen",
+    "hintExpand": "Klik om uit te klappen · Sleep om de grootte aan te passen"
+  },
+  "emptyEditor": {
+    "selectFile": "Kies een bestand om te bekijken",
+    "uploadFiles": "Of upload nieuwe bestanden naar je versleutelde kluis.",
+    "selectNote": "Kies een notitie of maak een nieuwe.",
+    "selectMarkdown": "Open een Markdown-bestand om het hier te lezen."
+  },
+  "zen": {
+    "exit": "Zen verlaten",
+    "exitHover": "Zen-modus verlaten",
+    "enterHover": "Zen-modus starten",
+    "proHover": "Zen-modus (Pro)",
+    "enterAriaShortcut": "Zen-modus starten ({{keys}})"
+  },
+  "editor": {
+    "backToList": "Terug naar notitielijst",
+    "backToGrid": "Terug naar raster",
+    "titlePlaceholder": "Naamloos (klik om te bewerken of laat hem automatisch ontstaan)",
+    "titlePlaceholderLogin": "bijv. GitHub",
+    "titlePlaceholderCard": "bijv. Visa eindigend op 4242",
+    "unlocked": "Ontgrendeld",
+    "lock": "Vergrendelen",
+    "lockNow": "Nu vergrendelen",
+    "lockNowHint": "Inhoud nu verbergen",
+    "turnOffHint": "Weer bewerken toestaan",
+    "unarchiveHint": "Weer in je lijsten tonen",
+    "showFormatted": "Opgemaakt tonen",
+    "invisiblesShow": "Onzichtbare tekens tonen",
+    "invisiblesHide": "Onzichtbare tekens verbergen",
+    "undo": "Ongedaan maken",
+    "redo": "Opnieuw",
+    "hide": "Verbergen",
+    "show": "Tonen",
+    "hideToolbar": "Opmaakbalk verbergen",
+    "showToolbar": "Opmaakbalk tonen",
+    "widthDefault": "Standaardbreedte",
+    "widthWide": "Breder",
+    "widthFull": "Volledige breedte",
+    "titlePlaceholderLink": "Naam van bladwijzer",
+    "notBackedUpTooLarge": "Boven de limiet van 1 MB, dus geen back-up. Verplaats afbeeldingen naar bijlagen of splits de notitie.",
+    "notBackedUpFailed": "Geen back-up. Laatste fout: {{message}}. Nieuwe poging bezig.",
+    "unknownType": "Dit item is gemaakt met een nieuwere versie van PrivacyNotes. Werk de app bij om het te openen."
+  },
+  "share": {
+    "hover": "Delen / exporteren",
+    "ariaLabel": "Delen of exporteren",
+    "currentMdTitle": "Huidige notitie (.md)",
+    "currentMdDesc": "Kale markdown met front-matter.",
+    "currentHtmlTitle": "Huidige notitie (.html)",
+    "currentHtmlDesc": "Printvriendelijk, markdown weergegeven op een witte pagina.",
+    "printTitle": "Afdrukken / opslaan als PDF",
+    "printDesc": "Opent het afdrukvenster. Sla op als PDF of stuur naar een printer.",
+    "printTextTitle": "Alleen tekst afdrukken",
+    "printTextDesc": "Houdt de titel. Laat de datum, map en tags weg.",
+    "burnTitle": "Delen & vernietigen na lezen",
+    "burnDesc": "Publiceer deze notitie als link die één keer te bekijken is. De link vernietigt zichzelf na het lezen. Je notitie blijft veilig in je account.",
+    "drawingFileTitle": "Tekening (.excalidraw)",
+    "drawingFileDesc": "Opent in Excalidraw en Obsidian, met de afbeeldingen erbij.",
+    "drawingPngTitle": "Afbeelding (.png)",
+    "drawingPngDesc": "De hele tekening als één afbeelding."
+  },
+  "weekReview": {
+    "title": "Week in beeld",
+    "daysLogged": "{{count}}/7 vastgelegd",
+    "mood": "Stemming",
+    "meds": "Medicijnen"
+  },
+  "footer": {
+    "settings": "Instellingen",
+    "viewShortcuts": "Alle sneltoetsen bekijken",
+    "newNote": "Nieuw",
+    "newNoteHintMac": "Option + Shift + N",
+    "newNoteHintOther": "Alt + Shift + N",
+    "newNoteHintMacDesktop": "Command + N",
+    "newNoteHintOtherDesktop": "Ctrl + N",
+    "openStats": "Statistieken openen",
+    "journalCalendar": "Dagboekkalender",
+    "words_other": "Woorden",
+    "words_one": "Woord",
+    "zen": "Zen-modus",
+    "lockApp": "App vergrendelen",
+    "lockAppSetUp": "Stel eerst een PIN in bij Beveiliging",
+    "goToTop": "Naar boven",
+    "goToEnd": "Naar het einde",
+    "signingOut": "Afmelden…",
+    "switchToLight": "Overschakelen naar lichte modus",
+    "switchToDark": "Overschakelen naar donkere modus"
+  },
+  "settings": {
+    "groupYourNotes": "Je gegevens",
+    "groupPreferences": "Voorkeuren",
+    "groupBrand": "PrivacyNotes",
+    "statsLabel": "Statistieken",
+    "importLabel": "Overzetten",
+    "backupLabel": "Back-up",
+    "planLabel": "Account",
+    "storageLabel": "Opslag",
+    "imagesLabel": "Afbeeldingen",
+    "securityLabel": "Beveiliging",
+    "accountLabel": "ID & synchronisatie",
+    "appearanceLabel": "Weergave",
+    "editorLabel": "Editor",
+    "formatBarLabel": "Opmaakbalk",
+    "listsLabel": "Lijsten",
+    "trackersLabel": "Trackers",
+    "helpLabel": "Help",
+    "aboutLabel": "Over",
+    "languageLabel": "Taal",
+    "dateLabel": "Datum en tijd",
+    "dateTabFormat": "Notatie",
+    "languageDesc": "Kies de taal waarin PrivacyNotes wordt getoond.",
+    "calendarLabel": "Agenda"
+  },
+  "importStore": {
+    "title": "Importeren of opslaan?",
+    "confirm": "Als notities importeren",
+    "cancel": "Als bestanden opslaan",
+    "bodySingle": "<strong>{{filename}}</strong> lijkt een markdown-bestand. Wil je het als notitie importeren zodat je het kunt lezen en bewerken, of als versleutelde bijlage opslaan?",
+    "bodyMulti": "Deze {{count}} bestanden lijken markdown. Wil je ze als notities importeren zodat je ze kunt lezen en bewerken, of als versleutelde bijlagen opslaan?"
+  },
+  "archiveConfirm": {
+    "body_one": "<highlight>{{count}} item</highlight> archiveren? Het verdwijnt uit je lijsten en wacht in de weergave Archief. Uit archief halen zet het terug.",
+    "body_other": "<highlight>{{count}} items</highlight> archiveren? Ze verdwijnen uit je lijsten en wachten in de weergave Archief. Uit archief halen zet ze terug."
+  },
+  "bulkTrash": {
+    "body_one": "<highlight>{{count}} item</highlight> verwijderen? Verplaats het naar de prullenbak om het later te herstellen, of verwijder het definitief.",
+    "body_other": "<highlight>{{count}} items</highlight> verwijderen? Verplaats ze naar de prullenbak om ze later te herstellen, of verwijder ze definitief.",
+    "confirm": "Naar prullenbak",
+    "keys": "Buiten dit venster verplaatst <kbd>{{trash}}</kbd> een item meteen naar de prullenbak, en opent <kbd>{{ask}}</kbd> dit venster ook na Niet meer vragen.",
+    "dontAskAgain": "Niet meer vragen",
+    "readOnlyAcknowledge": "Begrepen",
+    "readOnlyBlocked_one": "Dit item is <highlight>alleen-lezen</highlight> en kan dus niet naar de prullenbak. Zet alleen-lezen eerst uit in de notitieopties.",
+    "readOnlyBlocked_other": "Alle <highlight>{{count}} items</highlight> zijn alleen-lezen, dus geen enkel item kan naar de prullenbak. Zet alleen-lezen eerst uit in de notitieopties.",
+    "readOnlySkipped_one": "<highlight>{{count}} item</highlight> is alleen-lezen en blijft waar het is.",
+    "readOnlySkipped_other": "<highlight>{{count}} items</highlight> zijn alleen-lezen en blijven waar ze zijn."
+  },
+  "deleteCheckedTasks": {
+    "title": "Afgevinkte items verwijderen?",
+    "body_one": "<highlight>{{count}} item</highlight> wordt uit deze notitie verwijderd. Dit kan niet ongedaan worden gemaakt.",
+    "body_other": "<highlight>{{count}} items</highlight> worden uit deze notitie verwijderd, geneste items inbegrepen. Dit kan niet ongedaan worden gemaakt."
+  },
+  "tagConfirm": {
+    "mergeTitle": "Tags samenvoegen",
+    "mergeConfirm": "Samenvoegen",
+    "mergeBody_one": "De tag <highlight>“{{targetTag}}”</highlight> bestaat al. <highlight>{{count}} notitie</highlight> met de tag “{{tag}}” daarin samenvoegen?",
+    "mergeBody_other": "De tag <highlight>“{{targetTag}}”</highlight> bestaat al. <highlight>{{count}} notities</highlight> met de tag “{{tag}}” daarin samenvoegen?",
+    "deleteBody_one": "De tag <highlight>“{{tag}}”</highlight> van <highlight>{{count}} notitie</highlight> verwijderen? De notitie zelf blijft bestaan.",
+    "deleteBody_other": "De tag <highlight>“{{tag}}”</highlight> van <highlight>{{count}} notities</highlight> verwijderen? De notities zelf blijven bestaan.",
+    "deleteWithNotesBody_one": "De tag <highlight>“{{tag}}”</highlight> verwijderen en <highlight>{{count}} notitie</highlight> naar de prullenbak verplaatsen? Je kunt hem daar herstellen.",
+    "deleteWithNotesBody_other": "De tag <highlight>“{{tag}}”</highlight> verwijderen en <highlight>{{count}} notities</highlight> naar de prullenbak verplaatsen? Je kunt ze daar herstellen."
+  },
+  "createNote": {
+    "title": "Notitie aanmaken?",
+    "confirm": "Notitie aanmaken",
+    "body": "Er bestaat geen notitie met de titel <highlight>“{{title}}”</highlight>. Dit kan gebeuren als de gelinkte notitie een andere naam heeft gekregen. Een nieuwe notitie met deze titel aanmaken?"
+  },
+  "freshVault": {
+    "title": "Nieuwe kluis aangemaakt",
+    "confirm": "Duidelijk",
+    "body": "Geen bestaande kluis kwam overeen met de herstelzin die je invoerde, dus is er een nieuwe lege kluis aangemaakt. Verwachtte je je notities te zien, meld je dan af en voer je herstelzin zorgvuldig opnieuw in - één ander woord opent een andere kluis."
+  },
+  "ambiguousLink": {
+    "title": "Twee notities hebben die titel",
+    "body": "Meer dan één notitie heet <highlight>“{{title}}”</highlight>, dus deze link zegt niet welke hij bedoelt. Geef er een andere naam aan, dan wijst de link naar de andere."
+  },
+  "connections": {
+    "title": "Verbanden",
+    "hide": "Verbanden verbergen",
+    "linkedFrom": "Gelinkt vanuit",
+    "linksTo": "Linkt naar",
+    "missing": "Nog niet aangemaakt",
+    "protectedHidden_one": "{{count}} met PIN beveiligd item niet getoond",
+    "protectedHidden_other": "{{count}} met PIN beveiligde items niet getoond",
+    "related": "Voorgestelde verbanden",
+    "relatedWords": "Beide noemen {{words}}",
+    "relatedLinksTo": "Beide linken naar {{title}}",
+    "relatedLinkedFrom": "Beide gelinkt vanuit {{title}}",
+    "relatedTag": "Beide getagd met {{tag}}",
+    "relatedMeaning": "Dezelfde betekenis",
+    "meaningDoor": "Slimme verbanden: vind notities met dezelfde betekenis, met offline AI",
+    "meaningDoorNo": "Niet meer tonen",
+    "meaningDoorHidden": "Verborgen in alle notities. Slimme verbanden blijft in Instellingen > Editor > Gedrag.",
+    "hideSuggestions": "Voorgestelde verbanden verbergen",
+    "notRelated": "Niet gerelateerd",
+    "notRelatedDone": "Wordt niet meer voorgesteld",
+    "notRelatedCount": "Niet gerelateerd ({{n}})",
+    "restoreSuggestion": "Weer voorstellen",
+    "linkAtCursor": "Linken bij de cursor",
+    "linkNeedsCursor": "Klik eerst in de notitie",
+    "linkAsFootnote": "Linken als voetnoot"
+  },
+  "drawing": {
+    "fullScreen": "Volledig scherm",
+    "frame": "Frame",
+    "laser": "Laseraanwijzer",
+    "bar": {
+      "hiddenNote": "Ze werken nog steeds met hun toetsen."
+    },
+    "resetTitle": "Het canvas leegmaken?",
+    "resetBody": "Dit verwijdert alles op het canvas. Ongedaan maken haalt het terug.",
+    "hotkeysTitle": "Sneltoetsen voor tekenen",
+    "tools": {
+      "label": "Tekengereedschap",
+      "keepTool": "Gereedschap houden na het tekenen",
+      "hand": "Het canvas verplaatsen",
+      "rectangle": "Rechthoek",
+      "diamond": "Ruit",
+      "ellipse": "Ellips",
+      "arrow": "Pijl",
+      "line": "Lijn",
+      "pen": "Pen",
+      "text": "Tekstvak",
+      "steps": "Genummerde stappen",
+      "eraser": "Gum",
+      "resetZoom": "Zoom herstellen",
+      "open": "Een tekenbestand openen",
+      "reset": "Het canvas leegmaken",
+      "style": "Stijl",
+      "more": "Meer gereedschap",
+      "fewer": "Minder gereedschap"
+    }
+  },
+  "location": {
+    "add": "Locatie toevoegen",
+    "title": "Locatie",
+    "chipLabel": "Locatie: {{place}}",
+    "useCurrent": "Mijn huidige locatie gebruiken",
+    "locating": "Je locatie bepalen",
+    "inputLabel": "Plaats, coördinaten of een kaartlink",
+    "nameLabel": "Naam (optioneel)",
+    "openOsm": "Openen in OpenStreetMap",
+    "copyCoordinates": "Coördinaten kopiëren",
+    "remove": "Locatie verwijderen",
+    "errorUnreadable": "Geen plaats gevonden. Typ een plaats, of plak coördinaten of een kaartlink.",
+    "errorShortLink": "Korte links hebben internet nodig om te openen. Open de link en kopieer dan het volledige adres.",
+    "errorRange": "Die getallen liggen buiten de kaart.",
+    "errorDenied": "Locatie staat uit voor PrivacyNotes. Zet het aan in Instellingen, of plak coördinaten.",
+    "errorOff": "Locatievoorzieningen staan uit op deze telefoon. Zet ze aan in Instellingen, of plak coördinaten.",
+    "errorTimeout": "We konden je locatie niet bepalen. Probeer het buiten opnieuw, of plak coördinaten.",
+    "saveFailed": "De locatie is niet opgeslagen. Probeer het opnieuw.",
+    "mapNotice": "Kaart van onze eigen server, voor je privacy: maps.privacynotes.app",
+    "mapLoading": "Kaart laden",
+    "mapLabel": "Kaart van {{place}}",
+    "mapFailed": "De kaart kan hier niet worden getoond. Open hem in plaats daarvan in OpenStreetMap.",
+    "inputPlaceholder": "Fuji, of 35.36, 138.72",
+    "townsLoading": "Plaatsenlijst laden",
+    "insertMap": "Kaart invoegen",
+    "gestureCtrl": "Houd Ctrl ingedrukt en scrol om in te zoomen op de kaart",
+    "gestureMac": "Houd ⌘ ingedrukt en scrol om in te zoomen op de kaart",
+    "gestureTouch": "Gebruik twee vingers om de kaart te verschuiven",
+    "autoNote": "Mijn locatie toevoegen aan elke nieuwe notitie",
+    "autoJournal": "Mijn locatie toevoegen aan elke nieuwe dagboeknotitie",
+    "autoDenied": "Locatie staat uit voor PrivacyNotes. Zet het eerst aan in de instellingen van je telefoon.",
+    "autoOff": "Locatievoorzieningen staan uit op deze telefoon. Zet ze eerst aan."
+  }
+}

@@ -1,0 +1,430 @@
+{
+  "noteRow": {
+    "created": "Oluşturuldu",
+    "modified": "Değiştirildi",
+    "select": "Notu seç",
+    "deselect": "Not seçimini kaldır",
+    "pinProtected": "PIN korumalı",
+    "readOnly": "Salt okunur",
+    "empty": "Boş",
+    "noContent": "İçerik yok",
+    "notBackedUp": "Yedeklenmedi",
+    "archived": "Arşivlendi",
+    "date": "Tarih",
+    "dayOf": "{{total}} günün {{n}}. günü",
+    "reminders_one": "{{count}} hatırlatıcı",
+    "reminders_other": "{{count}} hatırlatıcı"
+  },
+  "header": {
+    "new": "Yeni",
+    "newNote": "Yeni not",
+    "newEvent": "Yeni etkinlik"
+  },
+  "folderChip": {
+    "clear": "Klasör filtresini temizle: {{folder}}",
+    "subfolders": "Alt klasörler",
+    "subfoldersLabel": "Alt klasörleri dahil et"
+  },
+  "tagChip": {
+    "clear": "Etiket filtresini temizle: {{tag}}"
+  },
+  "vaultNew": {
+    "ariaLabel": "Yeni kasa öğesi",
+    "card": "Kredi kartı",
+    "sshKey": "SSH anahtarı",
+    "generator": "Parola"
+  },
+  "newMenu": {
+    "note": "Not",
+    "task": "Görev",
+    "kanban": "Kanban",
+    "drawing": "Çizim",
+    "journal": "Günlük",
+    "login": "Giriş bilgisi",
+    "bookmark": "Yer imi",
+    "clipPage": "Sayfayı kırp",
+    "contact": "Kişi",
+    "event": "Etkinlik"
+  },
+  "vaultFilter": {
+    "all": "Tümü",
+    "logins": "Giriş bilgileri",
+    "cards": "Kredi kartları",
+    "keys": "Anahtarlar"
+  },
+  "journal": {
+    "newEntry": "Yeni günlük kaydı"
+  },
+  "tasks": {
+    "newTitle": "{{date}} görevleri"
+  },
+  "trash": {
+    "empty": "Boşalt",
+    "emptyHover": "Çöp kutusundaki tüm notları sil",
+    "autoDelete": "30 gün sonra otomatik olarak sil"
+  },
+  "search": {
+    "sortOptions": "Sıralama ve görünüm seçenekleri",
+    "placeholderVault": "Kasada arayın…",
+    "placeholderNotes": "Notlarda arayın…",
+    "placeholderEvents": "Etkinliklerde arayın…",
+    "placeholderDrawings": "Çizimlerde arayın…"
+  },
+  "selection": {
+    "countOf": "{{total}} öğeden {{selected}} tanesi seçildi",
+    "selectAll": "Tümünü seç",
+    "deselectAll": "Seçimi kaldır"
+  },
+  "empty": {
+    "noMatches": "Eşleşme yok.",
+    "vault": "Kasa boş.",
+    "notes": "Henüz not yok.",
+    "journal": "Henüz günlük kaydı yok.",
+    "drawings": "Henüz çizim yok.",
+    "drawingsLine": "Bir fikri çizin, planlayın veya haritasını çıkarın. Çizimler notlarınıza bağlantı verebilir ama içlerinde ne olduğunu göstermez.",
+    "archive": "Arşivlenmiş öğe yok.",
+    "trash": "Çöp kutusu boş.",
+    "filtered": "Filtrelerinizle eşleşen öğe yok.",
+    "filteredAfter": "ve hepsini görün.",
+    "hiddenInAll_other": "{{count}} öğe Tümü'nde göster filtresiyle gizleniyor. Göstermek için Tümü'nün yanındaki filtreyi açın.",
+    "inOtherSpace_other": "{{count}} öğe {{space}} alanınızda. Görmek için kenar çubuğundan {{space}} alanına geçin.",
+    "inOtherSpace_one": "{{count}} öğe {{space}} alanınızda. Görmek için kenar çubuğundan {{space}} alanına geçin.",
+    "hiddenInAll_one": "{{count}} öğe Tümü'nde göster filtresiyle gizleniyor. Göstermek için Tümü'nün yanındaki filtreyi açın."
+  },
+  "listGroups": {
+    "previous7Days": "Son 7 gün",
+    "previous30Days": "Son 30 gün",
+    "other": "Diğer",
+    "collapseAll": "Tüm grupları daralt",
+    "expandAll": "Tüm grupları genişlet"
+  },
+  "footerStats": {
+    "journals_other": "Günlük",
+    "journals_one": "Günlük",
+    "items_other": "Öğe",
+    "items_one": "Öğe",
+    "trashed_other": "Çöpte",
+    "trashed_one": "Çöpte",
+    "notes_other": "Not",
+    "notes_one": "Not",
+    "bookmarks_other": "Yer imi",
+    "bookmarks_one": "Yer imi",
+    "contacts_other": "Kişi",
+    "drawings_one": "Çizim",
+    "drawings_other": "Çizim",
+    "files_other": "Dosya",
+    "lists_other": "Liste",
+    "tasks_other": "Görev",
+    "today": "Bugün",
+    "tasks_one": "Görev",
+    "lists_one": "Liste",
+    "files_one": "Dosya",
+    "contacts_one": "Kişi"
+  },
+  "toast": {
+    "imageUploadFailed": "Görsel yüklenemedi: {{error}}",
+    "imageError": "Görsel hatası: {{error}}",
+    "uploadFailedFor": "\"{{filename}}\" yüklenemedi: {{error}}",
+    "importedSyncing_one": "{{count}} not içe aktarıldı. Eşitleniyor…",
+    "importedSyncing_other": "{{count}} not içe aktarıldı. Eşitleniyor…",
+    "addedTag_one": "#{{tag}} etiketi {{count}} öğeye eklendi",
+    "addedTag_other": "#{{tag}} etiketi {{count}} öğeye eklendi",
+    "restoreSummary": "Geri yüklendi. {{added}} eklendi, {{updated}} güncellendi, {{unchanged}} zaten güncel."
+  },
+  "burn": {
+    "mediaOnly": "Bu not yalnızca medya içeriyor ve yakma bağlantısıyla paylaşılamaz.",
+    "shareTitle": "Şifrelenmiş not"
+  },
+  "loadError": {
+    "message": "Notlarınız yüklenemedi. Yerel veritabanı bağlantısı kesildi. Bu, uygulama bir süre arka planda kaldıktan sonra olabilir.",
+    "reload": "Yeniden yükle"
+  },
+  "banner": {
+    "proActivationPending": "Ödeme alındı ama Pro'nun etkinleşmesi her zamankinden uzun sürüyor. Bir dakika sonra sayfayı yenileyin, açılmazsa destekle iletişime geçin.",
+    "crypto": {
+      "waiting": "Kripto ödemeniz bekleniyor. Onaylandığında Pro açılır.",
+      "seen": "Kripto ödemesi görüldü. Ağ onayladığında Pro açılır; Bitcoin için bu genellikle bir saat içinde olur.",
+      "partial": "Kripto ödemenizin bir kısmı ulaştı. Bağlantının süresi dolmadan kalanını ödeme sayfasında gönderin.",
+      "ended": "Kripto ödeme bağlantınızın süresi, tam bir ödeme ulaşmadan doldu.",
+      "paid": "Kripto ödemeniz onaylandı. Pro açık.",
+      "openPayment": "Ödeme sayfası"
+    },
+    "snapshotPaused": "Not geçmişi duraklatıldı. Pro planınız etkin görünmüyor. Pro geri gelene kadar yeni düzenlemelerinizin anlık görüntüsü alınmayacak.",
+    "restorePro": "Pro'yu geri getir",
+    "storagePastDue": "Depolama aboneliğinizin ödemesi başarısız oldu. Ek kapasiteyi kaybetmemek için Paddle'daki kartınızı güncelleyin.",
+    "updateCard": "Kartı güncelle"
+  },
+  "sidebar": {
+    "collapse": "Kenar çubuğunu daralt"
+  },
+  "notesList": {
+    "collapse": "Not listesini daralt",
+    "expand": "Not listesini genişlet"
+  },
+  "split": {
+    "action": "Notu böl",
+    "done": "Bölündü: “{{title}}”",
+    "overLimit": "“{{title}}” 1 MB'tan büyük ve bu cihazda kalır",
+    "cannot": "Bu not burada bölünemez. İmleci yeni notun başlaması gereken yere koyun.",
+    "continuedTitle": "{{title}} (devamı)",
+    "continuedIn": "Devamı: {{link}}"
+  },
+  "paneResize": {
+    "hintCollapse": "Daraltmak için tıklayın · Boyutlandırmak için sürükleyin",
+    "hintExpand": "Genişletmek için tıklayın · Boyutlandırmak için sürükleyin"
+  },
+  "emptyEditor": {
+    "selectFile": "Önizlemek için bir dosya seçin",
+    "uploadFiles": "Ya da şifrelenmiş kasanıza yeni dosyalar yükleyin.",
+    "selectNote": "Bir not seçin veya yeni bir tane oluşturun.",
+    "selectMarkdown": "Burada okumak için bir Markdown dosyası açın."
+  },
+  "zen": {
+    "exit": "Zen'den çık",
+    "exitHover": "Zen modundan çık",
+    "enterHover": "Zen moduna gir",
+    "proHover": "Zen modu (Pro)",
+    "enterAriaShortcut": "Zen moduna gir ({{keys}})"
+  },
+  "editor": {
+    "backToList": "Not listesine dön",
+    "backToGrid": "Izgaraya dön",
+    "titlePlaceholder": "Başlıksız (düzenlemek için tıklayın veya kendiliğinden oluşmasına bırakın)",
+    "titlePlaceholderLogin": "örn. GitHub",
+    "titlePlaceholderCard": "örn. 4242 ile biten Visa",
+    "unlocked": "Kilidi açık",
+    "lock": "Kilitle",
+    "lockNow": "Şimdi kilitle",
+    "lockNowHint": "İçeriği şimdi gizle",
+    "turnOffHint": "Yeniden düzenlemeye izin ver",
+    "unarchiveHint": "Listelerinizde yeniden göster",
+    "showFormatted": "Biçimlendirilmiş halini göster",
+    "invisiblesShow": "Görünmez karakterleri göster",
+    "invisiblesHide": "Görünmez karakterleri gizle",
+    "undo": "Geri al",
+    "redo": "Yinele",
+    "hide": "Gizle",
+    "show": "Göster",
+    "hideToolbar": "Biçimlendirme araç çubuğunu gizle",
+    "showToolbar": "Biçimlendirme araç çubuğunu göster",
+    "widthDefault": "Varsayılan genişlik",
+    "widthWide": "Daha geniş",
+    "widthFull": "Tam genişlik",
+    "titlePlaceholderLink": "Yer imi adı",
+    "notBackedUpTooLarge": "1 MB sınırının üzerinde olduğu için yedeklenmedi. Görselleri eklere taşıyın veya notu bölün.",
+    "notBackedUpFailed": "Yedeklenmedi. Son hata: {{message}}. Yeniden deneniyor.",
+    "unknownType": "Bu öğe, PrivacyNotes'un daha yeni bir sürümüyle oluşturuldu. Açmak için uygulamayı güncelleyin."
+  },
+  "share": {
+    "hover": "Paylaş / Dışa aktar",
+    "ariaLabel": "Paylaş veya dışa aktar",
+    "currentMdTitle": "Bu not (.md)",
+    "currentMdDesc": "Front-matter'lı ham markdown.",
+    "currentHtmlTitle": "Bu not (.html)",
+    "currentHtmlDesc": "Yazdırmaya uygun, beyaz sayfada işlenmiş markdown.",
+    "printTitle": "Yazdır / PDF olarak kaydet",
+    "printDesc": "Yazdırma penceresini açar. PDF olarak kaydedin veya yazıcıya gönderin.",
+    "printTextTitle": "Yalnızca metni yazdır",
+    "printTextDesc": "Başlığı korur. Tarihi, klasörü ve etiketleri çıkarır.",
+    "burnTitle": "Paylaş ve okunduktan sonra yak",
+    "burnDesc": "Bu notu tek seferlik görüntüleme bağlantısı olarak yayınlayın. Bağlantı okunduktan sonra kendini imha eder. Notunuz hesabınızda güvende kalır.",
+    "drawingFileTitle": "Çizim (.excalidraw)",
+    "drawingFileDesc": "Excalidraw ve Obsidian'da, görselleriyle birlikte açılır.",
+    "drawingPngTitle": "Görsel (.png)",
+    "drawingPngDesc": "Çizimin tamamı tek bir görsel olarak."
+  },
+  "weekReview": {
+    "title": "Haftanın özeti",
+    "daysLogged": "{{count}}/7 gün kayıtlı",
+    "mood": "Ruh hali",
+    "meds": "İlaçlar"
+  },
+  "footer": {
+    "settings": "Ayarlar",
+    "viewShortcuts": "Tüm klavye kısayollarını gör",
+    "newNote": "Yeni",
+    "newNoteHintMac": "Option + Shift + N",
+    "newNoteHintOther": "Alt + Shift + N",
+    "newNoteHintMacDesktop": "Command + N",
+    "newNoteHintOtherDesktop": "Ctrl + N",
+    "openStats": "İstatistikleri aç",
+    "journalCalendar": "Günlük takvimi",
+    "words_other": "Kelime",
+    "words_one": "Kelime",
+    "zen": "Zen modu",
+    "lockApp": "Uygulamayı kilitle",
+    "lockAppSetUp": "Önce Güvenlik bölümünden bir PIN oluşturun",
+    "goToTop": "Başa git",
+    "goToEnd": "Sona git",
+    "signingOut": "Çıkış yapılıyor…",
+    "switchToLight": "Açık moda geç",
+    "switchToDark": "Koyu moda geç"
+  },
+  "settings": {
+    "groupYourNotes": "Verileriniz",
+    "groupPreferences": "Tercihler",
+    "groupBrand": "PrivacyNotes",
+    "statsLabel": "İstatistikler",
+    "importLabel": "Aktarım",
+    "backupLabel": "Yedekleme",
+    "planLabel": "Hesap",
+    "storageLabel": "Depolama",
+    "imagesLabel": "Görseller",
+    "securityLabel": "Güvenlik",
+    "accountLabel": "Kimlik ve eşitleme",
+    "appearanceLabel": "Görünüm",
+    "editorLabel": "Düzenleyici",
+    "formatBarLabel": "Araç çubuğu",
+    "listsLabel": "Listeler",
+    "trackersLabel": "Takipler",
+    "helpLabel": "Yardım",
+    "aboutLabel": "Hakkında",
+    "languageLabel": "Dil",
+    "dateLabel": "Tarih ve saat",
+    "dateTabFormat": "Biçim",
+    "languageDesc": "PrivacyNotes'un gösterileceği dili seçin.",
+    "calendarLabel": "Takvim"
+  },
+  "importStore": {
+    "title": "İçe aktarılsın mı, saklansın mı?",
+    "confirm": "Not olarak içe aktar",
+    "cancel": "Dosya olarak sakla",
+    "bodySingle": "<strong>{{filename}}</strong> bir markdown dosyasına benziyor. Okuyup düzenleyebilmek için not olarak mı içe aktarılsın, yoksa şifrelenmiş bir dosya eki olarak mı saklansın?",
+    "bodyMulti": "Bu {{count}} dosya markdown gibi görünüyor. Okuyup düzenleyebilmek için not olarak mı içe aktarılsınlar, yoksa şifrelenmiş dosya ekleri olarak mı saklansınlar?"
+  },
+  "archiveConfirm": {
+    "body_one": "<highlight>{{count}} öğe</highlight> arşivlensin mi? Öğe listelerinizden çıkar ve Arşiv görünümünde bekler. Arşivden çıkar seçeneği onu geri getirir.",
+    "body_other": "<highlight>{{count}} öğe</highlight> arşivlensin mi? Öğeler listelerinizden çıkar ve Arşiv görünümünde bekler. Arşivden çıkar seçeneği onları geri getirir."
+  },
+  "bulkTrash": {
+    "body_one": "<highlight>{{count}} öğe</highlight> silinsin mi? Sonradan geri yüklemek için çöp kutusuna taşıyın veya kalıcı olarak silin.",
+    "body_other": "<highlight>{{count}} öğe</highlight> silinsin mi? Sonradan geri yüklemek için çöp kutusuna taşıyın veya kalıcı olarak silin.",
+    "confirm": "Çöp kutusuna taşı",
+    "keys": "Bu pencerenin dışında <kbd>{{trash}}</kbd> bir öğeyi hemen çöp kutusuna taşır, <kbd>{{ask}}</kbd> ise Bir daha sorma seçiliyken bile bu pencereyi açar.",
+    "dontAskAgain": "Bir daha sorma",
+    "readOnlyAcknowledge": "Anladım",
+    "readOnlyBlocked_one": "<highlight>{{count}} öğe</highlight> salt okunur olduğu için çöp kutusuna taşınamaz. Önce not seçeneklerinden salt okunur ayarını kapatın.",
+    "readOnlyBlocked_other": "<highlight>{{count}} öğe</highlight> salt okunur olduğu için çöp kutusuna taşınamaz. Önce not seçeneklerinden salt okunur ayarını kapatın.",
+    "readOnlySkipped_one": "<highlight>{{count}} öğe</highlight> salt okunur olduğu için olduğu yerde kalır.",
+    "readOnlySkipped_other": "<highlight>{{count}} öğe</highlight> salt okunur olduğu için olduğu yerde kalır."
+  },
+  "deleteCheckedTasks": {
+    "title": "İşaretli öğeler silinsin mi?",
+    "body_one": "<highlight>{{count}} öğe</highlight> bu nottan silinecek. Bu işlem geri alınamaz.",
+    "body_other": "<highlight>{{count}} öğe</highlight> bu nottan silinecek, iç içe öğeler dahil. Bu işlem geri alınamaz."
+  },
+  "tagConfirm": {
+    "mergeTitle": "Etiketleri birleştir",
+    "mergeConfirm": "Birleştir",
+    "mergeBody_one": "<highlight>“{{targetTag}}”</highlight> etiketi zaten var. Şu anda “{{tag}}” etiketli <highlight>{{count}} not</highlight> bununla birleştirilsin mi?",
+    "mergeBody_other": "<highlight>“{{targetTag}}”</highlight> etiketi zaten var. Şu anda “{{tag}}” etiketli <highlight>{{count}} not</highlight> bununla birleştirilsin mi?",
+    "deleteBody_one": "<highlight>“{{tag}}”</highlight> etiketi <highlight>{{count}} nottan</highlight> kaldırılsın mı? Notların kendisi silinmez.",
+    "deleteBody_other": "<highlight>“{{tag}}”</highlight> etiketi <highlight>{{count}} nottan</highlight> kaldırılsın mı? Notların kendisi silinmez.",
+    "deleteWithNotesBody_one": "<highlight>“{{tag}}”</highlight> etiketi silinip <highlight>{{count}} not</highlight> çöp kutusuna taşınsın mı? Oradan geri yükleyebilirsiniz.",
+    "deleteWithNotesBody_other": "<highlight>“{{tag}}”</highlight> etiketi silinip <highlight>{{count}} not</highlight> çöp kutusuna taşınsın mı? Oradan geri yükleyebilirsiniz."
+  },
+  "createNote": {
+    "title": "Not oluşturulsun mu?",
+    "confirm": "Not oluştur",
+    "body": "<highlight>“{{title}}”</highlight> başlıklı bir not yok. Bağlantı verilen not yeniden adlandırıldıysa bu olabilir. Bu başlıkla yeni bir not oluşturulsun mu?"
+  },
+  "freshVault": {
+    "title": "Yeni kasa oluşturuldu",
+    "confirm": "Anladım",
+    "body": "Girdiğiniz ifadeyle eşleşen bir kasa bulunamadı, bu yüzden yeni ve boş bir kasa oluşturuldu. Notlarınızı görmeyi bekliyorduysanız çıkış yapıp ifadenizi dikkatlice yeniden girin - tek bir farklı kelime bile bambaşka bir kasayı açar."
+  },
+  "ambiguousLink": {
+    "title": "İki not aynı başlığı taşıyor",
+    "body": "<highlight>“{{title}}”</highlight> başlığını birden fazla not taşıyor, bu yüzden bu bağlantı hangisini kastettiğini söylemiyor. Birini yeniden adlandırın, bağlantı diğerine gitsin."
+  },
+  "connections": {
+    "title": "Bağlantılar",
+    "hide": "Bağlantıları gizle",
+    "linkedFrom": "Buraya bağlantı verenler",
+    "linksTo": "Bağlantı verilenler",
+    "missing": "Henüz oluşturulmadı",
+    "protectedHidden_one": "PIN korumalı {{count}} öğe gösterilmiyor",
+    "protectedHidden_other": "PIN korumalı {{count}} öğe gösterilmiyor",
+    "related": "Önerilen bağlantılar",
+    "relatedWords": "İkisi de {{words}} konusundan bahsediyor",
+    "relatedLinksTo": "İkisi de {{title}} notuna bağlantı veriyor",
+    "relatedLinkedFrom": "İkisine de {{title}} notundan bağlantı veriliyor",
+    "relatedTag": "İkisi de {{tag}} etiketli",
+    "relatedMeaning": "Aynı anlam",
+    "meaningDoor": "Akıllı bağlantılar: aynı anlamdaki notları çevrimdışı yapay zekâ ile bulun",
+    "meaningDoorNo": "Bir daha gösterme",
+    "meaningDoorHidden": "Tüm notlarda gizlendi. Akıllı bağlantılar Ayarlar > Düzenleyici > Davranış altında kalır.",
+    "hideSuggestions": "Önerilen bağlantıları gizle",
+    "notRelated": "İlgisiz",
+    "notRelatedDone": "Artık önerilmiyor",
+    "notRelatedCount": "İlgisiz ({{n}})",
+    "restoreSuggestion": "Yeniden öner",
+    "linkAtCursor": "İmleç konumuna bağlantı ekle",
+    "linkNeedsCursor": "Önce nota tıklayın",
+    "linkAsFootnote": "Dipnot olarak bağlantı ekle"
+  },
+  "drawing": {
+    "fullScreen": "Tam ekran",
+    "frame": "Çerçeve",
+    "laser": "Lazer işaretçi",
+    "bar": {
+      "hiddenNote": "Kısayol tuşlarıyla yine çalışırlar."
+    },
+    "resetTitle": "Tuval sıfırlansın mı?",
+    "resetBody": "Bu, tuvaldeki her şeyi kaldırır. Geri al ile geri gelir.",
+    "hotkeysTitle": "Çizim kısayol tuşları",
+    "tools": {
+      "label": "Çizim araçları",
+      "keepTool": "Çizdikten sonra aracı koru",
+      "hand": "Tuvali taşı",
+      "rectangle": "Dikdörtgen",
+      "diamond": "Eşkenar dörtgen",
+      "ellipse": "Elips",
+      "arrow": "Ok",
+      "line": "Çizgi",
+      "pen": "Kalem",
+      "text": "Metin kutusu",
+      "steps": "Numaralı adımlar",
+      "eraser": "Silgi",
+      "resetZoom": "Yakınlaştırmayı sıfırla",
+      "open": "Bir çizim dosyası aç",
+      "reset": "Tuvali sıfırla",
+      "style": "Stil",
+      "more": "Daha fazla araç",
+      "fewer": "Daha az araç"
+    }
+  },
+  "location": {
+    "add": "Konum ekle",
+    "title": "Konum",
+    "chipLabel": "Konum: {{place}}",
+    "useCurrent": "Şu anki konumumu kullan",
+    "locating": "Konumunuz alınıyor",
+    "inputLabel": "Yer, koordinatlar veya bir harita bağlantısı",
+    "nameLabel": "Ad (isteğe bağlı)",
+    "openOsm": "OpenStreetMap'te aç",
+    "copyCoordinates": "Koordinatları kopyala",
+    "remove": "Konumu kaldır",
+    "errorUnreadable": "Yer bulunamadı. Bir yer yazın ya da koordinatları veya bir harita bağlantısını yapıştırın.",
+    "errorShortLink": "Kısa bağlantıların açılması için internet gerekir. Bağlantıyı açın, sonra tam adresi kopyalayın.",
+    "errorRange": "Bu sayılar haritanın dışında.",
+    "errorDenied": "PrivacyNotes için konum kapalı. Ayarlar'dan açın ya da koordinatları yapıştırın.",
+    "errorOff": "Bu telefonda konum servisleri kapalı. Ayarlar'dan açın ya da koordinatları yapıştırın.",
+    "errorTimeout": "Konumunuzu alamadık. Dışarıda yeniden deneyin ya da koordinatları yapıştırın.",
+    "saveFailed": "Yer kaydedilmedi. Yeniden deneyin.",
+    "mapNotice": "Gizliliğiniz için harita kendi sunucumuzdan: maps.privacynotes.app",
+    "mapLoading": "Harita yükleniyor",
+    "mapLabel": "{{place}} haritası",
+    "mapFailed": "Harita burada gösterilemiyor. Bunun yerine OpenStreetMap'te açın.",
+    "inputPlaceholder": "Fuji Dağı veya 35.36, 138.72",
+    "townsLoading": "Yer listesi yükleniyor",
+    "insertMap": "Harita ekle",
+    "gestureCtrl": "Haritayı yakınlaştırmak için Ctrl'ye basılı tutup kaydırın",
+    "gestureMac": "Haritayı yakınlaştırmak için ⌘'ye basılı tutup kaydırın",
+    "gestureTouch": "Haritayı kaydırmak için iki parmağınızı kullanın",
+    "autoNote": "Her yeni nota konumumu ekle",
+    "autoJournal": "Her yeni günlük kaydına konumumu ekle",
+    "autoDenied": "PrivacyNotes için konum kapalı. Önce telefonunuzun ayarlarından açın.",
+    "autoOff": "Bu telefonda konum servisleri kapalı. Önce bunları açın."
+  }
+}

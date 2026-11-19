@@ -1,0 +1,207 @@
+---
+id: 3d0c
+title: Allt markdown kan här
+---
+
+Allt nedanför gjordes med verktygsfältet högst upp i den här anteckningen. Inga inställningar, inga tillägg. Markera text så jobbar verktygsfältet på den. Klicka på en tom rad så börjar det något nytt.
+
+## Ord
+
+Du kan göra ett ord **fett**, eller *kursivt*, eller ***båda***. Du kan stryka över det, ~~så här~~. Du kan <u>stryka under</u> det. Finstilt går i <sub>nedsänkt</sub> och potenser i <sup>upphöjt</sup>.
+
+Text kan vara <span style="color: #e03131">röd</span>, <span style="color: #1971c2">blå</span>, <span style="color: #2f9e44">grön</span> eller någon av nio färger.
+
+Den kan vara ==överstruken i gult== eller <mark style="background-color: rgba(64, 192, 87, 0.35)">i grönt</mark>.
+
+En spoiler döljer ord tills någon klickar på dem: presenten är ||en skivspelare||. Markera orden och välj **Spoiler** i menyn **Infoga**, eller skriv två lodräta streck på var sida.
+
+En ikon eller en logotyp kan sitta i en textrad, som :icon[gift] :icon[coffee] :icon[rocket-launch] eller :logo[github]. Välj en under **Infoga** > **Ikoner och logotyper**.
+
+Knappen **Aa** ändrar storlek och typsnitt. Text kan vara <span style="font-size: 0.85em">liten</span>, normal eller <span style="font-size: 1.6em">stor</span>. Den kan vara <span style="font-family: ui-sans-serif, system-ui, sans-serif">enkel</span>, <span style="font-family: ui-serif, Georgia, Cambria, serif">med seriffer</span> eller <span style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace">med fast bredd</span>.
+
+## Var orden sitter
+
+<p style="text-align: center;">Det här stycket är centrerat.</p>
+
+<p style="text-align: right;">Det här är skjutet åt höger.</p>
+
+Justering flyttar ett helt stycke, aldrig ett enda ord. Sätt markören i stycket och använd justeringsknappen.
+
+## Listor
+
+- En vanlig punkt
+- En till
+  - Tryck Tab för att dra in en rad
+    - Och en gång till
+
+1. Ett numrerat steg
+2. Ett andra steg
+3. Lägg in ett steg var som helst så rättar sig siffrorna själva
+
+- [x] En ruta du har bockat i
+
+- [ ] Ruta
+
+  - [ ] Tryck Tab för att dra in en uppgift
+
+  - [ ] Bocka i rutan och titta på animationen
+
+- [ ] Tryck Skift och Tab för att minska indraget
+
+## Tabeller
+
+| Region | Anteckningar | Andel |
+| --- | :---: | ---: |
+| Europa | 1 204 | 48 % |
+| Amerika | 902 | 36 % |
+| Asien | 401 | 16 % |
+<!-- table-fill: r0=blue r1c2=green r3c2=red -->
+
+Mittenkolumnen är centrerad och den sista högerställd. Dra i en kolumnkant för att göra den bredare. En cell eller en hel rad kan få en färg från tabellens verktygsfält. Den lilla pilen i en rubrikcell sorterar raderna under den, och ett andra klick sorterar dem åt andra hållet.
+
+En tabell kan också räkna. Skriv `=` i en cell för att välja en funktion. Cellen visar svaret och anteckningen behåller formeln, så klicka på ett svar för att se hur det räknades fram.
+
+| Vara | Antal | Pris | Totalt |
+| --- | ---: | ---: | ---: |
+| Kaffe | 2 | 3.50 | =B2*C2 |
+| Kaka | 1 | 4.20 | =B3*C3 |
+|  |  | Summa | =SUM(D2:D3) |
+
+## Informationsrutor
+
+En informationsruta är en färgad ruta för något en läsare inte får missa. Skriv `[!` på en tom rad för att välja en.
+
+> [!tip]+ Tips
+> Klicka på ikonen för att fälla ihop den.
+
+> [!warning]+ Varning
+> Varje sort har sin egen färg och sin egen ikon.
+
+> [!danger]+ Fara
+> Det finns många sorter. Menyn **Infoga** listar dem.
+
+> [!fold]- Hopfällbar
+> Ingen ruta och ingen färg: bara text som håller sig undan tills du öppnar den.
+
+## Citat
+
+> Ett citat kliver in från marginalen och får en färgad linje längs sidan.
+
+## Fotnoter
+
+En fotnot håller en källa eller en kommentar utanför texten.[^1] Skriv `[^1]` efter ett ord, eller välj **Fotnot** i menyn **Infoga**. Klicka på den lilla siffran för att hoppa till noten.
+
+## Kod
+
+Kod behåller sina mellanrum och färgas efter språk. Namnet högst upp i ett block är dess språk: klicka på det för att välja ett annat.
+
+```js
+export function seal(note, key) {
+  const nonce = randomBytes(24);
+  return xchacha20poly1305(key, nonce).encrypt(note);
+}
+```
+
+```python
+def rolling_mean(values, window):
+    return [sum(values[i:i + window]) / window
+            for i in range(len(values) - window + 1)]
+```
+
+Ett långt block öppnas hopfällt, så att resten av anteckningen finns nära. Knappen under det visar alla rader.
+
+```js
+const WORDS_PER_MINUTE = 200;
+
+export function readingStats(markdown) {
+  const text = markdown
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/[#*_~`>|-]/g, ' ');
+
+  const words = text.split(/\s+/).filter(Boolean);
+  const headings = markdown.match(/^#{1,6} /gm) ?? [];
+  const tasks = markdown.match(/^\s*- \[[ x]\] /gm) ?? [];
+  const done = tasks.filter((task) => task.includes('[x]'));
+
+  return {
+    words: words.length,
+    minutes: Math.max(1, Math.round(words.length / WORDS_PER_MINUTE)),
+    headings: headings.length,
+    tasks: tasks.length,
+    done: done.length,
+  };
+}
+
+export function summary(stats) {
+  const parts = [`${stats.words} words`, `${stats.minutes} min read`];
+  if (stats.headings > 0) {
+    parts.push(`${stats.headings} sections`);
+  }
+  if (stats.tasks > 0) {
+    parts.push(`${stats.done} of ${stats.tasks} tasks done`);
+  }
+  return parts.join(' · ');
+}
+
+export function isLongRead(stats) {
+  return stats.minutes >= 10;
+}
+```
+
+Ett kodblock kan ha en titel. Klicka på språknamnet och välj **Lägg till titel**. Pilen bredvid titeln fäller ihop blocket till en rad, och anteckningen kommer ihåg det.
+
+```bash title="backup.sh" fold
+#!/bin/sh
+# Copy the notes folder into a dated archive.
+tar -czf "notes-$(date +%F).tar.gz" "$HOME/Notes"
+```
+
+En **Kopieringsruta** rymmer en sak att kopiera, som en adress eller ett kommando. Dess knapp kopierar allt med ett klick.
+
+```copy
+ssh-keygen -t ed25519 -C "laptop"
+```
+
+En kort kodsnutt mitt i en mening ser ut så här i stället: `den här`. Håll ned Cmd (Ctrl på Windows och Linux) och klicka på den för att kopiera den.
+
+## Matematik
+
+Matematik kan sitta i en mening, som $a^2 + b^2 = c^2$, eller stå på egen rad:
+
+$$i\hbar\frac{\partial}{\partial t}\Psi = \hat{H}\Psi$$
+
+## Bilder
+
+![Fuji bakom körsbärsblom.](/onboarding/fuji.webp){width=50 align=center}
+
+Dra in en bild i en anteckning, eller klistra in den. Klicka på den en gång för att ändra storlek, eller för att flytta den åt vänster, mitten eller höger. Den ovanför är halv bredd och centrerad.
+
+## Kartor
+
+```map
+35.3606, 138.7274
+Fuji
+```
+
+Lägg in en plats i en anteckning med **Infoga** > **Plats**. Kartan kommer från vår egen server, så inget kartföretag ser var du tittar. I alla andra Markdown-appar läses den som koordinaterna och namnet.
+
+## Länkar
+
+Det finns två sorter, och de ser olika ut med flit.
+
+- En webblänk öppnar en sida: [privacynotes.app](https://privacynotes.app/sv)
+- En webblänk kan ha text vid hovring. Peka på [den här](https://privacynotes.app/sv/help "Våra hjälpsidor") och vänta.
+- En anteckningslänk öppnar en annan av dina anteckningar: [[Hur dina anteckningar skyddas]]
+
+Båda har en knapp i verktygsfältet. Kedjan gör en webblänk. Hakparenteserna gör en anteckningslänk: de listar dina anteckningar, och du väljer den du menar. Att skriva `[[` gör samma sak.
+
+En anteckningslänk behöver inte visas med anteckningens titel. Skriv titeln, ett lodrätt streck och sedan orden du vill ska synas på sidan: [[Hur dina anteckningar skyddas|de här orden]] öppnar den anteckningen.
+
+En anteckningslänk kan också öppna en anteckning vid en av dess rubriker. Skriv ett `#` efter titeln och välj rubriken: [[Hur dina anteckningar skyddas#Vem som har din nyckel]] öppnar anteckningen vid avsnittet om nyckeln. Länkikonen vid en rubrik i översikten kopierar en sådan länk åt dig.
+
+---
+
+*Skriver du redan markdown, skriv det bara så formateras det medan du skriver. Rå text bakom vilken anteckning som helst ser du med **Visa markdown** längst ned till höger i den här anteckningen.*
+
+[^1]: Det här är noten. Pilen bredvid tar dig tillbaka upp.

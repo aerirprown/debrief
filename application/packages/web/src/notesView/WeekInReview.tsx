@@ -1,0 +1,55 @@
+import { useTranslation } from 'react-i18next';
+import type { LocalNote } from '../db';
+import { type MedicationTemplate } from '../trackerTypes';
+import { computeTrackerStats } from '../trackerStats';
+
+export function WeekInReview({
+  notes,
+  medications,
+  isNoteLocked,
+}: {
+  notes: LocalNote[];
+  medications: MedicationTemplate[];
+  /** The view's lock predicate: a journal behind a closed gate stays out. */
+  isNoteLocked: (n: LocalNote) => boolean;
+}) {
+  const { t } = useTranslation('notes');
+  const { t: tt } = useTranslation('trackers');
+  // Full list, tombstones included - a deleted medication's logged doses
+  // still need a name to render against.
+  const tStats = computeTrackerStats(notes, medications, isNoteLocked);
+  if (!tStats.weekInReview) return null;
+  const w = tStats.weekInReview;
+  return (
+    <div className="mx-4 sm:mx-6 mt-2 mb-1 rounded-lg border border-accent/30 bg-accent/5 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-meta font-semibold text-accent uppercase tracking-wide">{t('weekReview.title')}</span>
+        <span className="text-meta text-pn-muted">{t('weekReview.daysLogged', { count: w.daysLogged })}</span>
+      </div>
+      <div className="flex flex-wrap gap-3 text-small">
+        {w.avgMood != null && (
+          <span className="text-pn-soft">
+            {t('weekReview.mood')} <strong>{w.avgMood}</strong>/10
+            {w.moodDelta != null && (
+              <span className={w.moodDelta > 0 ? ' text-success' : w.moodDelta < 0 ? ' text-danger' : ''}>
+                {' '}({w.moodDelta > 0 ? '+' : ''}{w.moodDelta})
+              </span>
+            )}
+          </span>
+        )}
+        {w.avgSleepHours != null && <span className="text-pn-soft">{t('trackers:labels.sleep')} <strong>{w.avgSleepHours}h</strong></span>}
+        {w.medAdherence != null && <span className="text-pn-soft">{t('weekReview.meds')} <strong>{w.medAdherence}%</strong></span>}
+        {w.dominantActivity && <span className="text-pn-soft">{t('trackers:labels.activity')} <strong>{tt(`activity.level.${w.dominantActivity.level}`)}</strong></span>}
+      </div>
+      {w.topEmotions.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {w.topEmotions.slice(0, 3).map((em) => (
+            <span key={em.key} className="px-1.5 py-0.5 rounded text-meta bg-pn/10 text-pn-soft">
+              {tt(`emotions.tags.${em.key}`)}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
