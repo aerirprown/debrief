@@ -260,6 +260,8 @@ function AutoBackupToastSlot({ onOpenSettings }: { onOpenSettings: () => void })
 }
 // Home's widgets load when Home first draws. Spec: docs/internal/specs/dashboard.md (section 8)
 const DashboardLazy = lazyPart(() => import('./dashboard/Dashboard').then((m) => m.default));
+// Games shelf loads on open only — keep it off the NotesView boot path.
+const GamesShelfLazy = lazyPart(() => import('./games/GamesShelf').then((m) => m.GamesShelf));
 // Spec: docs/internal/specs/note-shortcuts.md (6.1): only a shortcut opened in a
 // computer browser loads it.
 const ShortcutDesktopBar = lazyPart(() => import('./ShortcutOffer').then((m) => m.ShortcutDesktopBar));
@@ -321,9 +323,6 @@ import { isFeedItemId, type CalendarFeeds } from './calendarFeeds';
 import { sessionTokenOf } from './sessionToken';
 import i18n from './i18n';
 import { kanbanEmptyBody } from './kanbanLayout';
-import { emptyGamePageBody } from './games/page';
-import { FIXTURE_GAME_ID, FIXTURE_GAMES } from './games/fixtureJournal';
-import { GamesShelf } from './games/GamesShelf';
 import { emptyDrawingBody } from './drawing/scene';
 import { addTextBox, emptyFreeformBody, emptyPage, serializePage } from './freeform/page';
 import { DrawingVersion } from './drawing/DrawingItem';
@@ -3847,7 +3846,7 @@ function AuthenticatedView({
       : kanban
       ? t('newMenu.kanban')
       : game
-      ? (FIXTURE_GAMES[0]?.title ?? t('newMenu.game', { defaultValue: 'Game' }))
+      ? t('newMenu.game', { defaultValue: 'Game' })
       : isTasks
       ? t('tasks.newTitle', {
           date: journalTitle(today, 'long', '', locale),
@@ -3870,7 +3869,8 @@ function AuthenticatedView({
       : effectiveVaultType
       ? (VAULT_EMPTY_BODIES[effectiveVaultType] ?? '')
       : kanban ? kanbanEmptyBody((key) => i18n.t(key))
-      : game ? emptyGamePageBody(FIXTURE_GAME_ID)
+      // Inline empty game page so games/* stays off the NotesView boot path.
+      : game ? JSON.stringify({ type: 'debrief-game', version: 1, gameId: 'game-fixture-1' })
       : isDrawing ? emptyDrawingBody()
       : isTasks && userSettings.editorMode === 'formatted' ? TASK_LIST_EMPTY_BODY
       : !effectiveVaultType && !isJournal && !isTasks && !isCalendar && !isDrawing
@@ -6853,16 +6853,18 @@ function AuthenticatedView({
   } : undefined;
 
   const notesList = showGamesShelf && journalRootPath ? (
-    <GamesShelf
-      journalRoot={journalRootPath}
-      onClose={() => setShowGamesShelf(false)}
-      onJournalRootChange={(path) => {
-        void import('./games/shelfApi').then(({ JOURNAL_ROOT_STORAGE_KEY }) => {
-          localStorage.setItem(JOURNAL_ROOT_STORAGE_KEY, path);
-        });
-        setJournalRootPath(path);
-      }}
-    />
+    <Suspense fallback={<div className="flex-1" />}>
+      <GamesShelfLazy
+        journalRoot={journalRootPath}
+        onClose={() => setShowGamesShelf(false)}
+        onJournalRootChange={(path) => {
+          void import('./games/shelfApi').then(({ JOURNAL_ROOT_STORAGE_KEY }) => {
+            localStorage.setItem(JOURNAL_ROOT_STORAGE_KEY, path);
+          });
+          setJournalRootPath(path);
+        }}
+      />
+    </Suspense>
   ) : (
     <NotesList
       place={placeScope}
