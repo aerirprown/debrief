@@ -94,7 +94,8 @@ export function GamesShelf({
   }, [reload]);
 
   useEffect(() => {
-    if (!logGameId && rows.length) setLogGameId(rows[0].id);
+    const first = rows[0];
+    if (!logGameId && first) setLogGameId(first.id);
   }, [rows, logGameId]);
 
   async function onLaunch(row: ShelfRow) {

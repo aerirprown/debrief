@@ -140,20 +140,24 @@ export function FreeformCanvas({
     };
 
     const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length !== 2) {
+      const a = e.touches.item(0);
+      const b = e.touches.item(1);
+      if (!a || !b) {
         pinchRef.current = null;
         return;
       }
       pinchRef.current = {
-        startDist: dist(e.touches[0], e.touches[1]),
+        startDist: dist(a, b),
         startZoom: zoomRef.current,
       };
     };
     const onTouchMove = (e: TouchEvent) => {
       const pinch = pinchRef.current;
-      if (!pinch || e.touches.length !== 2) return;
+      const a = e.touches.item(0);
+      const b = e.touches.item(1);
+      if (!pinch || !a || !b) return;
       e.preventDefault();
-      const next = pinch.startZoom * (dist(e.touches[0], e.touches[1]) / pinch.startDist);
+      const next = pinch.startZoom * (dist(a, b) / pinch.startDist);
       setZoom(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next)));
     };
     const onTouchEnd = () => {

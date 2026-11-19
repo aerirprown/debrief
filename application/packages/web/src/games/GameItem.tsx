@@ -4,7 +4,7 @@ import { FreeformItem } from '../freeform/FreeformItem';
 import { emptyFreeformBody } from '../freeform/page';
 import './returnCard.css';
 import { parseGamePageBody } from './page';
-import { ReturnCard } from './ReturnCard';
+import { ReturnCard } from './GameReturnCard';
 import {
   FIXTURE_AS_OF_DAY,
   FIXTURE_GAME_ID,
