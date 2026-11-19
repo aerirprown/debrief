@@ -38,10 +38,10 @@ android {
     compileSdkMinor = 1
     // AGP 9.5 defaults to Build-Tools 36.0.0 and downloads it when it is missing.
     buildToolsVersion = "37.0.0"
-    namespace = "app.privacynotes"
+    namespace = "app.debrief"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
-        applicationId = "app.privacynotes"
+        applicationId = "app.debrief"
         minSdk = 24
         targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
@@ -68,7 +68,13 @@ android {
             }
         }
         getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
+            // No Play/direct keystore in this clone yet: sign with the debug
+            // key so `tauri android build --apk` still produces an installable APK.
+            signingConfig = if (keystoreProperties["storeFile"] != null) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             isMinifyEnabled = true
             proguardFiles(
                 *fileTree(".") { include("**/*.pro") }

@@ -1,4 +1,4 @@
-package app.privacynotes
+package app.debrief
 
 import android.content.Context
 import android.content.Intent
